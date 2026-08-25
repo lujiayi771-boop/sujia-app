@@ -11720,7 +11720,20 @@ async function registerServiceWorker(){
    return;
  }
  try{
-   const swCode=`
+   // 优先注册外部 sw.js（HTTPS部署环境，支持真正的后台通知）
+   // 失败则降级为 blob 内联方式（本地单文件打开时）
+   let registered=false;
+   try{
+     swRegistration=await navigator.serviceWorker.register('./sw.js',{scope:"./"});
+     registered=true;
+     console.log("[通知] 外部sw.js注册成功，后台通知已就绪");
+   }catch(extErr){
+     console.warn("[通知] 外部sw.js注册失败，尝试blob降级:",extErr.message);
+   }
+   if(!registered){
+     try{
+       const swCode=`
+
      const CACHE_NAME='suijia-app-v23';
      self.addEventListener('install',e=>{
        self.skipWaiting();
@@ -11807,10 +11820,18 @@ async function registerServiceWorker(){
        // 通知关闭时无需特殊处理
      });
    `;
-   const blob=new Blob([swCode],{type:"application/javascript"});
-   const swUrl=URL.createObjectURL(blob);
-   swRegistration=await navigator.serviceWorker.register(swUrl,{scope:"./"});
-   console.log("[通知] Service Worker 注册成功，手机息屏通知已就绪");
+       const blob=new Blob([swCode],{type:"application/javascript"});
+       const swUrl=URL.createObjectURL(blob);
+       swRegistration=await navigator.serviceWorker.register(swUrl,{scope:"./"});
+       registered=true;
+       console.log("[通知] blob降级注册成功（单文件模式，后台通知可能受限）");
+     }catch(blobErr){
+       throw blobErr;
+     }
+   }
+   if(registered){
+     console.log("[通知] Service Worker 注册成功，手机息屏通知已就绪");
+   }
   }catch(e){
     console.warn("SW注册失败:",e);
     swAvailable=false;
