@@ -6815,6 +6815,8 @@ const IDB_DB="simChatStateDB_v1";
 const IDB_STORE="state";
 let _idbDb=null;
 let _idbQuotaCache={quota:5*1024*1024,usage:0,updated:0};
+try{setTimeout(()=>{try{idbOpen().catch(()=>{});}catch(e){}},0);}catch(e){}
+try{if(navigator.storage?.persist)navigator.storage.persist().catch(()=>{});}catch(e){}
 function idbOpen(){
   return new Promise((resolve,reject)=>{
     if(_idbDb){resolve(_idbDb);return;}
@@ -6827,18 +6829,13 @@ function idbOpen(){
     }catch(e){reject(e);}
   });
 }
+let _idbWriteQueue=Promise.resolve();
 function idbSaveState(data){
-  return new Promise(async(resolve)=>{
-    try{
-      const db=await idbOpen();
-      const tx=db.transaction(IDB_STORE,"readwrite");
-      tx.objectStore(IDB_STORE).put(JSON.stringify(data),"main");
-      tx.oncomplete=()=>resolve(true);
-      tx.onerror=()=>resolve(false);
-      tx.onabort=()=>resolve(false);
-    }catch(e){console.warn("IDB save failed:",e);resolve(false);}
-  });
+  const snapshot=JSON.stringify(data);
+  const job=()=>new Promise(async(resolve)=>{try{const db=await idbOpen();const tx=db.transaction(IDB_STORE,"readwrite");tx.objectStore(IDB_STORE).put(snapshot,"main");tx.oncomplete=()=>resolve(true);tx.onerror=()=>resolve(false);tx.onabort=()=>resolve(false);}catch(e){console.warn("IDB save failed:",e);resolve(false);}});
+  _idbWriteQueue=_idbWriteQueue.then(job,job); return _idbWriteQueue;
 }
+function idbWaitForWrites(){return _idbWriteQueue.catch(()=>false);}
 function idbLoadState(){
   return new Promise(async(resolve)=>{
     try{
@@ -6906,7 +6903,10 @@ async function idbSyncOnLoad(){
         return ids==="1,2,3"&&state.userName==="我"&&(!state._lastSaved||state._lastSaved===0);
       }catch(e){return false;}
     })();
-    const needSync=lsEmpty||(idbChats>lsChats)||(idbMsgs>lsMsgs)||(isInitialState&&idbChats>0)||idbNewer||forceRestore||(looksLikeInitialData&&idbMsgs>0);
+    const imageScore=(obj)=>{let n=0,b=0;try{if(obj?.userAvatar?.image){n++;b+=String(obj.userAvatar.image).length;}obj?.chats?.forEach(c=>{if(c?.avatar?.image){n++;b+=String(c.avatar.image).length;}if(c?.chatBg?.image){n++;b+=String(c.chatBg.image).length;}(c?.stickerLibrary||[]).forEach(x=>{if(x?.dataUrl){n++;b+=String(x.dataUrl).length;}});(c?.messages||[]).forEach(m=>{if((m?.type==='image'||m?.type==='sticker')&&m?.text){n++;b+=String(m.text).length;}});(c?.moments||[]).forEach(m=>{if(m?.image){n++;b+=String(m.image).length;}});});(obj?.moments||[]).forEach(m=>{if(m?.image){n++;b+=String(m.image).length;}});}catch(e){}return{n,b};};
+    const ii=imageScore(idbData),li=imageScore(state);
+    const idbHasMoreImages=ii.n>li.n||ii.b>li.b+1024;
+    const needSync=lsEmpty||(idbChats>lsChats)||(idbMsgs>lsMsgs)||(isInitialState&&idbChats>0)||idbNewer||forceRestore||idbHasMoreImages||(looksLikeInitialData&&idbMsgs>0);
     if(forceRestore){try{sessionStorage.removeItem("_idb_force_restore");}catch(e){}}
     if(needSync){
       console.log("[IDB] 从 IndexedDB 恢复数据，原因:",{lsEmpty,idbChats,lsChats,idbMsgs,lsMsgs,isInitialState});
@@ -7032,6 +7032,8 @@ function save(){
    return false;
  }
 }
+window.addEventListener("pagehide",()=>{try{save();}catch(e){}});
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden"){try{save();}catch(e){}}});
 function esc(s){
  return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
 }
@@ -15588,6 +15590,9 @@ function resetAllData(){
   try{
     // 清除所有localStorage数据
     localStorage.clear();
+    try{indexedDB.deleteDatabase("simChatStateDB_v1");}catch(e){}
+    try{indexedDB.deleteDatabase("simChatMusicStateDB_v1");}catch(e){}
+    try{indexedDB.deleteDatabase("simChatMusicDB_v3");}catch(e){}
     toast("正在恢复初始数据...");
     setTimeout(()=>{
       location.reload();
@@ -15632,6 +15637,13 @@ function initMusicState(){
   // 确保currentTab是all，避免新歌不显示
   if(musicState.currentTab!=="all"&&musicState.currentTab!=="fav")musicState.currentTab="all";
 }
+const MUSIC_STATE_DB="simChatMusicStateDB_v1";
+let _musicStateDbPromise=null;
+function openMusicStateDB(){if(_musicStateDbPromise)return _musicStateDbPromise;_musicStateDbPromise=new Promise((resolve,reject)=>{if(!window.indexedDB){reject(new Error("IndexedDB unavailable"));return;}const r=indexedDB.open(MUSIC_STATE_DB,1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains("state"))r.result.createObjectStore("state");};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});return _musicStateDbPromise;}
+function saveMusicStateToIDB(data){return openMusicStateDB().then(db=>new Promise((resolve,reject)=>{const tx=db.transaction("state","readwrite");tx.objectStore("state").put(data,"main");tx.oncomplete=()=>resolve(true);tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);})).catch(()=>false);}
+function loadMusicStateFromIDB(){return openMusicStateDB().then(db=>new Promise(resolve=>{const tx=db.transaction("state","readonly"),r=tx.objectStore("state").get("main");r.onsuccess=()=>resolve(r.result||null);r.onerror=()=>resolve(null);})).catch(()=>null);}
+async function restoreMusicStateFromIDB(){const d=await loadMusicStateFromIDB();if(!d)return false;let l=null;try{l=JSON.parse(localStorage.getItem("musicState")||"null");}catch(e){}if(!l||Number(d._lastSaved||0)>Number(l._lastSaved||0)||(d.songs||[]).length>(l.songs||[]).length){musicState={...musicState,...d};window.musicState=musicState;try{localStorage.setItem("musicState",JSON.stringify(d));}catch(e){}return true;}return false;}
+
 function saveMusicState(){
   try{
     const toSave={
@@ -15657,7 +15669,9 @@ function saveMusicState(){
       comments:musicState.comments?{...musicState.comments}:{},
       currentTab:musicState.currentTab||"all"
     };
-    localStorage.setItem("musicState",JSON.stringify(toSave));
+    toSave._lastSaved=Date.now();
+    try{localStorage.setItem("musicState",JSON.stringify(toSave));}catch(e){}
+    saveMusicStateToIDB(toSave);
     return true;
   }catch(e){
     console.error("saveMusicState error:",e);
