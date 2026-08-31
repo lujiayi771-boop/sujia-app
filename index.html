@@ -6647,6 +6647,13 @@ const initial={
 };
 
 let state=load();
+// 请求持久化存储权限，防止浏览器在存储空间不足时清理 IndexedDB/localStorage 数据
+if(navigator.storage&&navigator.storage.persist){
+  navigator.storage.persist().then(granted=>{
+    if(granted)console.log("[存储] 持久化权限已授予，数据不会被浏览器自动清理");
+    else console.warn("[存储] 持久化权限未授予，存储空间不足时数据可能被清理");
+  }).catch(e=>console.warn("[存储] 请求持久化权限失败:",e));
+}
 // 页面加载后从 IndexedDB 同步完整数据（localStorage仅作缓存，可能不完整）
 if(typeof idbSyncOnLoad==="function"){
   if(document.readyState==="loading"){
@@ -6906,7 +6913,11 @@ async function idbSyncOnLoad(){
     const imageScore=(obj)=>{let n=0,b=0;try{if(obj?.userAvatar?.image){n++;b+=String(obj.userAvatar.image).length;}obj?.chats?.forEach(c=>{if(c?.avatar?.image){n++;b+=String(c.avatar.image).length;}if(c?.chatBg?.image){n++;b+=String(c.chatBg.image).length;}(c?.stickerLibrary||[]).forEach(x=>{if(x?.dataUrl){n++;b+=String(x.dataUrl).length;}});(c?.messages||[]).forEach(m=>{if((m?.type==='image'||m?.type==='sticker')&&m?.text){n++;b+=String(m.text).length;}});(c?.moments||[]).forEach(m=>{if(m?.image){n++;b+=String(m.image).length;}});});(obj?.moments||[]).forEach(m=>{if(m?.image){n++;b+=String(m.image).length;}});}catch(e){}return{n,b};};
     const ii=imageScore(idbData),li=imageScore(state);
     const idbHasMoreImages=ii.n>li.n||ii.b>li.b+1024;
-    const needSync=lsEmpty||(idbChats>lsChats)||(idbMsgs>lsMsgs)||(isInitialState&&idbChats>0)||idbNewer||forceRestore||idbHasMoreImages||(looksLikeInitialData&&idbMsgs>0);
+    // 比较字卡库/表情包库总数量，确保字卡和表情包变化时也能触发恢复
+    const libScore=(obj)=>{let n=0;try{obj?.chats?.forEach(c=>{n+=(c?.replyLibrary||[]).length;n+=(c?.momentLibrary||[]).length;n+=(c?.nudgeLibrary||[]).length;n+=(c?.statusLibrary||[]).length;n+=(c?.stickerLibrary||[]).length;n+=(c?.voiceLibrary||[]).length;});}catch(e){}return n;};
+    const idbLibs=libScore(idbData),lsLibs=libScore(state);
+    const idbHasMoreLibs=idbLibs>lsLibs;
+    const needSync=lsEmpty||(idbChats>lsChats)||(idbMsgs>lsMsgs)||(isInitialState&&idbChats>0)||idbNewer||forceRestore||idbHasMoreImages||idbHasMoreLibs||(looksLikeInitialData&&idbMsgs>0);
     if(forceRestore){try{sessionStorage.removeItem("_idb_force_restore");}catch(e){}}
     if(needSync){
       console.log("[IDB] 从 IndexedDB 恢复数据，原因:",{lsEmpty,idbChats,lsChats,idbMsgs,lsMsgs,isInitialState});
@@ -6996,6 +7007,7 @@ async function idbSyncOnLoad(){
 }
 
 let _saveErrThrottle=0;
+let _lsFullWarnThrottle=0;
 let _idbSavePromise=null;
 function save(){
  try{
@@ -7019,6 +7031,12 @@ function save(){
      // localStorage 满了，设置恢复标记，让页面刷新后强制从 IndexedDB 恢复
      try{sessionStorage.setItem("_idb_force_restore","1");}catch(e){}
      console.warn("[save] localStorage缓存写入失败（数据已存IndexedDB，已标记强制恢复）:",lsErr.name);
+     // 给用户提示（节流，每 15 秒最多提示一次）
+     const _now=Date.now();
+     if(_now-_lsFullWarnThrottle>15000){
+       _lsFullWarnThrottle=_now;
+       try{toast("存储空间较满，数据正在后台保存，请稍候再关闭页面");}catch(e){}
+     }
    }
    _saveErrThrottle=0;
    return true;
@@ -7032,8 +7050,8 @@ function save(){
    return false;
  }
 }
-window.addEventListener("pagehide",()=>{try{save();}catch(e){}});
-document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden"){try{save();}catch(e){}}});
+window.addEventListener("pagehide",()=>{try{if(typeof stickerFlushSave==="function")stickerFlushSave();save();}catch(e){}});
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden"){try{if(typeof stickerFlushSave==="function")stickerFlushSave();save();}catch(e){}}});
 function esc(s){
  return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
 }
@@ -11478,7 +11496,10 @@ $("stickerContactSelect").addEventListener("change",()=>{
 let _stickerSaveTimer=null;
 function stickerDebouncedSave(){
   if(_stickerSaveTimer)clearTimeout(_stickerSaveTimer);
-  _stickerSaveTimer=setTimeout(()=>{save();_stickerSaveTimer=null;},600);
+  _stickerSaveTimer=setTimeout(()=>{save();_stickerSaveTimer=null;},150);
+}
+function stickerFlushSave(){
+  if(_stickerSaveTimer){clearTimeout(_stickerSaveTimer);_stickerSaveTimer=null;save();}
 }
 $("stickerUploadBtn").addEventListener("click",()=>$("stickerFileInput").click());
 $("stickerFileInput").addEventListener("change",async e=>{
@@ -12388,18 +12409,23 @@ document.addEventListener("visibilitychange",()=>{
 // 页面卸载前保存（双重保险：beforeunload + pagehide）
 function _flushSaveOnExit(){
   try{
+    // 先刷新表情包防抖保存，确保最新数据被保存
+    if(typeof stickerFlushSave==="function")stickerFlushSave();
     // 同步写入 localStorage（快速缓存）
     save();
-    // 注意：IndexedDB 写入是异步的，beforeunload/pagehide 中无法可靠等待
-    // 但 save() 已将数据放入 IndexedDB 事务队列，浏览器会尽可能完成
-    // 若页面被强制终止，下次打开时 idbSyncOnLoad 会从 localStorage 恢复
+    // 给 IndexedDB 事务留出时间完成写入（页面卸载时浏览器可能来不及完成异步事务）
+    // 这里短暂阻塞主线程，让浏览器有机会将已发起的 IndexedDB 事务刷入磁盘
+    try{
+      const waitUntil=Date.now()+300;
+      while(Date.now()<waitUntil){/* 短暂等待，给 IndexedDB 事务完成时间 */}
+    }catch(e){}
   }catch(e){console.warn("[exit] 保存失败:",e);}
 }
 window.addEventListener("beforeunload",_flushSaveOnExit);
 window.addEventListener("pagehide",_flushSaveOnExit);
 // 页面可见性变化时也保存（移动端切后台容易被杀死）
 document.addEventListener("visibilitychange",()=>{
-  if(document.hidden){try{save();}catch(e){}}
+  if(document.hidden){try{if(typeof stickerFlushSave==="function")stickerFlushSave();save();}catch(e){}}
 });
 /* ===== 通知与保活设置表单 ===== */
 
@@ -15362,6 +15388,7 @@ $("orphanConfirm").addEventListener("click",async()=>{
       $("slimProgressModal").classList.remove("show");
       $("slimProgressFill").style.width="0%";
       if(result.cleaned>0){
+        save(); // 清理后必须保存，否则刷新后数据会恢复
         toast(`已清理 ${result.cleaned} 项（含 ${result.brokenCount} 张损坏图片），释放 ${formatSize(result.totalFreed)}`);
       }else{
         toast("没有需要清理的孤立图片，所有图片均有效");
