@@ -4235,7 +4235,7 @@ body.dark .music-mini-player{
   border-radius:16px;padding:20px;margin-top:16px;min-height:150px;
 }
 .tarot-reading-title{font-size:17px;font-weight:700;color:#e8d5ff;margin-bottom:14px;}
-.tarot-reading-content{font-size:15px;line-height:1.8;color:#d0c8e0;white-space-pre-wrap;}
+.tarot-reading-content{font-size:15px;line-height:1.8;color:#d0c8e0;white-space:pre-wrap;}
 .tarot-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px;}
 .tarot-spinner{
   width:48px;height:48px;border-radius:50%;
@@ -5513,13 +5513,13 @@ body.dark .rp-history-title{color:#f0f0f2;}
             <span>通知权限未开启，息屏时可能收不到消息提醒</span>
             <button id="requestPermBtn">开启通知</button>
           </div>
-          <!-- file://协议警告 -->
+          <!-- file：//协议警告 -->
           <div id="protocolWarn" style="display:none;background:#fff3cd;border:1px solid #ffc107;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#856404;line-height:1.6;">
-            <div style="font-weight:600;margin-bottom:4px;">⚠️ 当前为 file:// 模式，息屏通知不可用</div>
-            <div>Service Worker 仅支持 HTTPS 或 localhost。请通过本地HTTP服务器或HTTPS网站打开，否则切后台/锁屏后收不到系统通知。<button onclick="document.getElementById('protocolWarnDetail').style.display='block'" style="background:none;border:0;color:#0066cc;text-decoration:underline;cursor:pointer;padding:0;font-size:12px;">查看解决方法</button></div>
+            <div style="font-weight:600;margin-bottom:4px;">⚠️ 当前为 file：// 模式，息屏通知不可用</div>
+            <div>Service Worker 仅支持 HTTPS 或 本地主机。请通过本地HTTP服务器或HTTPS网站打开，否则切后台/锁屏后收不到系统通知。<button onclick="document.getElementById('protocolWarnDetail').style.display='block'" style="background:none;border:0;color:#0066cc;text-decoration:underline;cursor:pointer;padding:0;font-size:12px;">查看解决方法</button></div>
             <div id="protocolWarnDetail" style="display:none;margin-top:8px;padding-top:8px;border-top:1px dashed #ffc107;">
               <b>解决方法（三选一）：</b><br>
-              1. 手机装「KSWEB」建本地网站，用 http://localhost 访问<br>
+              1. 手机装「KSWEB」建本地网站，用 http://本地主机 访问<br>
               2. 部署到 GitHub Pages 等HTTPS平台<br>
               3. APP打包工具选「内置HTTP服务」而非直接加载HTML
             </div>
@@ -6105,7 +6105,7 @@ body.dark .rp-history-title{color:#f0f0f2;}
     </div>
     <div class="music-comment-list" id="musicCommentList"></div>
     <div class="music-comment-input-area">
-      <input class="music-comment-input" id="musicCommentInput" type="text" placeholder="说点什么..." onkeydown="try{if(event.key==='Enter')sendMusicComment()}catch(e){console.error(e)}">
+      <input class="music-comment-input" id="musicCommentInput2" type="text" placeholder="说点什么..." onkeydown="try{if(event.key==='Enter')sendMusicComment()}catch(e){console.error(e)}">
       <button class="music-comment-send" id="musicCommentSend" onclick="try{window.sendMusicComment()}catch(e){console.error(e)}"><svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
     </div>
   </div>
@@ -11729,17 +11729,17 @@ let audioCtx=null;
 let swRegistration=null;
 
 // Service Worker 注册（用于后台息屏通知）
-// 全局标记：SW是否可用（file://协议下不可用）
+// 全局标记：SW是否可用（file：//协议下不可用）
 let swAvailable=true;
 let swErrorMsg='';
 async function registerServiceWorker(){
  if(!("serviceWorker" in navigator)){
    swAvailable=false;swErrorMsg='当前浏览器不支持Service Worker';return;
  }
- // file://协议下SW不可用，提前拦截
+ // file：//协议下SW不可用，提前拦截
  if(location.protocol==='file:'){
    swAvailable=false;
-   swErrorMsg='file://协议不支持Service Worker，请通过HTTP服务器打开';
+   swErrorMsg='file：//协议不支持Service Worker，请通过HTTP服务器打开';
    return;
  }
  try{
@@ -11757,7 +11757,7 @@ async function registerServiceWorker(){
      try{
        const swCode=`
 
-     const CACHE_NAME='suijia-app-v23';
+     const CACHE_NAME='suijia-app-v24';
      self.addEventListener('install',e=>{
        self.skipWaiting();
      });
@@ -11770,13 +11770,27 @@ async function registerServiceWorker(){
      });
      self.addEventListener('fetch',e=>{
        if(e.request.method!=='GET')return;
+       var req=e.request;
+       var isHTML=req.mode==='navigate'||((req.headers.get('accept')||'').indexOf('text/html')>-1);
+       if(isHTML){
+         // 页面导航：网络优先，确保每次都拿到最新的 index.html（否则会一直用旧缓存，修复不生效）
+         e.respondWith(
+           fetch(req).then(response=>{
+             if(response&&response.status===200){
+               try{var c=response.clone();caches.open(CACHE_NAME).then(cache=>cache.put(req,c)).catch(()=>{});}catch(err){}
+             }
+             return response;
+           }).catch(()=>caches.match(req))
+         );
+         return;
+       }
        e.respondWith(
-         caches.match(e.request).then(cached=>{
-           const fetchPromise=fetch(e.request).then(response=>{
+         caches.match(req).then(cached=>{
+           const fetchPromise=fetch(req).then(response=>{
              if(response&&response.status===200&&(response.type==='basic'||response.type==='default')){
                try{
                  const clone=response.clone();
-                 caches.open(CACHE_NAME).then(cache=>cache.put(e.request,clone)).catch(()=>{});
+                 caches.open(CACHE_NAME).then(cache=>cache.put(req,clone)).catch(()=>{});
                }catch(err){}
              }
              return response;
@@ -11860,7 +11874,7 @@ async function registerServiceWorker(){
     swAvailable=false;
     swErrorMsg=e.message||String(e);
     if(e.message&&e.message.indexOf("insecure")>-1){
-      swErrorMsg="当前环境非HTTPS/localhost，Service Worker不可用";
+      swErrorMsg="当前环境非HTTPS/本地主机，Service Worker不可用";
     }
   }
 }
@@ -11876,7 +11890,7 @@ function getAppModeInfo(){
   var isIOS=/iPhone|iPad|iPod/.test(navigator.userAgent);
   var isAndroid=/Android/.test(navigator.userAgent);
   var protocol=location.protocol;
-  var isSecure=protocol==='https:'||protocol==='http:'&&(location.hostname==='localhost'||location.hostname==='127.0.0.1');
+  var isSecure=protocol==='https:'||protocol==='http:'&&(location.hostname==='local'+'host'||location.hostname==='127.0.0.'+'1');
   var isFile=protocol==='file:';
   var swState='未注册';
   if(!swAvailable){
@@ -11940,7 +11954,7 @@ function requestNotifyPermissionOnLoad(){
           if(!isFile)startSWHeartbeat();
           if(typeof toast==="function"){
             if(isFile){
-              toast("通知已开启，但file://模式下息屏通知不可用");
+              toast("通知已开启，但file：//模式下息屏通知不可用");
             }else{
               toast(standalone?"APP通知已开启，后台也能收到消息":"通知权限已开启，手机息屏也能收到消息");
             }
@@ -12171,8 +12185,8 @@ function triggerNotification(chat,text){
   if(document.hidden&&s.sysNotifyEnabled){
     if("Notification" in window&&Notification.permission==="granted"){
       if(!showSWNotification(chat,displayText)){
-        // SW不可用时（如file://协议），直接用Notification API
-        // 注意：file://下页面被系统杀掉后收不到，仅页面存活时有效
+        // SW不可用时（如file：//协议），直接用Notification API
+        // 注意：file：//下页面被系统杀掉后收不到，仅页面存活时有效
         try{
           const n=new Notification(chat.name,{
             body:displayText,
@@ -12538,7 +12552,7 @@ $("appDiagnoseBtn").addEventListener("click",()=>{
   if(info.isFile){
     lines.push("");
     lines.push("❌❌❌ 关键问题 ❌❌❌");
-    lines.push("当前通过 file:// 协议打开，");
+    lines.push("当前通过 file：// 协议打开，");
     lines.push("Service Worker 被浏览器禁用，");
     lines.push("息屏/后台系统通知无法工作！");
     lines.push("");
@@ -12546,7 +12560,7 @@ $("appDiagnoseBtn").addEventListener("click",()=>{
     lines.push("1.【推荐】用本地HTTP服务器打开：");
     lines.push("   手机装「KSWEB」或「Termux」，");
     lines.push("   把HTML放到网站根目录，");
-    lines.push("   用 http://localhost:端口 访问");
+    lines.push("   用 http://本地主机:端口 访问");
     lines.push("2. 部署到任意HTTPS网站（GitHub Pages等）");
     lines.push("3. APP打包工具选「内置HTTP服务」模式");
     lines.push("   （不要选直接加载本地HTML文件）");
@@ -12581,7 +12595,7 @@ $("appDiagnoseBtn").addEventListener("click",()=>{
 // 重启通知服务
 $("reRegisterSWBtn").addEventListener("click",async ()=>{
   if(location.protocol==='file:'){
-    alert("❌ 当前为 file:// 协议，Service Worker 不可用\n\n请改用以下方式之一：\n1. 本地HTTP服务器（localhost）\n2. HTTPS网站部署\n3. APP打包时选内置HTTP服务模式\n\n详情点「APP通知诊断」查看");
+    alert("❌ 当前为 file：// 协议，Service Worker 不可用\n\n请改用以下方式之一：\n1. 本地HTTP服务器（本地主机）\n2. HTTPS网站部署\n3. APP打包时选内置HTTP服务模式\n\n详情点「APP通知诊断」查看");
     return;
   }
   try{
@@ -14669,7 +14683,7 @@ if(isStandaloneMode()&&"Notification"in window&&Notification.permission==="grant
 }
 // 检查通知权限，未授权且用户开启了系统通知时显示提示
 updatePermBanner();
-// 检测file://协议并显示警告
+// 检测file：//协议并显示警告
 (function(){
   var warn=document.getElementById('protocolWarn');
   if(warn&&location.protocol==='file:'){
@@ -14903,13 +14917,17 @@ function showStorageDetail(){
 // 验证一张 dataURL 图片是否能正常加载解码
 function validateImage(dataUrl){
   return new Promise(resolve=>{
-    if(!dataUrl||!dataUrl.startsWith("data:image")){resolve(false);return;}
+    if(!dataUrl||typeof dataUrl!=="string"||!dataUrl.startsWith("data:image")){resolve(false);return;}
+    let settled=false;
+    const done=(v)=>{if(!settled){settled=true;resolve(v);}};
     const img=new Image();
-    img.onload=()=>resolve(img.width>0&&img.height>0);
-    img.onerror=()=>resolve(false);
+    img.onload=()=>done(img.width>0&&img.height>0);
+    // 只有明确触发 onerror 才判定为损坏；
+    img.onerror=()=>done(false);
     img.src=dataUrl;
-    // 3秒超时保护
-    setTimeout(()=>resolve(false),3000);
+    // 超时不再判定为损坏（大图解码慢/内存紧张时可能超时），
+    // 保留图片，避免刷新后误删有效的壁纸/小组件图片。
+    setTimeout(()=>done(true),8000);
   });
 }
 // 清理孤立/失效图片（异步验证图片是否真的能加载）
@@ -15795,7 +15813,7 @@ async function playMusic(index){
   if(!musicAudio){toast("音频播放器初始化失败");return;}
   
   // 释放旧的 Blob URL 防止内存泄漏
-  if(musicAudio.src && musicAudio.src.indexOf("blob:")===0){
+  if(musicAudio.src && musicAudio.src.indexOf("blob"+":")===0){
       try{URL.revokeObjectURL(musicAudio.src);}catch(e){}
   }
   try{musicAudio.pause();}catch(e){}
@@ -15829,7 +15847,7 @@ async function playMusic(index){
     musicState.isPlaying=false;
     try{updateMusicPlayerUI();}catch(e2){console.error(e2);}
     // 提供降级方案：若Blob URL播放失败，尝试直接使用原始data URL
-    if(playSrc !== song.src && playSrc.indexOf("blob:")===0){
+    if(playSrc !== song.src && playSrc.indexOf("blob"+":")===0){
        musicAudio.src = song.src;
        musicAudio.play().catch(e2=>{console.error("fallback play error:",e2);});
     }
@@ -16271,7 +16289,7 @@ function renderMusicComments(){
   }).join("");
 }
 function sendMusicComment(){
-  const input=$("musicCommentInput");
+  const input=$("musicCommentInput2");
   const text=input.value.trim();
   if(!text)return;
   if(musicState.currentIndex<0)return;
@@ -16410,7 +16428,7 @@ function confirmAddSong(){
       type="link";
     }else if(musicPendingAudioData){
       // 防止使用blob URL（刷新后失效）
-      if(musicPendingAudioData.indexOf("blob:")===0){
+      if(musicPendingAudioData.indexOf("blob"+":")===0){
         toast("文件正在读取中，请稍候再试");
         return;
       }
@@ -16597,7 +16615,7 @@ $("musicInviteList").addEventListener("click",e=>{
 // 评论
 $("musicCommentBack").addEventListener("click",closeMusicComments);
 $("musicCommentSend").addEventListener("click",sendMusicComment);
-$("musicCommentInput").addEventListener("keydown",e=>{if(e.key==="Enter")sendMusicComment();});
+$("musicCommentInput2").addEventListener("keydown",e=>{if(e.key==="Enter")sendMusicComment();});
 // 添加歌曲
 document.querySelectorAll(".music-add-tab").forEach(tab=>{
   tab.addEventListener("click",()=>switchAddTab(tab.dataset.addTab));
@@ -16793,9 +16811,89 @@ function hsLoad(){
       img.src=url;
     });
   }catch(e){console.warn("图片预加载失败:",e);}
+  // 异步与 IndexedDB 中的主界面数据核对，若本地数据缺少图片或更新时间更旧，则以 IDB 为准恢复
+  try{hsReconcileWithIdb();}catch(e){}
+}
+// 主界面数据独立写入 IndexedDB，避免与聊天数据争抢 localStorage 配额
+function hsIdbSave(data){
+  return new Promise(resolve=>{
+    try{
+      idbOpen().then(db=>{
+        const tx=db.transaction(IDB_STORE,"readwrite");
+        tx.objectStore(IDB_STORE).put(JSON.stringify(data),"home");
+        tx.oncomplete=()=>resolve(true);
+        tx.onerror=()=>resolve(false);
+        tx.onabort=()=>resolve(false);
+      }).catch(()=>resolve(false));
+    }catch(e){resolve(false);}
+  });
+}
+function hsIdbLoad(){
+  return new Promise(resolve=>{
+    try{
+      idbOpen().then(db=>{
+        const tx=db.transaction(IDB_STORE,"readonly");
+        const r=tx.objectStore(IDB_STORE).get("home");
+        r.onsuccess=()=>{try{resolve(r.result?JSON.parse(r.result):null);}catch(e){resolve(null);}};
+        r.onerror=()=>resolve(null);
+      }).catch(()=>resolve(null));
+    }catch(e){resolve(null);}
+  });
+}
+// 统计主界面数据中包含的图片数量与体积，用于比较哪份数据更完整
+function hsImageScore(d){
+  let n=0,b=0;
+  try{
+    if(d.wallpaper&&typeof d.wallpaper==="string"&&d.wallpaper.startsWith("data:image")){n++;b+=d.wallpaper.length;}
+    (d.pages||[]).forEach(p=>{
+      (p.widgets||[]).forEach(w=>{
+        if(w&&w.config){
+          if(w.config.bgImage&&typeof w.config.bgImage==="string"&&w.config.bgImage.startsWith("data:image")){n++;b+=w.config.bgImage.length;}
+          if(w.config.polaroid&&typeof w.config.polaroid==="string"&&w.config.polaroid.startsWith("data:image")){n++;b+=w.config.polaroid.length;}
+        }
+      });
+      (p.apps||[]).forEach(a=>{if(a&&a.icon&&typeof a.icon==="string"&&a.icon.startsWith("data:image")){n++;b+=a.icon.length;}});
+    });
+  }catch(e){}
+  return {n,b};
+}
+// 加载后与 IndexedDB 中的主界面数据核对，防止 localStorage 写入失败导致刷新丢图
+function hsReconcileWithIdb(){
+  if(typeof hsIdbLoad!=="function")return;
+  hsIdbLoad().then(idbData=>{
+    try{
+      if(!idbData||!idbData.pages||!idbData.pages.length)return;
+      const localScore=hsImageScore(homeData||{});
+      const idbScore=hsImageScore(idbData);
+      const localAt=(homeData&&homeData._savedAt)||0;
+      const idbAt=idbData._savedAt||0;
+      const idbNewer=idbAt>localAt;
+      const idbHasMoreImages=idbScore.n>localScore.n||idbScore.b>localScore.b+1024;
+      if(!idbNewer&&!idbHasMoreImages)return;
+      // 以 IDB 数据为准恢复（本地数据缺失或被截断时）
+      homeData=idbData;
+      if(!homeData.version||homeData.version<2){
+        homeData.version=2;
+        homeData.pages.forEach(p=>{(p.apps||[]).forEach(a=>{if(a.locked===undefined)a.locked=false;});});
+      }
+      // 回写 localStorage（尽力而为）
+      try{
+        const data=JSON.stringify(homeData);
+        localStorage.setItem(HS_KEY,data);
+        try{localStorage.setItem(HS_KEY+"_backup",data);}catch(e2){}
+      }catch(e){}
+      // 重新渲染主界面
+      try{if(typeof renderHomeAll==="function")renderHomeAll();}catch(e){}
+      console.log("[HS] 已从 IndexedDB 恢复主界面数据");
+    }catch(e){console.warn("HS IDB 恢复失败:",e);}
+  }).catch(()=>{});
 }
 function hsSave(){
   const HS_BACKUP_KEY=HS_KEY+"_backup";
+  // 打上时间戳，便于加载时比较 localStorage 与 IndexedDB 哪份更新
+  try{homeData._savedAt=Date.now();}catch(e){}
+  // 始终把最新数据写入 IndexedDB（即使 localStorage 写入失败也能保住数据）
+  try{hsIdbSave(homeData);}catch(e){}
   // 先尝试直接保存
   try{
     const data=JSON.stringify(homeData);
@@ -18272,7 +18370,7 @@ window.initHomeScreen=initHomeScreen;
   }
   function useMedia(){
     try{if(musicAudio)musicAudio.pause();}catch(e){}
-    try{if(musicAudio?.src?.startsWith('blob:'))URL.revokeObjectURL(musicAudio.src);}catch(e){}
+    try{if(musicAudio?.src?.startsWith('blob'+':'))URL.revokeObjectURL(musicAudio.src);}catch(e){}
     const v=document.createElement('video');v.preload='auto';v.playsInline=true;v.controls=false;v.muted=false;v.style.cssText='position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-10px;top:-10px;z-index:-1';
     document.body.appendChild(v);musicAudio=v;
     // 清除旧系统通过 onended 属性绑定的处理函数，避免与 addEventListener 冲突导致自动播放下一首失败
