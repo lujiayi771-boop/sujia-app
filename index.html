@@ -6032,7 +6032,7 @@ body.dark .rp-history-title{color:#f0f0f2;}
         <div class="music-setting-upload">
           <img class="music-setting-upload-preview" id="musicBgPreview" src="" alt="" style="display:none">
           <button class="music-setting-upload-btn" id="musicBgUploadBtn" onclick="try{document.getElementById('musicBgFile').click()}catch(e){console.error(e)}">从相册导入背景图</button>
-          <input type="file" id="musicBgFile" class="file-input-hidden" accept="image/*" onchange="try{var f=this.files[0];if(f){var r=new FileReader();r.onload=function(ev){try{window.musicState.settings.bgImage=ev.target.result;var p=document.getElementById('musicBgPreview');if(p){p.src=ev.target.result;p.style.display='block';}window.saveMusicState();window.applyMusicBg();toast('背景图已设置');}catch(err){console.error('bg upload error:',err);}};r.readAsDataURL(f);}}catch(e){console.error(e)}">
+          <input type="file" id="musicBgFile" class="file-input-hidden" accept="image/*" onchange="try{var f=this.files[0];if(f){var r=new FileReader();r.onload=function(ev){try{var raw=ev.target.result;window.compressDataUrlToJpeg(raw,1080,0.82).then(function(c){c=c||raw;window.musicState.settings.bgImage=c;var p=document.getElementById('musicBgPreview');if(p){p.src=c;p.style.display='block';}window.saveMusicState();window.applyMusicBg();toast('背景图已设置');}).catch(function(){window.musicState.settings.bgImage=raw;var p=document.getElementById('musicBgPreview');if(p){p.src=raw;p.style.display='block';}window.saveMusicState();window.applyMusicBg();toast('背景图已设置');});}catch(err){console.error('bg upload error:',err);}};r.readAsDataURL(f);}}catch(e){console.error(e)}">
         </div>
       </div>
       <div class="music-settings-section">
@@ -6647,6 +6647,7 @@ const initial={
 };
 
 let state=load();
+let _stateHydrated=false;  // 是否已完成从 IndexedDB 的恢复，完成前禁止用当前(可能为空)state覆盖云端主存储
 // 请求持久化存储权限，防止浏览器在存储空间不足时清理 IndexedDB/localStorage 数据
 if(navigator.storage&&navigator.storage.persist){
   navigator.storage.persist().then(granted=>{
@@ -6662,6 +6663,8 @@ if(typeof idbSyncOnLoad==="function"){
     setTimeout(idbSyncOnLoad,100);
   }
 }
+// 【修复】兜底：即使 IndexedDB 恢复流程异常，也无法让保存被永久阻塞，4 秒后放行正常保存
+setTimeout(()=>{try{_stateHydrated=true;}catch(e){}},4000);
 let currentId=null;let lastChatId=null;let renameTargetId=null;
 
 /* ===== 夜间模式：立即应用（避免闪烁，不依赖 $ 函数） ===== */
@@ -6751,7 +6754,8 @@ $("darkModeToggle")?.addEventListener("change",e=>{
 
 function load(){
  try{
-  const x=localStorage.getItem(KEY);
+  let x=localStorage.getItem(KEY);
+  if(!x||x==="null"||x==="undefined"){try{x=localStorage.getItem(KEY+"_backup");}catch(e){}}
   const data=x?JSON.parse(x):structuredClone(initial);
   if(!data.userAvatar || typeof data.userAvatar!=="object") data.userAvatar=structuredClone(DEFAULT_USER_AVATAR);
   if(typeof data.userName!=="string") data.userName=DEFAULT_USER_NAME;
@@ -6877,7 +6881,7 @@ function idbUpdateQuotaCache(){
 async function idbSyncOnLoad(){
   try{
     const idbData=await idbLoadState();
-    if(!idbData||!Array.isArray(idbData.chats))return;
+    if(!idbData||!Array.isArray(idbData.chats)){_stateHydrated=true;return;}
     // 判断是否需要从 IndexedDB 恢复
     const lsRaw=localStorage.getItem(KEY);
     const lsEmpty=!lsRaw||lsRaw==="null"||lsRaw==="undefined";
@@ -6975,6 +6979,7 @@ async function idbSyncOnLoad(){
         idbData.moments.forEach(m=>{if(!Array.isArray(m.comments))m.comments=[];});
       }catch(e){console.warn("[IDB] 恢复数据规范化失败:",e);}
       state=idbData;
+      _stateHydrated=true;
       // 全面重新渲染所有模块
       try{renderChats(typeof $!=="undefined"&&$("search")?$("search").value:"");}catch(e){console.warn("[IDB] renderChats:",e);}
       try{renderContacts();}catch(e){console.warn("[IDB] renderContacts:",e);}
@@ -7003,7 +7008,8 @@ async function idbSyncOnLoad(){
       try{save();}catch(e){console.warn("[IDB] 恢复后同步localStorage失败:",e);}
       try{toast("已从云端存储恢复完整数据");}catch(e){}
     }
-  }catch(e){console.warn("[IDB] 同步失败:",e);}
+    _stateHydrated=true;
+  }catch(e){console.warn("[IDB] 同步失败:",e);_stateHydrated=true;}
 }
 
 let _saveErrThrottle=0;
@@ -7022,11 +7028,16 @@ function save(){
    });
    state._lastSaved=Date.now();
    const stateStr=JSON.stringify(state);
-   // 1. 始终写入 IndexedDB（主存储，配额大）
-   _idbSavePromise=idbSaveState(state).then(()=>{_idbSavePromise=null;}).catch(()=>{_idbSavePromise=null;});
+   // 1. 写入 IndexedDB（主存储，配额大）
+   // 【修复】从 IndexedDB 恢复完成前，绝不能用（可能是默认/空的）state 覆盖云端主存储，
+   // 否则启动瞬间的自动保存会把真实数据覆盖为默认数据，导致刷新后“最近数据全部消失”。
+   if(_stateHydrated){
+     _idbSavePromise=idbSaveState(state).then(()=>{_idbSavePromise=null;}).catch(()=>{_idbSavePromise=null;});
+   }
    // 2. 尝试写入 localStorage 作为快速缓存（失败不影响数据安全）
    try{
      localStorage.setItem(KEY,stateStr);
+     try{localStorage.setItem(KEY+"_backup",stateStr);}catch(e){}
    }catch(lsErr){
      // localStorage 满了，设置恢复标记，让页面刷新后强制从 IndexedDB 恢复
      try{sessionStorage.setItem("_idb_force_restore","1");}catch(e){}
@@ -7064,6 +7075,30 @@ function toast(t){
 }
 
 /* ===== 图片压缩：从相册导入后自动压缩，避免 localStorage 溢出 ===== */
+// 将 dataURL 压缩为指定最大边长/质量的 JPEG dataURL（用于壁纸、背景图等大图，避免撑爆存储配额）
+function compressDataUrlToJpeg(dataUrl,maxSize,quality){
+  return new Promise((resolve,reject)=>{
+    try{
+      const img=new Image();
+      img.onload=()=>{
+        try{
+          let w=img.naturalWidth||img.width,h=img.naturalHeight||img.height;
+          if(maxSize&&w>maxSize&&w>=h){h=Math.max(1,Math.round(h*maxSize/w));w=maxSize;}
+          else if(maxSize&&h>maxSize){w=Math.max(1,Math.round(w*maxSize/h));h=maxSize;}
+          const canvas=document.createElement("canvas");
+          canvas.width=w;canvas.height=h;
+          const ctx=canvas.getContext("2d");
+          ctx.drawImage(img,0,0,w,h);
+          const out=canvas.toDataURL("image/jpeg",quality||0.82);
+          ctx.clearRect(0,0,w,h);canvas.width=0;canvas.height=0;img.src="";
+          resolve(out);
+        }catch(e){reject(e);}
+      };
+      img.onerror=()=>reject(new Error("图片加载失败"));
+      img.src=dataUrl;
+    }catch(e){reject(e);}
+  });
+}
 function compressImage(file,maxSize,quality){
  return new Promise((resolve,reject)=>{
    if(!file || !file.type.startsWith("image/")){reject(new Error("不是图片文件"));return;}
@@ -11727,6 +11762,15 @@ initVoiceSelect();
 let notifTimer=null;
 let audioCtx=null;
 let swRegistration=null;
+// 【修复】当有新的 Service Worker 接管（修复版上线）时，自动刷新一次页面，
+// 确保用户拿到的是最新 index.html，而不是旧缓存里的旧版本。
+if('serviceWorker' in navigator){
+  let _swReloaded=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(_swReloaded)return;_swReloaded=true;
+    setTimeout(()=>{try{location.reload();}catch(e){}},60);
+  });
+}
 
 // Service Worker 注册（用于后台息屏通知）
 // 全局标记：SW是否可用（file：//协议下不可用）
@@ -12515,9 +12559,16 @@ $("petImageFile").addEventListener("change",e=>{
   const file=e.target.files[0];if(!file)return;
   const reader=new FileReader();
   reader.onload=ev=>{
-    const cfg=getPetConfig();if(cfg)cfg.imageData=ev.target.result;
-    save();updatePetPreview();
-    toast("灵宠图片已更新");
+    const raw=ev.target.result;
+    compressDataUrlToJpeg(raw,400,0.82).then(c=>{
+      const cfg=getPetConfig();if(cfg)cfg.imageData=c||raw;
+      save();updatePetPreview();
+      toast("灵宠图片已更新");
+    }).catch(()=>{
+      const cfg=getPetConfig();if(cfg)cfg.imageData=raw;
+      save();updatePetPreview();
+      toast("灵宠图片已更新");
+    });
   };
   reader.readAsDataURL(file);
 });
@@ -16405,9 +16456,17 @@ function handleMusicCoverFile(file){
   try{
     const reader=new FileReader();
     reader.onload=function(e){
-      musicPendingCoverData=e.target.result;
-      const preview=document.getElementById("musicCoverPreview");
-      if(preview){preview.src=e.target.result;preview.style.display="block";}
+      const raw=e.target.result;
+      compressDataUrlToJpeg(raw,500,0.82).then(function(c){
+        const v=c||raw;
+        musicPendingCoverData=v;
+        const preview=document.getElementById("musicCoverPreview");
+        if(preview){preview.src=v;preview.style.display="block";}
+      }).catch(function(){
+        musicPendingCoverData=raw;
+        const preview=document.getElementById("musicCoverPreview");
+        if(preview){preview.src=raw;preview.style.display="block";}
+      });
     };
     reader.readAsDataURL(file);
   }catch(e){console.error("handleMusicCoverFile error:",e);}
@@ -16635,11 +16694,21 @@ $("musicBgFile").addEventListener("change",e=>{
   if(!file)return;
   const reader=new FileReader();
   reader.onload=ev=>{
-    window.musicState.settings.bgImage=ev.target.result;
-    $("musicBgPreview").src=ev.target.result;
-    $("musicBgPreview").style.display="block";
-    saveMusicState();
-    toast("背景图已设置");
+    const raw=ev.target.result;
+    compressDataUrlToJpeg(raw,1080,0.82).then(c=>{
+      const v=c||raw;
+      window.musicState.settings.bgImage=v;
+      $("musicBgPreview").src=v;
+      $("musicBgPreview").style.display="block";
+      saveMusicState();
+      toast("背景图已设置");
+    }).catch(()=>{
+      window.musicState.settings.bgImage=raw;
+      $("musicBgPreview").src=raw;
+      $("musicBgPreview").style.display="block";
+      saveMusicState();
+      toast("背景图已设置");
+    });
   };
   reader.readAsDataURL(file);
 });
@@ -16857,11 +16926,13 @@ function hsImageScore(d){
   }catch(e){}
   return {n,b};
 }
+let _homeHydrated=false;  // 是否已完成主界面数据从 IndexedDB 的恢复，完成前禁止用当前(可能为空)homeData覆盖云端主存储
 // 加载后与 IndexedDB 中的主界面数据核对，防止 localStorage 写入失败导致刷新丢图
 function hsReconcileWithIdb(){
   if(typeof hsIdbLoad!=="function")return;
   hsIdbLoad().then(idbData=>{
     try{
+      _homeHydrated=true;  // IndexedDB 读取已完成，放行保存
       if(!idbData||!idbData.pages||!idbData.pages.length)return;
       const localScore=hsImageScore(homeData||{});
       const idbScore=hsImageScore(idbData);
@@ -16886,14 +16957,16 @@ function hsReconcileWithIdb(){
       try{if(typeof renderHomeAll==="function")renderHomeAll();}catch(e){}
       console.log("[HS] 已从 IndexedDB 恢复主界面数据");
     }catch(e){console.warn("HS IDB 恢复失败:",e);}
-  }).catch(()=>{});
+  }).catch(()=>{_homeHydrated=true;});
 }
+setTimeout(()=>{try{_homeHydrated=true;}catch(e){}},4000);  // 兜底：IDB 不可用时放行保存
 function hsSave(){
   const HS_BACKUP_KEY=HS_KEY+"_backup";
   // 打上时间戳，便于加载时比较 localStorage 与 IndexedDB 哪份更新
   try{homeData._savedAt=Date.now();}catch(e){}
-  // 始终把最新数据写入 IndexedDB（即使 localStorage 写入失败也能保住数据）
-  try{hsIdbSave(homeData);}catch(e){}
+  // 主界面数据写入 IndexedDB（主存储）
+  // 【修复】恢复完成前禁止写入，避免刷新瞬间的保存用默认(无图)数据覆盖云端真实数据
+  if(_homeHydrated){try{hsIdbSave(homeData);}catch(e){}}
   // 先尝试直接保存
   try{
     const data=JSON.stringify(homeData);
@@ -18190,7 +18263,7 @@ function hsBindEvents(){
     input.onchange=()=>{
       const file=input.files[0];if(!file)return;
       const reader=new FileReader();
-      reader.onload=e=>{homeData.wallpaper=e.target.result;hsSave();renderHomeAll();};
+      reader.onload=e=>{const raw=e.target.result;compressDataUrlToJpeg(raw,1440,0.82).then(c=>{homeData.wallpaper=c||raw;hsSave();renderHomeAll();}).catch(()=>{homeData.wallpaper=raw;hsSave();renderHomeAll();});};
       reader.readAsDataURL(file);
     };
     input.click();
