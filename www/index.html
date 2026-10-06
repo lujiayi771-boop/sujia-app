@@ -3,6 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<script src="cordova.js"></script>
+<script>
+/* 若迟迟未出现原生桥，说明当前不是 Cordova/HTML5+ 打包环境（例如纯 WebView/网页版），仅记录，不影响网页功能。 */
+setTimeout(function(){ try{
+  if(!(window.cordova||window.plus||window.Capacitor||window.SuiJiaNative))
+    console.info("[原生桥] 未检测到 Cordova/HTML5+ 运行环境，当前按网页模式运行。");
+}catch(e){} },30000);
+</script>
 <meta name="theme-color" content="#4f6df5">
 <link rel="manifest" href="data:application/json;charset=utf-8,%7B%22name%22%3A%20%22%E6%BA%AF%E4%BD%B3APP%22%2C%20%22short_name%22%3A%20%22%E6%BA%AF%E4%BD%B3%22%2C%20%22description%22%3A%20%22%E6%BA%AF%E4%BD%B3%20-%20%E6%A8%A1%E6%8B%9F%E8%81%8A%E5%A4%A9APP%22%2C%20%22start_url%22%3A%20%22.%22%2C%20%22display%22%3A%20%22standalone%22%2C%20%22orientation%22%3A%20%22portrait%22%2C%20%22background_color%22%3A%20%22%23ffffff%22%2C%20%22theme_color%22%3A%20%22%234f6df5%22%2C%20%22categories%22%3A%20%5B%22social%22%2C%20%22entertainment%22%5D%2C%20%22icons%22%3A%20%5B%7B%22src%22%3A%20%22data%3Aimage/svg%2Bxml%2C%253Csvg%2520xmlns%253D%2522http%253A//www.w3.org/2000/svg%2522%2520width%253D%2522192%2522%2520height%253D%2522192%2522%2520viewBox%253D%25220%25200%2520192%2520192%2522%253E%253Crect%2520width%253D%2522192%2522%2520height%253D%2522192%2522%2520rx%253D%252242%2522%2520fill%253D%2522%25234f6df5%2522/%253E%253Ctext%2520x%253D%252296%2522%2520y%253D%2522125%2522%2520font-size%253D%252280%2522%2520text-anchor%253D%2522middle%2522%2520fill%253D%2522white%2522%2520font-family%253D%2522sans-serif%2522%2520font-weight%253D%2522bold%2522%253E%25E6%25BA%25AF%253C/text%253E%253C/svg%253E%22%2C%20%22sizes%22%3A%20%22192x192%22%2C%20%22type%22%3A%20%22image/svg%2Bxml%22%2C%20%22purpose%22%3A%20%22any%20maskable%22%7D%2C%20%7B%22src%22%3A%20%22data%3Aimage/svg%2Bxml%2C%253Csvg%2520xmlns%253D%2522http%253A//www.w3.org/2000/svg%2522%2520width%253D%2522512%2522%2520height%253D%2522512%2522%2520viewBox%253D%25220%25200%2520512%2520512%2522%253E%253Crect%2520width%253D%2522512%2522%2520height%253D%2522512%2522%2520rx%253D%2522112%2522%2520fill%253D%2522%25234f6df5%2522/%253E%253Ctext%2520x%253D%2522256%2522%2520y%253D%2522330%2522%2520font-size%253D%2522220%2522%2520text-anchor%253D%2522middle%2522%2520fill%253D%2522white%2522%2520font-family%253D%2522sans-serif%2522%2520font-weight%253D%2522bold%2522%253E%25E6%25BA%25AF%253C/text%253E%253C/svg%253E%22%2C%20%22sizes%22%3A%20%22512x512%22%2C%20%22type%22%3A%20%22image/svg%2Bxml%22%2C%20%22purpose%22%3A%20%22any%20maskable%22%7D%5D%7D">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -12796,6 +12804,7 @@ $("appDiagnoseBtn").addEventListener("click",()=>{
   lines.push("【系统平台】"+info.platform);
   lines.push("【访问协议】"+info.protocol+(info.isFile?" ❌不支持通知":info.isSecure?" ✅安全":" ⚠️非安全"));
   lines.push("【通知服务】"+info.swState);
+  try{ lines.push("【原生桥】"+NativeBridge.describe()+(NativeBridge.hasNotify()?" ✅ 原生通知可用":" ⚠️ 未检测到通知插件")); }catch(e){}
   lines.push("【通知权限】"+(info.notifPerm==="granted"?"✅ 已开启":info.notifPerm==="denied"?"❌ 已拒绝（需在系统设置中开启）":"⚠️ 未授权"));
   lines.push("【后台保活】"+(getNotifySettings().keepAliveEnabled?"✅ 已开启":"❌ 未开启"));
   if(info.isFile){
@@ -13013,11 +13022,13 @@ const NativeBridge={
     }catch(e){}
     return null;
   },
-  env(){ if(this._c===undefined)this._c=this.detect(); return this._c; },
+  reset(){ this._c=undefined; },
+  env(){ if(this._c===undefined){ const d=this.detect(); if(d)this._c=d; return d; } return this._c; },
   describe(){ const e=this.env(); return e?(e.label||"原生环境"):"浏览器 WebView（无原生桥）"; },
   hasSave(){ const e=this.env(); if(!e)return false;
     if(e.kind==="generic")return typeof e.B.saveFile==="function";
     if(e.kind==="plus")return !!(window.plus&&window.plus.io);
+    if(e.kind==="cordova")return !!(window.cordova&&window.cordova.file);
     if(e.kind==="capacitor")return !!(e.P.Filesystem); return false; },
   hasPick(){ const e=this.env(); if(!e)return false;
     if(e.kind==="generic")return typeof e.B.pickFile==="function";
@@ -13025,6 +13036,7 @@ const NativeBridge={
   hasNotify(){ const e=this.env(); if(!e)return false;
     if(e.kind==="generic")return typeof e.B.notify==="function";
     if(e.kind==="plus")return !!(window.plus&&window.plus.push);
+    if(e.kind==="cordova")return !!(window.cordova&&window.cordova.plugins&&window.cordova.plugins.notification&&window.cordova.plugins.notification.local);
     if(e.kind==="capacitor")return !!(e.P.LocalNotifications); return false; },
   async saveFile(name,text){ const e=this.env(); if(!e)return false;
     if(e.kind==="generic"){ return await e.B.saveFile(name,text); }
@@ -13051,6 +13063,21 @@ const NativeBridge={
       };
       tryRoot();
     }); }
+    if(e.kind==="cordova"){ return await new Promise(resolve=>{
+      try{
+        const c=window.cordova.file;
+        const dir=c.externalDataDirectory||c.dataDirectory||c.externalRootDirectory;
+        window.resolveLocalFileSystemURL(dir,dirEntry=>{
+          dirEntry.getFile(name,{create:true},fileEntry=>{
+            fileEntry.createWriter(w=>{
+              w.onwrite=()=>resolve("已保存到APP存储目录："+fileEntry.fullPath);
+              w.onerror=()=>resolve(false);
+              try{ w.write(text); }catch(err){ try{ w.write(new Blob([text],{type:"application/json"})); }catch(e2){ resolve(false); } }
+            },()=>resolve(false));
+          },()=>resolve(false));
+        },()=>resolve(false));
+      }catch(err){ resolve(false); }
+    }); }
     return false; },
   async pickFile(){ const e=this.env(); if(!e)return null;
     if(e.kind==="generic"){ const r=await e.B.pickFile();
@@ -13075,6 +13102,12 @@ const NativeBridge={
         window.plus.push.createMessage(String(body),"",{title:String(title)});
         return true;
       }
+      if(e.kind==="cordova"&&window.cordova&&window.cordova.plugins&&window.cordova.plugins.notification&&window.cordova.plugins.notification.local){
+        window.cordova.plugins.notification.local.schedule({
+          id:Math.floor(Date.now()%2147483647),title:String(title),text:String(body),foreground:true,smallIcon:"icon"
+        });
+        return true;
+      }
     }catch(err){ console.warn("[通知] 原生通知失败:",err); }
     return false; },
   async requestNotificationPermission(){ const e=this.env(); if(!e)return false;
@@ -13085,6 +13118,11 @@ const NativeBridge={
         try{ const pa=window.plus&&window.plus.android;
           if(pa&&pa.requestPermissions){ await new Promise(res=>pa.requestPermissions(["android.permission.POST_NOTIFICATIONS"],()=>res(),()=>res())); }
         }catch(err2){ console.warn("[通知] plus 权限申请跳过:",err2); }
+        return true;
+      }
+      if(e.kind==="cordova"&&window.cordova&&window.cordova.plugins&&window.cordova.plugins.notification&&window.cordova.plugins.notification.local){
+        const ln=window.cordova.plugins.notification.local;
+        await new Promise(res=>{ try{ if(typeof ln.requestPermission==="function"){ ln.requestPermission(()=>res(),()=>res()); } else { res(); } }catch(err2){ res(); } });
         return true;
       }
     }catch(err){ console.warn("[通知] 原生权限申请失败:",err); }
@@ -13182,6 +13220,11 @@ function updateNativeEnvStatus(){
   parts.push("系统通知："+(NativeBridge.hasNotify()?"原生可用":(("Notification" in window)?"浏览器API":"不支持")));
   el.textContent=parts.join(" · ");
 }
+/* APP(WebView) 环境就绪后再检测一次：修复 deviceready 前探测失败导致一直“无原生桥”的问题 */
+function refreshNativeEnv(){ try{ NativeBridge.reset(); }catch(e){} updateNativeEnvStatus(); }
+document.addEventListener("deviceready",refreshNativeEnv,false);
+window.addEventListener("cordova",refreshNativeEnv,false);
+document.addEventListener("plusready",refreshNativeEnv,false);
 document.addEventListener("click",e=>{
   if(e.target.closest("#saveToPhoneBtn")){ e.preventDefault(); saveBackupToPhone(); }
   else if(e.target.closest("#loadFromPhoneBtn")){ e.preventDefault(); loadBackupFromPhone(); }
