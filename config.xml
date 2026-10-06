@@ -3,6 +3,7 @@
   <name>溯佳</name>
   <description>开发助手</description>
   <content src="index.html" />
+  <icon src="www/icon.png" />
   <preference name="AndroidXEnabled" value="true" />
   <platform name="android">
     <config-file target="AndroidManifest.xml" parent="/manifest">
