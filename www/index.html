@@ -532,7 +532,7 @@ svg{display:block;width:22px;height:22px;fill:none;stroke:currentColor;stroke-wi
 
 /* 消息区域 */
 .messages{
-  flex:1;min-height:0;overflow-y:auto;
+  flex:1;min-height:0;overflow-y:auto;overflow-anchor:none;
   padding:17px 14px 16px;
   -webkit-overflow-scrolling:touch;
 }
@@ -8603,7 +8603,11 @@ function renderMessages(){
        </div>`;
    }).join("");
  }
- requestAnimationFrame(()=>box.scrollTop=box.scrollHeight);
+ const _toBottom=()=>{try{box.scrollTop=box.scrollHeight;}catch(e){}};
+_toBottom();
+requestAnimationFrame(()=>{_toBottom();requestAnimationFrame(_toBottom);});
+try{box.querySelectorAll("img").forEach(_im=>{if(!_im.complete){_im.addEventListener("load",_toBottom,{once:true});_im.addEventListener("error",_toBottom,{once:true});}});}catch(e){}
+[60,180,400].forEach(_t=>setTimeout(_toBottom,_t));
 }
 
 /* ===== 已读标记 ===== */
