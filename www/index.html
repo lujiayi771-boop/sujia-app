@@ -2053,14 +2053,14 @@ body.dark .st-custom-row input[type="color"]{background:#2c2c2e!important;border
 /* ===== 应用内通知横幅 ===== */
 .inapp-notification{
   position:fixed;top:calc(env(safe-area-inset-top) + 10px);left:50%;
-  transform:translateX(-50%) translateY(-120%);z-index:200;
+  transform:translateX(-50%) translateY(-160%);z-index:200;opacity:0;visibility:hidden;pointer-events:none;
   width:min(420px,calc(100% - 24px));background:rgba(30,34,42,.96);
   backdrop-filter:blur(14px);border-radius:16px;padding:12px 14px;
   display:flex;gap:10px;align-items:flex-start;color:#fff;
-  box-shadow:0 12px 40px rgba(0,0,0,.28);transition:transform .35s cubic-bezier(.2,.8,.2,1);
+  box-shadow:0 12px 40px rgba(0,0,0,.28);transition:transform .35s cubic-bezier(.2,.8,.2,1),opacity .35s ease,visibility .35s;
   cursor:pointer;
 }
-.inapp-notification.show{transform:translateX(-50%) translateY(0)}
+.inapp-notification.show{transform:translateX(-50%) translateY(0);opacity:1;visibility:visible;pointer-events:auto}
 .inapp-notification .notif-avatar{
   width:40px;height:40px;flex:0 0 40px;border-radius:11px;
   display:grid;place-items:center;font-weight:650;font-size:14px;overflow:hidden;
@@ -12387,9 +12387,20 @@ function showInAppNotif(chat,text){
   $("notifText").textContent=text;
   $("notifTime").textContent=now();
   el.classList.add("show");
-  el.onclick=()=>{el.classList.remove("show");openChat(chat.id);};
+  el.onclick=()=>{hideInAppNotif();openChat(chat.id);};
   clearTimeout(notifTimer);
-  notifTimer=setTimeout(()=>el.classList.remove("show"),4200);
+  notifTimer=setTimeout(hideInAppNotif,4200);
+}
+function hideInAppNotif(){
+  try{const el=$("inappNotif");if(el)el.classList.remove("show");}catch(e){}
+  try{if(notifTimer){clearTimeout(notifTimer);notifTimer=null;}}catch(e){}
+}
+// 兜底：APP切到后台/息屏或页面被隐藏时，立即收起应用内横幅，避免它残留在最顶部
+if(typeof document!=="undefined"&&!window.__inappHideHooked){
+  window.__inappHideHooked=1;
+  document.addEventListener("visibilitychange",function(){if(document.hidden){hideInAppNotif();}});
+  window.addEventListener("pagehide",function(){hideInAppNotif();});
+  window.addEventListener("blur",function(){hideInAppNotif();});
 }
 /* ===== 角色撤回消息功能 ===== */
 // 角色发送消息后，有5%概率在3-8秒后撤掉这条消息
@@ -13108,7 +13119,7 @@ const NativeBridge={
       }
       if(e.kind==="cordova"&&window.cordova&&window.cordova.plugins&&window.cordova.plugins.notification&&window.cordova.plugins.notification.local){
         window.cordova.plugins.notification.local.schedule({
-          id:Math.floor(Date.now()%2147483647),title:String(title),text:String(body),foreground:true,smallIcon:"icon"
+          id:Math.floor(Date.now()%2147483647),title:String(title),text:String(body),foreground:true,smallIcon:"icon",autoClear:true
         });
         return true;
       }
