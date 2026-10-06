@@ -1,0 +1,32 @@
+name: Build APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Cordova
+        run: npm install -g cordova
+      - name: Build Android APK
+        run: |
+          cordova platform add android
+          cordova build android
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: suijia-apk
+          path: platforms/android/app/build/outputs/apk/**/*.apk
