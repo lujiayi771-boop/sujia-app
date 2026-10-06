@@ -7658,14 +7658,16 @@ function showActivePrompt(chat){
 }
 function scheduleActiveMessage(chat){
  clearTimeout(activeTimers[chat.id]);
- const s=getSettings(chat.id);if(!s.activeEnabled)return;
+ const s=getSettings(chat.id);if(!s.activeEnabled){cancelNativeAhead(chat.id);return;}
  const library=libTexts(chat.replyLibrary);
- if(!library.length)return;
+ if(!library.length){cancelNativeAhead(chat.id);return;}
  const unit=s.activeUnit==="seconds"?1000:60000;
  const delay=randInt(s.activeMin,s.activeMax)*unit;
  recordTask(chat.id,"active",delay);
+ scheduleNativeAhead(chat,delay,"发来一条新消息");
  activeTimers[chat.id]=setTimeout(()=>{
    clearTaskRecord(chat.id,"active");
+   cancelNativeAhead(chat.id);
    if(!getSettings(chat.id)?.activeEnabled)return;
    showActivePrompt(chat);
    setTimeout(()=>{
@@ -12402,6 +12404,83 @@ if(typeof document!=="undefined"&&!window.__inappHideHooked){
   window.addEventListener("pagehide",function(){hideInAppNotif();});
   window.addEventListener("blur",function(){hideInAppNotif();});
 }
+/* ===== 原生定时通知：提前用系统闹钟调度，解决后台/息屏时通知延迟 ===== */
+const _nativeAheadIds={};
+function _stableHash(str){let h=0;const s=String(str||"");for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return h;}
+function _aheadNotifId(chatId){return 100000+(_stableHash("msg:"+chatId)%900000);}
+function _callNotifId(chatId){return 2000000+(_stableHash("call:"+chatId)%900000);}
+function _nativeNotifyKind(){
+  try{if(window.cordova&&window.cordova.plugins&&window.cordova.plugins.notification&&window.cordova.plugins.notification.local)return "cordova";}catch(e){}
+  try{if(window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.LocalNotifications)return "capacitor";}catch(e){}
+  return null;
+}
+function cancelNativeAhead(chatId){
+  try{
+    if(_nativeAheadIds[chatId]==null)return;
+    const id=_aheadNotifId(chatId);
+    const kind=_nativeNotifyKind();
+    if(kind==="cordova"){try{window.cordova.plugins.notification.local.cancel(id);}catch(e){}}
+    else if(kind==="capacitor"){try{window.Capacitor.Plugins.LocalNotifications.cancel({notifications:[{id:id}]});}catch(e){}}
+    delete _nativeAheadIds[chatId];
+  }catch(e){}
+}
+function scheduleNativeAhead(chat,delayMs,text){
+  try{
+    if(!chat||!chat.id)return;
+    if(!(delayMs>1000))return;
+    const s=getNotifySettings();
+    if(!s.notifyEnabled||!s.sysNotifyEnabled)return;
+    const kind=_nativeNotifyKind();
+    if(kind!=="cordova"&&kind!=="capacitor")return;
+    const id=_aheadNotifId(chat.id);
+    const at=new Date(Date.now()+delayMs);
+    const t=String(text||"新消息");
+    if(kind==="cordova"){
+      try{window.cordova.plugins.notification.local.cancel(id);}catch(e){}
+      window.cordova.plugins.notification.local.schedule({id:id,title:String(chat.name),text:t,trigger:{at:at},foreground:false,smallIcon:"icon",autoClear:true});
+    }else{
+      const P=window.Capacitor.Plugins.LocalNotifications;
+      try{P.cancel({notifications:[{id:id}]});}catch(e){}
+      P.schedule({notifications:[{id:id,title:String(chat.name),body:t,schedule:{at:at}}]});
+    }
+    _nativeAheadIds[chat.id]=id;
+  }catch(e){console.warn("[通知] 预调度失败:",e);}
+}
+function notifyIncomingCallNative(chat){
+  try{
+    if(!chat||!chat.id)return;
+    const s=getNotifySettings();
+    if(!s.notifyEnabled||!s.sysNotifyEnabled)return;
+    const body=chat.name+" 正在给你打电话…";
+    const title=chat.name+" 来电";
+    const kind=_nativeNotifyKind();
+    if(kind==="cordova"){
+      const id=_callNotifId(chat.id);
+      try{window.cordova.plugins.notification.local.cancel(id);}catch(e){}
+      window.cordova.plugins.notification.local.schedule({id:id,title:title,text:body,foreground:true,smallIcon:"icon",autoClear:true});
+      return;
+    }
+    if(kind==="capacitor"){
+      const P=window.Capacitor.Plugins.LocalNotifications;
+      const id=_callNotifId(chat.id);
+      try{P.cancel({notifications:[{id:id}]});}catch(e){}
+      P.schedule({notifications:[{id:id,title:title,body:body}]});
+      return;
+    }
+    if("Notification" in window&&Notification.permission==="granted"){
+      const n=new Notification(title,{body:body,tag:"sim-call-"+chat.id,requireInteraction:true,vibrate:[500,300,500,300,500]});
+      n.onclick=()=>{try{window.focus();}catch(e){};n.close();};
+    }
+  }catch(e){console.warn("[通知] 来电通知失败:",e);}
+}
+function clearIncomingCallNative(chatId){
+  try{
+    const kind=_nativeNotifyKind();
+    if(kind==="cordova"){try{window.cordova.plugins.notification.local.cancel(_callNotifId(chatId));}catch(e){}}
+    else if(kind==="capacitor"){try{window.Capacitor.Plugins.LocalNotifications.cancel({notifications:[{id:_callNotifId(chatId)}]});}catch(e){}}
+    try{if(swRegistration){swRegistration.getNotifications({tag:"sim-call-"+chatId}).then(ns=>ns.forEach(n=>n.close())).catch(()=>{});}}catch(e){}
+  }catch(e){}
+}
 /* ===== 角色撤回消息功能 ===== */
 // 角色发送消息后，有5%概率在3-8秒后撤掉这条消息
 function scheduleRoleRecall(chatId,msgIndex){
@@ -13588,7 +13667,9 @@ function scheduleLetter(chat){
   }
   const delay=randInt(minMin,maxMax)*60000;
   console.log("[信件] 角色 "+chat.name+" 将在 "+Math.round(delay/60000)+" 分钟后主动发信（区间 "+minMin+"-"+maxMax+" 分钟）");
+  scheduleNativeAhead(chat,delay,"发来一封信");
   letterTimers[chat.id]=setTimeout(()=>{
+    cancelNativeAhead(chat.id);
     const current=getChat(chat.id);
     if(!current){console.warn("[信件] 定时器触发时角色 "+chat.id+" 已不存在");return;}
     const cfg=getSettings(current.id);
@@ -13985,6 +14066,7 @@ function triggerIncomingCall(chatId){
   playRingTone();
   // 震动（如果支持）
   try{if(navigator.vibrate)navigator.vibrate([500,300,500,300,500,300,500]);}catch(e){}
+  notifyIncomingCallNative(chat);
   // 超时自动拒接（未接）
   incomingCallState.timeoutTimer=setTimeout(()=>{
     if(incomingCallState.active)rejectIncomingCall(true);
@@ -13994,6 +14076,7 @@ function triggerIncomingCall(chatId){
 function answerIncomingCall(){
   if(!incomingCallState.active)return;
   const chatId=incomingCallState.chatId;
+  clearIncomingCallNative(chatId);
   clearTimeout(incomingCallState.timeoutTimer);
   stopRingTone();
   incomingCallState.active=false;
@@ -14006,6 +14089,7 @@ function answerIncomingCall(){
 function rejectIncomingCall(isMissed){
   if(!incomingCallState.active)return;
   const chatId=incomingCallState.chatId;
+  clearIncomingCallNative(chatId);
   clearTimeout(incomingCallState.timeoutTimer);
   stopRingTone();
   incomingCallState.active=false;
