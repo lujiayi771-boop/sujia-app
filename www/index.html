@@ -7106,9 +7106,18 @@ function save(){
    //    也就不会再出现“存储空间不足”，缓存也不会停留在旧数据上。
    let _lsFull=false;
    try{
-     const light=JSON.stringify(stripStateForCache(state));
-     localStorage.setItem(KEY,light);
-     try{localStorage.setItem(KEY+"_backup",light);}catch(e){}
+     // 优先保存“完整快照”（含图片），确保任何情况下重进APP图片都在；
+     // 只有当完整快照超出 localStorage 配额时，才退化为去图片的轻量快照。
+     let light;
+     try{
+       light=JSON.stringify(state);
+       localStorage.setItem(KEY,light);
+       try{localStorage.setItem(KEY+"_backup",light);}catch(e){}
+     }catch(_big){
+       light=JSON.stringify(stripStateForCache(state));
+       localStorage.setItem(KEY,light);
+       try{localStorage.setItem(KEY+"_backup",light);}catch(e){}
+     }
    }catch(lsErr){
      _lsFull=true;
      // 极端情况（连轻量快照都放不下）：标记刷新后从 IndexedDB 强制恢复
@@ -7664,7 +7673,7 @@ function scheduleActiveMessage(chat){
  const unit=s.activeUnit==="seconds"?1000:60000;
  const delay=randInt(s.activeMin,s.activeMax)*unit;
  recordTask(chat.id,"active",delay);
- scheduleNativeAhead(chat,delay,"发来一条新消息");
+ scheduleAheadChain(chat,6);
  activeTimers[chat.id]=setTimeout(()=>{
    clearTaskRecord(chat.id,"active");
    cancelNativeAhead(chat.id);
@@ -12404,10 +12413,60 @@ if(typeof document!=="undefined"&&!window.__inappHideHooked){
   window.addEventListener("pagehide",function(){hideInAppNotif();});
   window.addEventListener("blur",function(){hideInAppNotif();});
 }
+/* ===== 从后台长时间返回：修复系统回收图片导致的“图片全空白” + 重排原生通知 ===== */
+let _appHiddenAt=0;
+function _reviveBrokenImages(){
+  try{
+    const imgs=document.images;
+    for(let i=0;i<imgs.length;i++){
+      const im=imgs[i];
+      try{
+        const src=im.getAttribute("src")||"";
+        if(!src)continue;
+        if(im.complete&&im.naturalWidth>0)continue;
+        if(src.slice(0,5)!=="data:"&&src.slice(0,4)!=="blob")continue;
+        im.src="";
+        const _s=src;
+        setTimeout(function(){try{im.src=_s;}catch(e){}},0);
+      }catch(e){}
+    }
+  }catch(e){}
+}
+function _hasBrokenImages(){
+  try{
+    const imgs=document.images;
+    for(let i=0;i<imgs.length;i++){
+      const im=imgs[i];
+      const src=im.getAttribute("src")||"";
+      if(src&&im.complete&&im.naturalWidth===0)return true;
+    }
+  }catch(e){}
+  return false;
+}
+function onAppResume(){
+  try{
+    if(_hasBrokenImages()){
+      _reviveBrokenImages();
+      try{if(typeof currentId!=="undefined"&&currentId&&typeof renderMessages==="function")renderMessages();}catch(e){}
+      try{if(typeof renderMoments==="function")renderMoments();}catch(e){}
+    }
+  }catch(e){}
+  try{replanAllAheadChains();}catch(e){}
+}
+document.addEventListener("visibilitychange",function(){
+  if(document.hidden){_appHiddenAt=Date.now();try{replanAllAheadChains();}catch(e){}}
+  else{
+    const away=Date.now()-_appHiddenAt;
+    if(_appHiddenAt&&away>20000){try{onAppResume();}catch(e){}}
+    _appHiddenAt=0;
+  }
+});
+window.addEventListener("pagehide",function(){try{replanAllAheadChains();}catch(e){};_appHiddenAt=Date.now();});
+window.addEventListener("pageshow",function(e){try{if(e.persisted)onAppResume();}catch(e){}});
 /* ===== 原生定时通知：提前用系统闹钟调度，解决后台/息屏时通知延迟 ===== */
 const _nativeAheadIds={};
 function _stableHash(str){let h=0;const s=String(str||"");for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return h;}
-function _aheadNotifId(chatId){return 100000+(_stableHash("msg:"+chatId)%900000);}
+function _aheadNotifId(chatId,slot){return 100000+(_stableHash("msg:"+chatId+"#"+((slot|0))+"x")%800000);}
 function _callNotifId(chatId){return 2000000+(_stableHash("call:"+chatId)%900000);}
 function _nativeNotifyKind(){
   try{if(window.cordova&&window.cordova.plugins&&window.cordova.plugins.notification&&window.cordova.plugins.notification.local)return "cordova";}catch(e){}
@@ -12416,35 +12475,70 @@ function _nativeNotifyKind(){
 }
 function cancelNativeAhead(chatId){
   try{
-    if(_nativeAheadIds[chatId]==null)return;
-    const id=_aheadNotifId(chatId);
     const kind=_nativeNotifyKind();
-    if(kind==="cordova"){try{window.cordova.plugins.notification.local.cancel(id);}catch(e){}}
-    else if(kind==="capacitor"){try{window.Capacitor.Plugins.LocalNotifications.cancel({notifications:[{id:id}]});}catch(e){}}
+    for(let slot=0;slot<12;slot++){
+      const id=_aheadNotifId(chatId,slot);
+      if(kind==="cordova"){try{window.cordova.plugins.notification.local.cancel(id);}catch(e){}}
+      else if(kind==="capacitor"){try{window.Capacitor.Plugins.LocalNotifications.cancel({notifications:[{id:id}]});}catch(e){}}
+    }
     delete _nativeAheadIds[chatId];
   }catch(e){}
 }
-function scheduleNativeAhead(chat,delayMs,text){
+function _scheduleAheadSlot(chat,slot,delayMs,text){
   try{
-    if(!chat||!chat.id)return;
-    if(!(delayMs>1000))return;
-    const s=getNotifySettings();
-    if(!s.notifyEnabled||!s.sysNotifyEnabled)return;
+    if(!chat||!chat.id)return false;
+    if(!(delayMs>1000))return false;
+    const ns=getNotifySettings();
+    if(!ns.notifyEnabled||!ns.sysNotifyEnabled)return false;
     const kind=_nativeNotifyKind();
-    if(kind!=="cordova"&&kind!=="capacitor")return;
-    const id=_aheadNotifId(chat.id);
+    if(kind!=="cordova"&&kind!=="capacitor")return false;
+    const id=_aheadNotifId(chat.id,slot);
     const at=new Date(Date.now()+delayMs);
     const t=String(text||"新消息");
     if(kind==="cordova"){
       try{window.cordova.plugins.notification.local.cancel(id);}catch(e){}
-      window.cordova.plugins.notification.local.schedule({id:id,title:String(chat.name),text:t,trigger:{at:at},foreground:false,smallIcon:"icon",autoClear:true});
+      window.cordova.plugins.notification.local.schedule({id:id,title:String(chat.name),text:t,trigger:{at:at},foreground:false,priority:2,wakeup:true,smallIcon:"icon",autoClear:true});
     }else{
       const P=window.Capacitor.Plugins.LocalNotifications;
       try{P.cancel({notifications:[{id:id}]});}catch(e){}
       P.schedule({notifications:[{id:id,title:String(chat.name),body:t,schedule:{at:at}}]});
     }
     _nativeAheadIds[chat.id]=id;
-  }catch(e){console.warn("[通知] 预调度失败:",e);}
+    return true;
+  }catch(e){console.warn("[通知] 预调度失败:",e);return false;}
+}
+function scheduleNativeAhead(chat,delayMs,text){
+  return _scheduleAheadSlot(chat,0,delayMs,text);
+}
+// 一次性把接下来若干条「主动消息」提前排进系统闹钟，即使APP被杀死/息屏也能准点弹出
+function scheduleAheadChain(chat,n){
+  try{
+    if(!chat||!chat.id)return;
+    const kind=_nativeNotifyKind();
+    if(kind!=="cordova"&&kind!=="capacitor")return;
+    const s=getSettings(chat.id);
+    if(!s||!s.activeEnabled){cancelNativeAhead(chat.id);return;}
+    const ns=getNotifySettings();
+    if(!ns.notifyEnabled||!ns.sysNotifyEnabled){cancelNativeAhead(chat.id);return;}
+    const unit=s.activeUnit==="seconds"?1000:60000;
+    const mn=Number(s.activeMin)||0,mx=Number(s.activeMax)||0;
+    if(mx<=0)return;
+    cancelNativeAhead(chat.id);
+    const cnt=Math.max(1,Math.min(Number(n)||3,10));
+    let cum=0;
+    for(let slot=0;slot<cnt;slot++){
+      cum+=randInt(mn,mx)*unit;
+      if(cum<4000)cum=4000;
+      _scheduleAheadSlot(chat,slot,cum,"发来一条新消息");
+    }
+  }catch(e){console.warn("[通知] 预排程失败:",e);}
+}
+// APP退到后台/即将退出时，重新按当前设置排好原生通知（清理已过期规划并补足）
+function replanAllAheadChains(){
+  try{
+    if(typeof state==="undefined"||!state||!Array.isArray(state.chats))return;
+    state.chats.forEach(function(c){try{scheduleAheadChain(c,6);}catch(e){}});
+  }catch(e){}
 }
 function notifyIncomingCallNative(chat){
   try{
