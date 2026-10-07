@@ -10757,6 +10757,66 @@ let recordTimer=null;
 let recordedAudioUrl=null;
 let recordedDuration=0;
 let voiceSendPending=false;
+let nativeMedia=null;
+let nativeRecordFile=null;
+let nativeRecDir="";
+function _ensureMicPermission(){
+  return new Promise(resolve=>{
+    try{
+      if(window.cordova&&cordova.plugins&&cordova.plugins.permissions&&cordova.plugins.permissions.RECORD_AUDIO){
+        cordova.plugins.permissions.requestPermission(cordova.plugins.permissions.RECORD_AUDIO,
+          function(st){resolve(!!(st&&st.hasPermission));},function(){resolve(false);});
+        return;
+      }
+    }catch(e){}
+    resolve(true);
+  });
+}
+function _fallbackToNativeRecording(){
+  return _nativeRecStart().then(()=>{toast("开始录音（原生），说完点击发送");return true;})
+    .catch(err=>{console.warn("原生录音不可用:",err);toast("无法访问麦克风，请到系统设置里给“溯佳”开启麦克风权限，将发送模拟语音");return false;});
+}
+function _nativeRecStart(){
+  return new Promise((resolve,reject)=>{
+    try{
+      if(typeof Media==="undefined"){reject(new Error("no-media-plugin"));return;}
+      const fname="rec_"+Date.now()+".m4a";
+      try{nativeRecDir=cordova.file.dataDirectory||"";}catch(e){nativeRecDir="";}
+      nativeRecordFile=fname;
+      nativeMedia=new Media((nativeRecDir||"")+fname,function(){},function(e){console.warn("[录音] 原生媒体错误:",e);});
+      if(!nativeMedia.startRecord){reject(new Error("no-startRecord"));return;}
+      nativeMedia.startRecord();
+      resolve(true);
+    }catch(e){reject(e);}
+  });
+}
+function _readRecFile(fname){
+  return new Promise((resolve,reject)=>{
+    if(!fname){reject(new Error("no-file"));return;}
+    const bases=[];
+    if(nativeRecDir)bases.push(nativeRecDir);
+    try{bases.push(cordova.file.dataDirectory);}catch(e){}
+    try{bases.push(cordova.file.externalDataDirectory);}catch(e){}
+    try{bases.push(cordova.file.cacheDirectory);}catch(e){}
+    bases.push("");
+    let i=0;
+    const next=()=>{
+      if(i>=bases.length){reject(new Error("read-fail"));return;}
+      const p=bases[i++]+fname;
+      try{
+        window.resolveLocalFileSystemURL(p,function(entry){
+          entry.file(function(file){
+            const r=new FileReader();
+            r.onloadend=function(){resolve(r.result);};
+            r.onerror=function(){next();};
+            r.readAsDataURL(file);
+          },function(){next();});
+        },function(){next();});
+      }catch(e){next();}
+    };
+    next();
+  });
+}
 
 function formatRecordTime(ms){
   const sec=Math.floor(ms/1000);
@@ -10787,21 +10847,17 @@ function startRecording(){
   recordTimer=setInterval(()=>{
     $("voiceRecordTime").textContent=formatRecordTime(Date.now()-recordStartTime);
   },100);
-  // 检查浏览器是否支持录音
-  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
-    // 不支持录音，发送按钮已立即可用，点击后发送模拟语音
-    toast("当前浏览器不支持录音，将发送模拟语音");
-    return;
-  }
-  // 尝试获取麦克风权限
-  navigator.mediaDevices.getUserMedia({audio:true}).then(stream=>{
+  // 开始录音：先确保麦克风权限，再走网页录音；失败则回退原生录音插件
+  _ensureMicPermission().then(()=>{
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){return Promise.reject(new Error("no-getusermedia"));}
+    return navigator.mediaDevices.getUserMedia({audio:true});
+  }).then(stream=>{
     try{
       mediaRecorder=new MediaRecorder(stream);
     }catch(e){
-      toast("录音初始化失败，将发送模拟语音");
       stream.getTracks().forEach(t=>t.stop());
       mediaRecorder=null;
-      return;
+      return _fallbackToNativeRecording();
     }
     mediaRecorder.ondataavailable=e=>{if(e.data.size>0)recordedChunks.push(e.data);};
     mediaRecorder.onstop=()=>{
@@ -10834,13 +10890,12 @@ function startRecording(){
       }
       stream.getTracks().forEach(t=>t.stop());
     };
-    mediaRecorder.start();
+    try{mediaRecorder.start();}catch(e){mediaRecorder=null;return _fallbackToNativeRecording();}
     toast("开始录音，说完点击发送");
+    return true;
   }).catch(err=>{
-    console.error("录音失败:",err);
-    toast("无法访问麦克风，将发送模拟语音");
-    mediaRecorder=null;
-    // 发送按钮已可用，用户点击后发送模拟语音
+    console.warn("网页录音不可用，尝试原生录音:",err);
+    return _fallbackToNativeRecording();
   });
 }
 function stopRecording(send){
@@ -10852,6 +10907,13 @@ function stopRecording(send){
   if(!send){
     // 取消录音
     voiceSendPending=false;
+    try{
+      if(nativeMedia){
+        try{nativeMedia.stopRecord&&nativeMedia.stopRecord();}catch(e){}
+        try{nativeMedia.release&&nativeMedia.release();}catch(e){}
+        nativeMedia=null;nativeRecordFile=null;
+      }
+    }catch(e){}
     $("voiceRecordPanel").style.display="none";
     recordedChunks=[];
     recordedAudioUrl=null;
@@ -10930,6 +10992,20 @@ $("voiceCancelBtn")?.addEventListener("click",()=>stopRecording(false));
 $("voiceSendBtn")?.addEventListener("click",(e)=>{
   e.preventDefault();
   e.stopPropagation();
+  // 原生录音：停止、读取文件后再发送
+  if(nativeMedia){
+    recordedDuration=Math.max(1,Math.round((Date.now()-recordStartTime)/1000));
+    const _nm=nativeMedia;nativeMedia=null;
+    const _fname=nativeRecordFile;nativeRecordFile=null;
+    try{_nm.stopRecord&&_nm.stopRecord();}catch(e){}
+    try{_nm.release&&_nm.release();}catch(e){}
+    if(recordTimer){clearInterval(recordTimer);recordTimer=null;}
+    $("micBtn").classList.remove("recording");
+    $("voiceRecordPanel").style.display="none";
+    _readRecFile(_fname).then(url=>{recordedAudioUrl=url;sendVoiceMessage();})
+      .catch(err=>{console.warn("读取原生录音失败:",err);toast("读取录音失败，将发送模拟语音");sendVoiceMessage();});
+    return;
+  }
   // 如果已经有录音数据，直接发送
   if(recordedAudioUrl){
     stopRecording(true);
