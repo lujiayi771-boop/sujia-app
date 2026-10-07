@@ -12682,17 +12682,17 @@ function triggerNotification(chat,text){
   const s=getNotifySettings();
   if(!s.notifyEnabled)return;
   const displayText=text||"[表情包]";
-  // 页面不可见时：优先用Service Worker通知（息屏可收到），回退到系统Notification
-  if(document.hidden&&s.sysNotifyEnabled){
-    if(tryNativeNotification(chat.name,displayText)){
-      playNotifySound(s.notifySound);
-      if(navigator.vibrate)navigator.vibrate([200,100,200]);
-      return;
-    }
-    if("Notification" in window&&Notification.permission==="granted"){
+  // 关键修复：只要开了系统通知，且用户当前没有正盯着这个聊天，就发“系统通知”
+  // （与能正常工作的“测试通知”走完全同一条 tryNativeNotification 路径，前台/后台都能弹）
+  const inThisChatVisible=(currentId===chat.id)&&!document.hidden;
+  if(s.sysNotifyEnabled&&!inThisChatVisible){
+    let systemShown=false;
+    try{
+      if(tryNativeNotification(chat.name,displayText))systemShown=true;
+    }catch(e){console.warn("[通知] 原生通知失败:",e);}
+    if(!systemShown&&"Notification" in window&&Notification.permission==="granted"){
       if(!showSWNotification(chat,displayText)){
         // SW不可用时（如file：//协议），直接用Notification API
-        // 注意：file：//下页面被系统杀掉后收不到，仅页面存活时有效
         try{
           const n=new Notification(chat.name,{
             body:displayText,
@@ -12702,10 +12702,12 @@ function triggerNotification(chat,text){
           });
           n.onclick=()=>{window.focus();n.close();openChat(chat.id);};
         }catch(e){
-          // 连直接Notification也不行（部分APP webview），记录日志
           console.warn("[通知] 直接Notification也失败:",e);
         }
       }
+      systemShown=true;
+    }
+    if(systemShown){
       playNotifySound(s.notifySound);
       if(navigator.vibrate)navigator.vibrate([200,100,200]);
       return;
@@ -13529,18 +13531,25 @@ async function exportData(){
       indexedDB:{simChatMusicDB_v3:{media:idbData}}
     };
     const data=JSON.stringify(backup);
-    const blob=new Blob([data],{type:"application/json"});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement("a");
     const d=new Date();
     const fname=`溯佳全量备份_${d.getFullYear()}${(d.getMonth()+1).toString().padStart(2,"0")}${d.getDate().toString().padStart(2,"0")}_${d.getHours().toString().padStart(2,"0")}${d.getMinutes().toString().padStart(2,"0")}.json`;
-    a.href=url;a.download=fname;
-    document.body.appendChild(a);a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
     const lsCount=Object.keys(lsData).length;
     const idbCount=Object.keys(idbData).length;
-    toast(`全量备份已导出（${lsCount}项设置+${idbCount}首音乐）：${fname}`);
+    // 关键修复：安卓 APP（Cordova WebView）会忽略网页的 <a download> 下载，导致点“导出”没反应
+    // 统一改走 saveTextToPhoneStorage：原生保存优先，失败再回退到网页下载/另存为
+    let savedTo="";
+    try{ savedTo=await saveTextToPhoneStorage(fname,data); }catch(e){ console.warn("[导出] 统一保存通道失败，就地兜底下载:",e); }
+    if(!savedTo){
+      const blob=new Blob([data],{type:"application/json"});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement("a");
+      a.href=url;a.download=fname;
+      document.body.appendChild(a);a.click();
+      document.body.removeChild(a);
+      setTimeout(()=>URL.revokeObjectURL(url),1500);
+      savedTo="已下载到本机（浏览器下载目录）";
+    }
+    toast(`全量备份已导出（${lsCount}项设置+${idbCount}首音乐）：${fname}｜${savedTo}`);
   }catch(err){
     console.error("导出失败:",err);
     toast("导出失败："+err.message);
@@ -15026,15 +15035,23 @@ $("worldBookFileInput")?.addEventListener("change",(e)=>{
   setTimeout(()=>{e.target.value="";},100);
 });
 // 导出世界书
-$("exportWorldBook")?.addEventListener("click",()=>{
+$("exportWorldBook")?.addEventListener("click",async()=>{
   const wb=getWorldBook(currentWorldBookContactId);
-  const blob=new Blob([JSON.stringify(wb,null,2)],{type:"application/json"});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement("a");
-  a.href=url;a.download=(wb.name||"worldbook")+".json";
-  a.click();
-  URL.revokeObjectURL(url);
-  toast("世界书已导出");
+  const text=JSON.stringify(wb,null,2);
+  const fname=(wb.name||"worldbook")+".json";
+  let ok="";
+  try{ ok=await saveTextToPhoneStorage(fname,text); }catch(e){ console.warn("[世界书导出] 原生保存失败:",e); }
+  if(!ok){
+    const blob=new Blob([text],{type:"application/json"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;a.download=fname;
+    document.body.appendChild(a);a.click();
+    document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url),1500);
+    ok="已下载到本机";
+  }
+  toast("世界书已导出："+fname+"｜"+ok);
 });
 // 条目编辑模态框
 $("worldEntryEditBack")?.addEventListener("click",closeWorldEntryEdit);
