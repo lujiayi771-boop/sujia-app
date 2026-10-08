@@ -30,7 +30,6 @@ jobs:
           cordova plugin add cordova-plugin-local-notification
           cordova plugin add cordova-plugin-file
           cordova plugin add cordova-plugin-media
-          cordova plugin add cordova-plugin-saf-file-chooser
 
       - name: Build Android APK
         run: |
