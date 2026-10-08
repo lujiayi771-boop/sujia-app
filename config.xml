@@ -1,22 +1,55 @@
 <?xml version='1.0' encoding='utf-8'?>
-<widget id="com.suijia.app" version="1.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:android="http://schemas.android.com/apk/res/android">
-  <name>溯佳</name>
-  <description>开发助手</description>
-  <content src="index.html" />
-  <preference name="AndroidXEnabled" value="true" />
-  <platform name="android">
-    <icon src="www/icon.png" density="ldpi" />
-    <icon src="www/icon.png" density="mdpi" />
-    <icon src="www/icon.png" density="hdpi" />
-    <icon src="www/icon.png" density="xhdpi" />
-    <icon src="www/icon.png" density="xxhdpi" />
-    <icon src="www/icon.png" density="xxxhdpi" />
-    <config-file target="AndroidManifest.xml" parent="/manifest">
-      <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-      <uses-permission android:name="android.permission.VIBRATE" />
-      <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-      <uses-permission android:name="android.permission.RECORD_AUDIO" />
-      <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
-    </config-file>
-  </platform>
+<widget id="com.sujia.app" version="1.0.0"
+    xmlns="http://www.w3.org/ns/widgets"
+    xmlns:cdv="http://cordova.apache.org/ns/1.0">
+    <name>溯佳</name>
+    <description>溯佳 - 模拟聊天APP</description>
+    <author email="sujia@example.com">溯佳</author>
+
+    <content src="index.html" />
+
+    <!-- 允许加载任意来源（本地文件 + 网络图片） -->
+    <allow-navigation href="*" />
+    <access origin="*" />
+    <allow-intent href="http://*/*" />
+    <allow-intent href="https://*/*" />
+    <allow-intent href="tel:*" />
+    <allow-intent href="sms:*" />
+    <allow-intent href="mailto:*" />
+    <allow-intent href="geo:*" />
+
+    <preference name="DisallowOverscroll" value="true" />
+    <preference name="BackgroundColor" value="0xffffffff" />
+
+    <!-- 原生通知 + 手机文件存储插件（关键） -->
+    <plugin name="cordova-plugin-local-notification" spec="^1.1.0" />
+    <plugin name="cordova-plugin-file" spec="^8.0.0" />
+    <plugin name="cordova-plugin-media" spec="^6.0.0" />
+    <!-- 关键：用 SAF/MediaStore 把备份 json 写入系统“下载”公共目录，卸载后仍保留、可重新导入 -->
+    <plugin name="cordova-plugin-saf-mediastore" spec="https://github.com/latchuk/cordova-plugin-saf-mediastore.git" />
+
+    <platform name="android">
+        <preference name="AndroidPersistentFileLocation" value="Compatibility" />
+        <preference name="AndroidExtraFilesystems" value="files,files-external,documents,sdcard,cache,cache-external,assets,root" />
+        <preference name="android-minSdkVersion" value="24" />
+        <preference name="android-targetSdkVersion" value="34" />
+
+        <!-- Android 13+ 系统通知权限 -->
+        <config-file target="AndroidManifest.xml" parent="/manifest">
+            <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+            <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+            <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+            <uses-permission android:name="android.permission.WAKE_LOCK" />
+            <uses-permission android:name="android.permission.VIBRATE" />
+            <uses-permission android:name="android.permission.RECORD_AUDIO" />
+            <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+            <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+            <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+        </config-file>
+    </platform>
+
+    <!-- 图标（可选，按需替换） -->
+    <platform name="android">
+        <icon density="ldpi"  src="res/icon/android/icon-ldpi.png"  />
+    </platform>
 </widget>
