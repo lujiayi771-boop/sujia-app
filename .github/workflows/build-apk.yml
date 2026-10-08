@@ -1,10 +1,8 @@
 name: Build APK
-
-# 触发方式：推送到 main 分支，或在 Actions 页面手动点 Run workflow
 on:
+  workflow_dispatch:
   push:
     branches: [ main ]
-  workflow_dispatch:
 
 jobs:
   build:
@@ -13,39 +11,34 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Setup JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Install Cordova
         run: npm install -g cordova
 
-      - name: Add Android platform
-        run: cordova platform add android
-
-      # 关键：显式安装原生插件（通知 + 文件存储 + SAF/MediaStore 公共目录保存）
-      - name: Install plugins
+      - name: Add plugins
         run: |
           cordova plugin add cordova-plugin-local-notification
           cordova plugin add cordova-plugin-file
           cordova plugin add cordova-plugin-media
-          cordova plugin add https://github.com/latchuk/cordova-plugin-saf-mediastore.git
+          cordova plugin add cordova-plugin-saf-file-chooser
 
-      - name: Build Debug APK
-        run: cordova build android --debug
+      - name: Build Android APK
+        run: |
+          cordova platform add android
+          cordova build android
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: suijia-apk
-          path: platforms/android/app/build/outputs/apk/debug/app-debug.apk
+          path: platforms/android/app/build/outputs/apk/**/*.apk
