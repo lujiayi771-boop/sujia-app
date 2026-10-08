@@ -1913,7 +1913,7 @@ body.dark .lib-group-toggle-icon{background:#2c2c2e!important}
 @keyframes callVoicePulse{0%,100%{opacity:1}50%{opacity:.4}}
 .call-busy-btn{padding:10px 24px;border-radius:20px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#ff6b6b;font-size:14px;cursor:default;margin-bottom:16px;display:flex;align-items:center;gap:6px}
 /* 通话悬浮小窗 */
-.call-float{position:fixed;top:80px;right:12px;z-index:250;width:240px;background:rgba(30,30,35,.95);backdrop-filter:blur(10px);border-radius:16px;padding:12px;display:none;gap:10px;align-items:flex-start;box-shadow:0 8px 30px rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);cursor:pointer}
+.call-float{position:fixed;top:80px;right:12px;z-index:250;width:250px;background:rgba(30,30,35,.95);backdrop-filter:blur(10px);border-radius:16px;padding:12px;display:none;gap:10px;align-items:flex-start;box-shadow:0 8px 30px rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none;overflow:hidden}
 .call-float.show{display:flex}
 .call-float-avatar{width:40px;height:40px;border-radius:50%;background:#e9ecf1;display:grid;place-items:center;font-weight:650;font-size:14px;color:#555d68;overflow:hidden;flex:0 0 40px}
 .call-float-avatar img{width:100%;height:100%;object-fit:cover}
@@ -1922,7 +1922,7 @@ body.dark .lib-group-toggle-icon{background:#2c2c2e!important}
 .call-float-dot{width:8px;height:8px;border-radius:50%;background:#34c759;flex:0 0 8px;animation:callDotPulse 1.5s ease-in-out infinite}
 @keyframes callDotPulse{0%,100%{opacity:1}50%{opacity:.4}}
 .call-float-duration{font-size:18px;font-weight:300;color:#fff;margin-top:2px;font-variant-numeric:tabular-nums}
-.call-float-text{font-size:12px;color:rgba(255,255,255,.8);margin-top:6px;max-width:100%;line-height:1.4;word-break:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.call-float-text{font-size:12px;color:rgba(255,255,255,.82);margin-top:6px;width:100%;max-width:100%;line-height:1.45;word-break:break-word;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .call-float-hangup{width:32px;height:32px;border-radius:50%;background:#ff3b30;border:0;cursor:pointer;display:grid;place-items:center;color:#fff;flex:0 0 32px;transition:transform .15s}
 .call-float-hangup:hover{transform:scale(1.1)}
 .call-float-hangup svg{width:16px;height:16px}
@@ -5824,8 +5824,8 @@ body.dark .rp-history-title{color:#f0f0f2;}
         <span>通话中</span>
       </div>
       <div class="call-float-duration" id="callFloatDuration">00:00</div>
+      <div class="call-float-text" id="callFloatText"></div>
     </div>
-    <div class="call-float-text" id="callFloatText"></div>
     <div class="call-float-hangup" id="callFloatHangup" title="挂断">
       <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" transform="rotate(135 12 12)"/></svg>
     </div>
@@ -13294,10 +13294,11 @@ const NativeBridge={
   hasSave(){ const e=this.env(); if(!e)return false;
     if(e.kind==="generic")return typeof e.B.saveFile==="function";
     if(e.kind==="plus")return !!(window.plus&&window.plus.io);
-    if(e.kind==="cordova")return !!(window.cordova&&window.cordova.file);
+    if(e.kind==="cordova")return !!(window.cordova&&(window.cordova.file||(window.cordova.plugins&&window.cordova.plugins.safMediastore)));
     if(e.kind==="capacitor")return !!(e.P.Filesystem); return false; },
   hasPick(){ const e=this.env(); if(!e)return false;
     if(e.kind==="generic")return typeof e.B.pickFile==="function";
+    if(e.kind==="cordova")return !!(window.cordova&&window.cordova.plugins&&window.cordova.plugins.safMediastore&&typeof window.cordova.plugins.safMediastore.selectFile==="function");
     if(e.kind==="capacitor")return !!(e.P.Filesystem); return false; },
   hasNotify(){ const e=this.env(); if(!e)return false;
     if(e.kind==="generic")return typeof e.B.notify==="function";
@@ -13329,26 +13330,78 @@ const NativeBridge={
       };
       tryRoot();
     }); }
-    if(e.kind==="cordova"){ return await new Promise(resolve=>{
+    if(e.kind==="cordova"){
+      // 1) 首选 SAF / MediaStore：写入系统“下载”公共目录（卸载后仍保留、手机文件管理器可见、可重新导入）
       try{
-        const c=window.cordova.file;
-        const dir=c.externalDataDirectory||c.dataDirectory||c.externalRootDirectory;
-        window.resolveLocalFileSystemURL(dir,dirEntry=>{
-          dirEntry.getFile(name,{create:true},fileEntry=>{
-            fileEntry.createWriter(w=>{
-              w.onwrite=()=>resolve("已保存到APP存储目录："+fileEntry.fullPath);
-              w.onerror=()=>resolve(false);
-              try{ w.write(text); }catch(err){ try{ w.write(new Blob([text],{type:"application/json"})); }catch(e2){ resolve(false); } }
+        const saf=(window.cordova&&window.cordova.plugins&&window.cordova.plugins.safMediastore)||null;
+        if(saf&&typeof saf.writeFile==="function"){
+          const b64=btoa(unescape(encodeURIComponent(text)));
+          const uri=await saf.writeFile({data:b64,filename:name});
+          if(uri)return "已保存到手机“下载”目录（卸载后仍保留，可重新导入）";
+        }
+      }catch(err){ console.warn("[存储] SAF/MediaStore 保存失败，改用文件插件:",err); }
+      // 2) 备用：cordova-plugin-file 写入公共 Download 目录
+      const pubPath=await new Promise(resolve=>{
+        try{
+          const c=window.cordova.file;
+          const base=c&&c.externalRootDirectory;
+          if(!base){ resolve(false); return; }
+          const writeInto=dirEntry=>{
+            dirEntry.getFile(name,{create:true},fileEntry=>{
+              fileEntry.createWriter(w=>{
+                w.onwrite=()=>resolve("已保存到手机存储："+(fileEntry.toURL?fileEntry.toURL():fileEntry.fullPath));
+                w.onerror=()=>resolve(false);
+                try{ w.write(new Blob([text],{type:"application/json"})); }catch(err){ try{ w.write(text); }catch(e2){ resolve(false); } }
+              },()=>resolve(false));
+            },()=>resolve(false));
+          };
+          window.resolveLocalFileSystemURL(base+"Download/",writeInto,()=>{
+            window.resolveLocalFileSystemURL(base,root=>{
+              root.getDirectory("Download",{create:true},writeInto,()=>resolve(false));
+            },()=>resolve(false));
+          });
+        }catch(err){ resolve(false); }
+      });
+      if(pubPath)return pubPath;
+      // 3) 兜底：应用私有目录（至少留下文件，但不随卸载保留）
+      return await new Promise(resolve=>{
+        try{
+          const c=window.cordova.file;
+          const dir=(c&&(c.externalDataDirectory||c.dataDirectory||c.applicationStorageDirectory))||null;
+          if(!dir){ resolve(false); return; }
+          window.resolveLocalFileSystemURL(dir,dirEntry=>{
+            dirEntry.getFile(name,{create:true},fileEntry=>{
+              fileEntry.createWriter(w=>{
+                w.onwrite=()=>resolve("已保存到APP私有目录："+fileEntry.fullPath);
+                w.onerror=()=>resolve(false);
+                try{ w.write(new Blob([text],{type:"application/json"})); }catch(err){ try{ w.write(text); }catch(e2){ resolve(false); } }
+              },()=>resolve(false));
             },()=>resolve(false));
           },()=>resolve(false));
-        },()=>resolve(false));
-      }catch(err){ resolve(false); }
-    }); }
+        }catch(err){ resolve(false); }
+      });
+    }
     return false; },
   async pickFile(){ const e=this.env(); if(!e)return null;
     if(e.kind==="generic"){ const r=await e.B.pickFile();
       if(typeof r==="string")return {name:"backup.json",text:r};
       return r||null; }
+    if(e.kind==="cordova"){
+      try{
+        const saf=window.cordova&&window.cordova.plugins&&window.cordova.plugins.safMediastore;
+        if(saf&&typeof saf.selectFile==="function"&&typeof saf.readFile==="function"){
+          const uri=await saf.selectFile("");
+          if(uri){
+            const buf=await saf.readFile(uri);
+            const text=new TextDecoder("utf-8").decode(new Uint8Array(buf));
+            let fn="backup.json";
+            try{ if(saf.getFileName){ const g=await saf.getFileName(uri); if(g)fn=g; } }catch(e2){}
+            return {name:fn,text:text};
+          }
+        }
+      }catch(err){ console.warn("[存储] SAF 读取失败，改用选择文件:",err); }
+      return null;
+    }
     if(e.kind==="capacitor"&&e.P.Filesystem){
       try{
         const r=await e.P.Filesystem.readFile({path:"backup.json",directory:"DOCUMENTS",encoding:"utf8"});
@@ -14389,6 +14442,30 @@ function updateCallDuration(){
   const timeStr=mins+":"+secs;
   $("callDuration").textContent=timeStr;
   $("callFloatDuration").textContent=timeStr;
+  if(callState.isMinimized)syncCallFloatText();
+}
+// 小窗字卡与全屏保持同步：直接读取当前全屏正在显示的那张字卡
+function syncCallFloatText(){
+  try{
+    const d=$("callDialogue");
+    const t=d?(d.textContent||"").trim():"";
+    const f=$("callFloatText");
+    if(f&&t)f.textContent=t;
+  }catch(e){}
+}
+// 应用小窗上次拖动后的位置（位置记忆）
+function applyCallFloatPos(){
+  try{
+    const el=$("callFloat");
+    if(!el)return;
+    const saved=JSON.parse(localStorage.getItem("callFloatPos")||"null");
+    if(saved&&typeof saved.left==="number"&&typeof saved.top==="number"){
+      const w=el.offsetWidth||240,h=el.offsetHeight||80;
+      const left=Math.max(6,Math.min(saved.left,window.innerWidth-w-6));
+      const top=Math.max(6,Math.min(saved.top,window.innerHeight-h-6));
+      el.style.left=left+"px";el.style.top=top+"px";el.style.right="auto";
+    }
+  }catch(e){}
 }
 function scheduleRoleSpeak(delay){
   if(!callState.active)return;
@@ -14456,6 +14533,8 @@ function minimizeCall(){
   callState.isMinimized=true;
   $("callFullscreen").classList.remove("show");
   $("callFloat").classList.add("show");
+  applyCallFloatPos();
+  syncCallFloatText();
 }
 function maximizeCall(){
   if(!callState.active||!callState.isMinimized)return;
@@ -14531,7 +14610,8 @@ function startBrowserVoiceRecognition(){
       }else if(event.error==="no-speech"){
         updateCallVoiceStatus("正在聆听...","listening");
       }else{
-        updateCallVoiceStatus("识别错误: "+event.error,"error");
+        // 已按用户要求去掉通话界面的“识别错误”红字提示（仅保留控制台日志）
+        updateCallVoiceStatus("正在聆听...","listening");
       }
     };
     recognition.onend=()=>{
@@ -14670,6 +14750,54 @@ $("callFloatHangup").addEventListener("click",e=>{
 });
 $("callMinimizeBtn").addEventListener("click",minimizeCall);
 $("callFloat").addEventListener("click",maximizeCall);
+/* 通话小窗可拖动：避免遮挡聊天文字，位置自动记忆 */
+(function(){
+  var el=document.getElementById("callFloat");
+  if(!el)return;
+  var dragging=false,moved=false,sx=0,sy=0,ox=0,oy=0,pid=null;
+  function savePos(){
+    try{
+      var r=el.getBoundingClientRect();
+      localStorage.setItem("callFloatPos",JSON.stringify({left:r.left,top:r.top}));
+    }catch(e){}
+  }
+  el.addEventListener("pointerdown",function(e){
+    if(e.target.closest(".call-float-hangup"))return;
+    var r=el.getBoundingClientRect();
+    dragging=true;moved=false;pid=e.pointerId;
+    sx=e.clientX;sy=e.clientY;ox=r.left;oy=r.top;
+    el.style.right="auto";el.style.left=r.left+"px";el.style.top=r.top+"px";
+    try{el.setPointerCapture(pid);}catch(_){}
+  });
+  el.addEventListener("pointermove",function(e){
+    if(!dragging)return;
+    var dx=e.clientX-sx,dy=e.clientY-sy;
+    if(!moved&&Math.abs(dx)+Math.abs(dy)>6)moved=true;
+    if(!moved)return;
+    if(e.cancelable)e.preventDefault();
+    var w=el.offsetWidth||240,h=el.offsetHeight||80;
+    var left=Math.max(6,Math.min(ox+dx,window.innerWidth-w-6));
+    var top=Math.max(6,Math.min(oy+dy,window.innerHeight-h-6));
+    el.style.left=left+"px";el.style.top=top+"px";
+  });
+  function endDrag(){
+    if(!dragging)return;
+    dragging=false;
+    try{el.releasePointerCapture(pid);}catch(_){}
+    if(moved){el.dataset.dragged="1";savePos();setTimeout(function(){try{delete el.dataset.dragged;}catch(_){}},80);}
+  }
+  el.addEventListener("pointerup",endDrag);
+  el.addEventListener("pointercancel",endDrag);
+  el.addEventListener("click",function(e){
+    if(el.dataset.dragged){e.stopPropagation();e.preventDefault();}
+  },true);
+  window.addEventListener("resize",function(){
+    try{
+      var r=el.getBoundingClientRect();
+      if(r.left>window.innerWidth-40||r.top>window.innerHeight-40)applyCallFloatPos();
+    }catch(_){}
+  });
+})();
 $("callFullscreen").addEventListener("dblclick",e=>{
   e.preventDefault();
   e.stopPropagation();
