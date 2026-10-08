@@ -5,6 +5,12 @@
   <content src="index.html" />
   <preference name="AndroidXEnabled" value="true" />
   <platform name="android">
+    <icon src="www/icon.png" density="ldpi" />
+    <icon src="www/icon.png" density="mdpi" />
+    <icon src="www/icon.png" density="hdpi" />
+    <icon src="www/icon.png" density="xhdpi" />
+    <icon src="www/icon.png" density="xxhdpi" />
+    <icon src="www/icon.png" density="xxxhdpi" />
     <config-file target="AndroidManifest.xml" parent="/manifest">
       <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
       <uses-permission android:name="android.permission.VIBRATE" />
