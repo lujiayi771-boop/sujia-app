@@ -13189,6 +13189,7 @@ function _blobToDataURL(blob){
   });
 }
 // 读取 IndexedDB 中所有音乐 Blob 并转为 base64
+function _yieldUI(){ return new Promise(r=>setTimeout(r,0)); }
 function _dumpMusicIDB(){
   return new Promise(resolve=>{
     try{
@@ -13212,6 +13213,8 @@ function _dumpMusicIDB(){
                   entries[String(keys[i])]=await _blobToDataURL(blobs[i]);
                 }
               }catch(e){console.warn("导出音乐失败:",keys[i],e);}
+              // 每处理若干条让出一次主线程，避免大容量音乐库导出时界面卡死
+              if(i%5===4)await _yieldUI();
             }
             try{db.close();}catch(e){}
             resolve(entries);
@@ -13560,10 +13563,11 @@ document.addEventListener("click",e=>{
 
 async function exportData(){
   try{
+    const st=document.getElementById("phoneStorageStatus");
     toast("正在导出全量备份，请稍候...");
-    // 1. 主数据 state
-    const stateData=JSON.parse(JSON.stringify(state));
-    // 2. 收集所有 localStorage key（排除主key，因为已在state中）
+    if(st)st.textContent="正在导出…";
+    await _yieldUI();
+    // 1. 收集所有 localStorage key（排除主key，因为已在state中）
     const lsData={};
     const mainKey=typeof KEY!=="undefined"?KEY:"sim-chat-v5";
     for(let i=0;i<localStorage.length;i++){
@@ -13571,25 +13575,29 @@ async function exportData(){
       if(!k||k===mainKey)continue;
       try{lsData[k]=localStorage.getItem(k);}catch(e){}
     }
-    // 3. 收集 IndexedDB 音乐数据
+    await _yieldUI();
+    // 2. 收集 IndexedDB 音乐数据（内部已分块让出主线程）
     let idbData={};
     try{idbData=await _dumpMusicIDB();}catch(e){console.warn("IDB导出失败:",e);}
-    // 4. 打包
-    const backup={
-      version:2,
-      exportTime:new Date().toISOString(),
-      app:"溯佳聊天模拟器",
-      state:stateData,
-      localStorage:lsData,
-      indexedDB:{simChatMusicDB_v3:{media:idbData}}
-    };
-    const data=JSON.stringify(backup);
+    await _yieldUI();
+    // 3. 分块序列化：大容量数据一次性 JSON.stringify 会长时间占满主线程导致卡死，
+    //    这里把 state / localStorage / indexedDB 分别序列化，并在每段之间让出主线程，
+    //    同时避免对 state 做多余的“序列化→解析→再序列化”克隆。
+    if(st)st.textContent="正在打包数据…";
+    const head='{"version":2,"exportTime":'+JSON.stringify(new Date().toISOString())+',"app":"溯佳聊天模拟器",';
+    const stateStr=JSON.stringify(state);
+    await _yieldUI();
+    const lsStr=JSON.stringify(lsData);
+    await _yieldUI();
+    const idbStr=JSON.stringify(idbData);
+    await _yieldUI();
+    const data=head+'"state":'+stateStr+',"localStorage":'+lsStr+',"indexedDB":{"simChatMusicDB_v3":{"media":'+idbStr+'}}}';
     const d=new Date();
     const fname=`溯佳全量备份_${d.getFullYear()}${(d.getMonth()+1).toString().padStart(2,"0")}${d.getDate().toString().padStart(2,"0")}_${d.getHours().toString().padStart(2,"0")}${d.getMinutes().toString().padStart(2,"0")}.json`;
     const lsCount=Object.keys(lsData).length;
     const idbCount=Object.keys(idbData).length;
-    // 关键修复：安卓 APP（Cordova WebView）会忽略网页的 <a download> 下载，导致点“导出”没反应
-    // 统一改走 saveTextToPhoneStorage：原生保存优先，失败再回退到网页下载/另存为
+    await _yieldUI();
+    // 4. 统一保存通道：原生保存优先，失败再回退到网页下载/另存为
     let savedTo="";
     try{ savedTo=await saveTextToPhoneStorage(fname,data); }catch(e){ console.warn("[导出] 统一保存通道失败，就地兜底下载:",e); }
     if(!savedTo){
@@ -13602,7 +13610,9 @@ async function exportData(){
       setTimeout(()=>URL.revokeObjectURL(url),1500);
       savedTo="已下载到本机（浏览器下载目录）";
     }
-    toast(`全量备份已导出（${lsCount}项设置+${idbCount}首音乐）：${fname}｜${savedTo}`);
+    const okMsg=`全量备份已导出（${lsCount}项设置+${idbCount}首音乐）：${fname}｜${savedTo}`;
+    toast(okMsg);
+    if(st)st.textContent=okMsg;
   }catch(err){
     console.error("导出失败:",err);
     toast("导出失败："+err.message);
