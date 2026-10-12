@@ -3,6 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<script src="cordova.js"></script>
+<script>
+/* 若迟迟未出现原生桥，说明当前不是 Cordova/HTML5+ 打包环境（例如纯 WebView/网页版），仅记录，不影响网页功能。 */
+setTimeout(function(){ try{
+  if(!(window.cordova||window.plus||window.Capacitor||window.SuiJiaNative))
+    console.info("[原生桥] 未检测到 Cordova/HTML5+ 运行环境，当前按网页模式运行。");
+}catch(e){} },30000);
+</script>
 <meta name="theme-color" content="#4f6df5">
 <link rel="manifest" href="data:application/json;charset=utf-8,%7B%22name%22%3A%20%22%E6%BA%AF%E4%BD%B3APP%22%2C%20%22short_name%22%3A%20%22%E6%BA%AF%E4%BD%B3%22%2C%20%22description%22%3A%20%22%E6%BA%AF%E4%BD%B3%20-%20%E6%A8%A1%E6%8B%9F%E8%81%8A%E5%A4%A9APP%22%2C%20%22start_url%22%3A%20%22.%22%2C%20%22display%22%3A%20%22standalone%22%2C%20%22orientation%22%3A%20%22portrait%22%2C%20%22background_color%22%3A%20%22%23ffffff%22%2C%20%22theme_color%22%3A%20%22%234f6df5%22%2C%20%22categories%22%3A%20%5B%22social%22%2C%20%22entertainment%22%5D%2C%20%22icons%22%3A%20%5B%7B%22src%22%3A%20%22data%3Aimage/svg%2Bxml%2C%253Csvg%2520xmlns%253D%2522http%253A//www.w3.org/2000/svg%2522%2520width%253D%2522192%2522%2520height%253D%2522192%2522%2520viewBox%253D%25220%25200%2520192%2520192%2522%253E%253Crect%2520width%253D%2522192%2522%2520height%253D%2522192%2522%2520rx%253D%252242%2522%2520fill%253D%2522%25234f6df5%2522/%253E%253Ctext%2520x%253D%252296%2522%2520y%253D%2522125%2522%2520font-size%253D%252280%2522%2520text-anchor%253D%2522middle%2522%2520fill%253D%2522white%2522%2520font-family%253D%2522sans-serif%2522%2520font-weight%253D%2522bold%2522%253E%25E6%25BA%25AF%253C/text%253E%253C/svg%253E%22%2C%20%22sizes%22%3A%20%22192x192%22%2C%20%22type%22%3A%20%22image/svg%2Bxml%22%2C%20%22purpose%22%3A%20%22any%20maskable%22%7D%2C%20%7B%22src%22%3A%20%22data%3Aimage/svg%2Bxml%2C%253Csvg%2520xmlns%253D%2522http%253A//www.w3.org/2000/svg%2522%2520width%253D%2522512%2522%2520height%253D%2522512%2522%2520viewBox%253D%25220%25200%2520512%2520512%2522%253E%253Crect%2520width%253D%2522512%2522%2520height%253D%2522512%2522%2520rx%253D%2522112%2522%2520fill%253D%2522%25234f6df5%2522/%253E%253Ctext%2520x%253D%2522256%2522%2520y%253D%2522330%2522%2520font-size%253D%2522220%2522%2520text-anchor%253D%2522middle%2522%2520fill%253D%2522white%2522%2520font-family%253D%2522sans-serif%2522%2520font-weight%253D%2522bold%2522%253E%25E6%25BA%25AF%253C/text%253E%253C/svg%253E%22%2C%20%22sizes%22%3A%20%22512x512%22%2C%20%22type%22%3A%20%22image/svg%2Bxml%22%2C%20%22purpose%22%3A%20%22any%20maskable%22%7D%5D%7D">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -524,7 +532,7 @@ svg{display:block;width:22px;height:22px;fill:none;stroke:currentColor;stroke-wi
 
 /* 消息区域 */
 .messages{
-  flex:1;min-height:0;overflow-y:auto;
+  flex:1;min-height:0;overflow-y:auto;overflow-anchor:none;
   padding:17px 14px 16px;
   -webkit-overflow-scrolling:touch;
 }
@@ -1905,7 +1913,7 @@ body.dark .lib-group-toggle-icon{background:#2c2c2e!important}
 @keyframes callVoicePulse{0%,100%{opacity:1}50%{opacity:.4}}
 .call-busy-btn{padding:10px 24px;border-radius:20px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#ff6b6b;font-size:14px;cursor:default;margin-bottom:16px;display:flex;align-items:center;gap:6px}
 /* 通话悬浮小窗 */
-.call-float{position:fixed;top:80px;right:12px;z-index:250;width:240px;background:rgba(30,30,35,.95);backdrop-filter:blur(10px);border-radius:16px;padding:12px;display:none;gap:10px;align-items:flex-start;box-shadow:0 8px 30px rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);cursor:pointer}
+.call-float{position:fixed;top:80px;right:12px;z-index:250;width:250px;background:rgba(30,30,35,.95);backdrop-filter:blur(10px);border-radius:16px;padding:12px;display:none;gap:10px;align-items:flex-start;box-shadow:0 8px 30px rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none;overflow:hidden}
 .call-float.show{display:flex}
 .call-float-avatar{width:40px;height:40px;border-radius:50%;background:#e9ecf1;display:grid;place-items:center;font-weight:650;font-size:14px;color:#555d68;overflow:hidden;flex:0 0 40px}
 .call-float-avatar img{width:100%;height:100%;object-fit:cover}
@@ -1914,7 +1922,7 @@ body.dark .lib-group-toggle-icon{background:#2c2c2e!important}
 .call-float-dot{width:8px;height:8px;border-radius:50%;background:#34c759;flex:0 0 8px;animation:callDotPulse 1.5s ease-in-out infinite}
 @keyframes callDotPulse{0%,100%{opacity:1}50%{opacity:.4}}
 .call-float-duration{font-size:18px;font-weight:300;color:#fff;margin-top:2px;font-variant-numeric:tabular-nums}
-.call-float-text{font-size:12px;color:rgba(255,255,255,.8);margin-top:6px;max-width:100%;line-height:1.4;word-break:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.call-float-text{font-size:12px;color:rgba(255,255,255,.82);margin-top:6px;width:100%;max-width:100%;line-height:1.45;word-break:break-word;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .call-float-hangup{width:32px;height:32px;border-radius:50%;background:#ff3b30;border:0;cursor:pointer;display:grid;place-items:center;color:#fff;flex:0 0 32px;transition:transform .15s}
 .call-float-hangup:hover{transform:scale(1.1)}
 .call-float-hangup svg{width:16px;height:16px}
@@ -2045,14 +2053,14 @@ body.dark .st-custom-row input[type="color"]{background:#2c2c2e!important;border
 /* ===== 应用内通知横幅 ===== */
 .inapp-notification{
   position:fixed;top:calc(env(safe-area-inset-top) + 10px);left:50%;
-  transform:translateX(-50%) translateY(-120%);z-index:200;
+  transform:translateX(-50%) translateY(-160%);z-index:200;opacity:0;visibility:hidden;pointer-events:none;
   width:min(420px,calc(100% - 24px));background:rgba(30,34,42,.96);
   backdrop-filter:blur(14px);border-radius:16px;padding:12px 14px;
   display:flex;gap:10px;align-items:flex-start;color:#fff;
-  box-shadow:0 12px 40px rgba(0,0,0,.28);transition:transform .35s cubic-bezier(.2,.8,.2,1);
+  box-shadow:0 12px 40px rgba(0,0,0,.28);transition:transform .35s cubic-bezier(.2,.8,.2,1),opacity .35s ease,visibility .35s;
   cursor:pointer;
 }
-.inapp-notification.show{transform:translateX(-50%) translateY(0)}
+.inapp-notification.show{transform:translateX(-50%) translateY(0);opacity:1;visibility:visible;pointer-events:auto}
 .inapp-notification .notif-avatar{
   width:40px;height:40px;flex:0 0 40px;border-radius:11px;
   display:grid;place-items:center;font-weight:650;font-size:14px;overflow:hidden;
@@ -2360,6 +2368,9 @@ body.dark .media-menu{background:var(--surface)!important;border-color:var(--bor
 .storage-detail-actions{
   display:flex;justify-content:flex-end;gap:8px;margin-top:16px;
 }
+.storage-persist-section{margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+.storage-persist-status{font-size:12.5px;line-height:1.7;color:var(--muted);margin-bottom:10px;padding:10px 12px;background:#f5f6f8;border-radius:10px}
+.storage-persist-status b{color:var(--text)}
 .storage-detail-btn{
   height:38px;padding:0 18px;border-radius:11px;cursor:pointer;
   font-size:14px;font-weight:600;border:0;
@@ -5491,8 +5502,17 @@ body.dark .rp-history-title{color:#f0f0f2;}
           </div>
           <div class="field">
             <div class="field-label">自定义 CSS（代入气泡）</div>
-            <textarea id="bubbleCustomCSS" class="textarea-input" placeholder="在此写入CSS属性，会直接应用到气泡上&#10;例如：&#10;box-shadow: 0 2px 8px rgba(0,0,0,.1);&#10;font-size: 15px;&#10;border: 2px solid #ddd;"></textarea>
-            <div class="field-help">这里的CSS会同时应用于双方气泡。留空则不使用自定义CSS。</div>
+            <div class="field-label" style="margin-top:2px">快捷主题（内置，无需外部图片）</div>
+            <div class="bubble-theme-presets" style="display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 10px">
+              <button type="button" class="save-wide" style="width:auto;padding:6px 14px;font-size:13px" data-bubble-preset="猫咪气泡">猫咪气泡</button>
+              <button type="button" class="save-wide" style="width:auto;padding:6px 14px;font-size:13px" data-bubble-preset="清新薄荷">清新薄荷</button>
+              <button type="button" class="save-wide" style="width:auto;padding:6px 14px;font-size:13px" data-bubble-preset="简约描边">简约描边</button>
+              <button type="button" class="save-wide" style="width:auto;padding:6px 14px;font-size:13px;background:#eef0f5;color:#444" id="bubbleResetBtn">重置为默认</button>
+            </div>
+            <textarea id="bubbleCustomCSS" class="textarea-input" oninput="renderBubblePreview(this.value)" placeholder="在此粘贴气泡CSS：可直接写CSS属性，也可粘贴带选择器的完整样式表（如 .message{...} / .message.message-sent{...} / .message::after{...}）&#10;例如：&#10;box-shadow: 0 2px 8px rgba(0,0,0,.1);&#10;font-size: 15px;&#10;border: 2px solid #ddd;"></textarea>
+            <div class="field-label" style="margin-top:10px">效果预览（实时）</div>
+            <div id="bubbleCustomPreview" class="bubble-custom-preview" aria-label="气泡实时预览" style="display:flex;flex-direction:column;gap:10px;padding:14px 12px;border:1px dashed #c7cbe0;border-radius:10px;background:#f7f8fb;margin:6px 0;min-height:60px;overflow:auto"></div>
+            <div class="field-help">这里的CSS会同时应用于双方气泡。带选择器的样式表会被自动限定在当前聊天与预览范围内，伪元素/媒体查询均受支持。留空则不使用自定义CSS。</div>
           </div>
           <button class="save-wide" id="saveBubbleSettings">保存气泡样式</button>
         </div>
@@ -5557,6 +5577,8 @@ body.dark .rp-history-title{color:#f0f0f2;}
           <div style="display:flex;gap:10px;margin-top:10px">
             <button class="save-wide" id="appDiagnoseBtn" style="flex:1;background:#6a5acd;color:white;border:none;border-radius:10px;padding:12px;font-size:14px;cursor:pointer">APP通知诊断</button>
             <button class="save-wide" id="reRegisterSWBtn" style="flex:1;background:#e6a23c;color:white;border:none;border-radius:10px;padding:12px;font-size:14px;cursor:pointer">重启通知服务</button>
+            <button class="save-wide" id="nativeNotifyPermBtn" style="flex:1;background:#10b981;color:white;border:none;border-radius:10px;padding:12px;font-size:14px;cursor:pointer">申请系统通知权限</button>
+            <div id="nativeEnvStatus" class="field-help" style="margin-top:8px;color:var(--muted)"></div>
           </div>
           <div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5">
             💡 手机测试方法：点击"发送测试通知"后，立即按Home键切到桌面或锁屏，观察通知栏是否弹出提醒。需先开启"息屏系统通知"并授权通知权限。
@@ -5580,7 +5602,7 @@ body.dark .rp-history-title{color:#f0f0f2;}
           <div class="storage-arrow"><svg viewBox="0 0 24 24"><path d="m9 5 7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
         </button>
         <div style="padding:14px 16px">
-          <div class="field-help" style="margin-top:0;margin-bottom:10px">导出所有数据为 JSON 备份文件，可随时导入恢复，防止数据丢失。</div>
+          <div class="field-help" style="margin-top:0;margin-bottom:10px">导出所有数据为 JSON 备份文件，可随时导入恢复，防止数据丢失。也可在“存储空间详情”里直接保存到手机存储。</div>
           <div class="data-action-row">
             <button class="data-btn export" id="exportDataBtn">
               <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -5802,8 +5824,8 @@ body.dark .rp-history-title{color:#f0f0f2;}
         <span>通话中</span>
       </div>
       <div class="call-float-duration" id="callFloatDuration">00:00</div>
+      <div class="call-float-text" id="callFloatText"></div>
     </div>
-    <div class="call-float-text" id="callFloatText"></div>
     <div class="call-float-hangup" id="callFloatHangup" title="挂断">
       <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" transform="rotate(135 12 12)"/></svg>
     </div>
@@ -6419,6 +6441,29 @@ body.dark .rp-history-title{color:#f0f0f2;}
   <div class="storage-detail-box">
     <div class="storage-detail-title">💾 存储空间详情</div>
     <div id="storageDetailContent"></div>
+    <div class="storage-persist-section">
+      <div class="storage-clean-title">存储容量</div>
+      <div id="storagePersistStatus" class="storage-persist-status">检测中…</div>
+      <button class="storage-clean-btn" id="storagePersistBtn">
+        <span class="storage-clean-icon">📦</span>
+        <span class="storage-clean-text">申请持久化存储（最大化可用容量）</span>
+      </button>
+    </div>
+    <div class="storage-persist-section">
+      <div class="storage-clean-title">📱 手机存储</div>
+      <div class="field-help" style="margin:4px 0 10px;color:var(--muted)">直接调用手机内部存储：把全量备份保存到手机，或从手机选择备份文件恢复。打包成 APP 时会自动使用原生存储。</div>
+      <div class="storage-clean-buttons">
+        <button class="storage-clean-btn" id="saveToPhoneBtn">
+          <span class="storage-clean-icon">💾</span>
+          <span class="storage-clean-text">保存备份到手机存储</span>
+        </button>
+        <button class="storage-clean-btn" id="loadFromPhoneBtn">
+          <span class="storage-clean-icon">📂</span>
+          <span class="storage-clean-text">从手机存储恢复备份</span>
+        </button>
+      </div>
+      <div id="phoneStorageStatus" class="field-help" style="margin-top:8px;color:var(--muted)"></div>
+    </div>
     <div class="storage-clean-section">
       <div class="storage-clean-title">快捷清理</div>
       <div class="storage-clean-buttons">
@@ -7015,6 +7060,27 @@ async function idbSyncOnLoad(){
 let _saveErrThrottle=0;
 let _lsFullWarnThrottle=0;
 let _idbSavePromise=null;
+function stripStateForCache(obj){
+  try{
+    const c=JSON.parse(JSON.stringify(obj));
+    const blank=(o,k)=>{try{if(o&&typeof o[k]==="string"&&o[k].startsWith("data:"))o[k]="";}catch(e){}};
+    if(c.userAvatar)blank(c.userAvatar,"image");
+    if(c.momentCover)blank(c.momentCover,"image");
+    (c.userStickerLibrary||[]).forEach(s=>blank(s,"dataUrl"));
+    (c.moments||[]).forEach(m=>blank(m,"image"));
+    (c.chats||[]).forEach(ch=>{
+      if(ch.avatar)blank(ch.avatar,"image");
+      if(ch.chatBg)blank(ch.chatBg,"image");
+      (ch.stickerLibrary||[]).forEach(s=>blank(s,"dataUrl"));
+      (ch.voiceLibrary||[]).forEach(v=>blank(v,"dataUrl"));
+      (ch.messages||[]).forEach(m=>blank(m,"text"));
+      (ch.moments||[]).forEach(m=>blank(m,"image"));
+    });
+    try{ if(typeof moodCustomEmojis!=="undefined"&&Array.isArray(moodCustomEmojis)) c._moodRefCount=moodCustomEmojis.length; }catch(e){}
+    c._cacheStripped=1;
+    return c;
+  }catch(e){return obj;}
+}
 function save(){
  try{
    // 给没有timestamp的消息添加时间戳（用于删除旧消息）
@@ -7034,23 +7100,32 @@ function save(){
    if(_stateHydrated){
      _idbSavePromise=idbSaveState(state).then(()=>{_idbSavePromise=null;}).catch(()=>{_idbSavePromise=null;});
    }
-   // 2. 尝试写入 localStorage 作为快速缓存（失败不影响数据安全）
+   // 2. 【路线二】localStorage 只保存“轻量快照”（去掉所有 base64 图片），仅作启动加速缓存。
+   //    完整数据（含图片、壁纸、表情包）只写入 IndexedDB（浏览器给的大容量配额）。
+   //    这样 localStorage 永远只占几百 KB，从根源上不可能触及约 5MB 上限，
+   //    也就不会再出现“存储空间不足”，缓存也不会停留在旧数据上。
+   let _lsFull=false;
    try{
-     localStorage.setItem(KEY,stateStr);
-     try{localStorage.setItem(KEY+"_backup",stateStr);}catch(e){}
-   }catch(lsErr){
-     // localStorage 满了，设置恢复标记，让页面刷新后强制从 IndexedDB 恢复
-     try{sessionStorage.setItem("_idb_force_restore","1");}catch(e){}
-     console.warn("[save] localStorage缓存写入失败（数据已存IndexedDB，已标记强制恢复）:",lsErr.name);
-     // 给用户提示（节流，每 15 秒最多提示一次）
-     const _now=Date.now();
-     if(_now-_lsFullWarnThrottle>15000){
-       _lsFullWarnThrottle=_now;
-       try{toast("存储空间较满，数据正在后台保存，请稍候再关闭页面");}catch(e){}
+     // 优先保存“完整快照”（含图片），确保任何情况下重进APP图片都在；
+     // 只有当完整快照超出 localStorage 配额时，才退化为去图片的轻量快照。
+     let light;
+     try{
+       light=JSON.stringify(state);
+       localStorage.setItem(KEY,light);
+       try{localStorage.setItem(KEY+"_backup",light);}catch(e){}
+     }catch(_big){
+       light=JSON.stringify(stripStateForCache(state));
+       localStorage.setItem(KEY,light);
+       try{localStorage.setItem(KEY+"_backup",light);}catch(e){}
      }
+   }catch(lsErr){
+     _lsFull=true;
+     // 极端情况（连轻量快照都放不下）：标记刷新后从 IndexedDB 强制恢复
+     try{sessionStorage.setItem("_idb_force_restore","1");}catch(e){}
+     console.warn("[save] localStorage 轻量快照写入失败（完整数据仍在 IndexedDB）:",lsErr.name);
    }
    _saveErrThrottle=0;
-   return true;
+   return !_lsFull;
  }catch(e){
    const _t=Date.now();
    if(_t-_saveErrThrottle>10000){
@@ -7390,30 +7465,52 @@ function getSettings(id){
 }
 /* ===== 气泡样式生成 ===== */
 /* ===== CSS解析：支持纯属性、带大括号、带注释、多行等各种格式 ===== */
+const __customCssCache=new Map();
+/* 用浏览器原生 CSSOM 解析，稳健处理 url(data:...;base64,...)、引号、注释、选择器、@规则 */
 function parseCustomCSS(input){
  if(!input||!String(input).trim())return "";
- let css=String(input).trim();
- // 去除CSS注释 /* ... */
- css=css.replace(/\/\*[\s\S]*?\*\//g,"");
- // 如果包含大括号，提取所有大括号内的内容并合并
- if(css.includes("{")&&css.includes("}")){
-   const matches=css.match(/\{([^}]*)\}/g);
-   if(matches&&matches.length){
-     css=matches.map(m=>m.slice(1,-1)).join(";");
+ const key=String(input);
+ if(__customCssCache.has(key))return __customCssCache.get(key);
+ let out="";
+ try{
+   if(typeof document!=="undefined"&&document.head){
+     const hasBrace=/[{}]/.test(key);
+     const wrapped=hasBrace?key:("__bubble__{"+key+"}");
+     const styleEl=document.createElement("style");
+     styleEl.textContent=wrapped;
+     document.head.appendChild(styleEl);
+     const decls=[];
+     try{
+       const rules=(styleEl.sheet&&styleEl.sheet.cssRules)?styleEl.sheet.cssRules:[];
+       const collect=(list)=>{for(const r of list){if(r.style&&r.style.length)decls.push(r.style.cssText);if(r.cssRules&&r.cssRules.length)collect(r.cssRules);}};
+       collect(rules);
+     }catch(e){}
+     styleEl.remove();
+     out=decls.filter(Boolean).join(";");
    }
+ }catch(e){out="";}
+ // 若 CSSOM 未能解析（如存在语法错误），退回“引号/括号感知”的安全解析
+ if(!out){
+   try{
+     const cleaned=key.replace(/\/\*[\s\S]*?\*\//g,"");
+     const parts=[];let depth=0,cur="",q=null;
+     for(let i=0;i<cleaned.length;i++){
+       const ch=cleaned[i];
+       if(q){cur+=ch;if(ch===q&&cleaned[i-1]!=="\\")q=null;continue;}
+       if(ch==='"'||ch==="'"){q=ch;cur+=ch;continue;}
+       if(ch==="(")depth++;else if(ch===")")depth=Math.max(0,depth-1);
+       if(ch===";"&&depth===0){parts.push(cur);cur="";}else cur+=ch;
+     }
+     if(cur)parts.push(cur);
+     out=parts.map(p=>p.trim()).filter(p=>{const ci=p.indexOf(":");return ci>0;}).join(";");
+   }catch(e){out="";}
  }
- // 去除选择器残留（如果没有大括号但有选择器格式，尝试提取属性部分）
- // 按分号分割，过滤掉无效行
- const props=css.split(";").map(p=>p.trim()).filter(p=>{
-   if(!p)return false;
-   // 必须包含冒号才是有效属性
-   if(!p.includes(":"))return false;
-   // 排除看起来像选择器的行（不含冒号或冒号在开头）
-   const colonIdx=p.indexOf(":");
-   if(colonIdx<=0)return false;
-   return true;
- });
- return props.join(";");
+ __customCssCache.set(key,out);
+ return out;
+}
+/* 将样式串安全地放入 HTML 属性（转义 & 与 "），避免 CSS 里的引号冲垮标签 */
+function cssAttr(s){
+ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;");
 }
 function getBubbleStyle(s,mine){
  if(!s)return "";
@@ -7434,9 +7531,113 @@ function getBubbleStyle(s,mine){
    parts.push(`font-size:${s.bubbleFontSize}px`);
  }
  // 解析并应用自定义CSS（支持各种格式）
- const customCSS=parseCustomCSS(s.bubbleCustomCSS);
- if(customCSS)parts.push(customCSS);
+ const __rawCss=sanitizeBubbleCSS(s.bubbleCustomCSS);
+ if(__rawCss&&!/[{}]/.test(String(__rawCss))){
+   const customCSS=parseCustomCSS(__rawCss);
+   if(customCSS)parts.push(customCSS);
+ }
  return parts.join(";");
+}
+/* 判定是否为“选择器式”完整样式表（含 { } 即视为样式表） */
+function isSelectorCSS(css){return !!css&&/[{}]/.test(String(css));}
+/* 将用户CSS作用域限定在 #messages 内：避免全局污染，并提升优先级以覆盖内置气泡样式 */
+function scopeBubbleCSS(css){
+ const PREFIXES=["#messages","#bubbleCustomPreview"];
+ const clean=String(css)
+   .replace(/\/\*[\s\S]*?\*\//g,"")
+   .replace(/@(import|charset|namespace)[^;]*;/gi,"");
+ const hasPrefix=x=>PREFIXES.some(pf=>x===pf||x.indexOf(pf+" " )===0||x.indexOf(pf+">")===0);
+ const prefixSels=sel=>sel.split(",").map(x=>{
+   x=x.trim();if(!x)return "";
+   if(x.charAt(0)==="@")return x;
+   if(hasPrefix(x))return x;
+   if(x===":root"||x==="html"||x==="body")return PREFIXES.join(",");
+   return PREFIXES.map(pf=>pf+" "+x).join(",");
+ }).filter(Boolean).join(",");
+ const walk=src=>{
+   let out="",i=0;
+   while(i<src.length){
+     const brace=src.indexOf("{",i);
+     if(brace<0){out+=src.slice(i);break;}
+     const sel=src.slice(i,brace).trim();
+     let depth=1,j=brace+1;
+     while(j<src.length&&depth>0){const ch=src[j];if(ch==="{")depth++;else if(ch==="}")depth--;j++;}
+     const body=src.slice(brace+1,j-1);
+     if(/^@(media|supports|layer|container)/i.test(sel)){out+=sel+"{"+walk(body)+"}";}
+     else if(sel.charAt(0)==="@"){out+=sel+"{"+body+"}";}
+     else{out+=prefixSels(sel)+"{"+body+"}";}
+     i=j;
+   }
+   return out;
+ };
+ return walk(clean);
+}
+/* 注入/更新气泡自定义样式表：选择器式CSS注入为 <style>，保留伪元素与复杂规则 */
+function applyBubbleCustomSheet(css){
+ css=sanitizeBubbleCSS(css);
+ let el=document.getElementById("bubbleCustomSheet");
+ if(!isSelectorCSS(css)){if(el)el.textContent="";return;}
+ if(!el){el=document.createElement("style");el.id="bubbleCustomSheet";document.head.appendChild(el);}
+ try{el.textContent=scopeBubbleCSS(css)+"\n"+forceBubbleSkinCSS(css);}catch(e){el.textContent=String(css);}
+}
+/* 强制皮肤映射：无论主题用什么类名（.message/.msg/.bubble...），
+   都把其“气泡类”规则强制作用到真实气泡元素上，确保皮肤一定生效 */
+function forceBubbleSkinCSS(css){
+ const TOKEN=/\.(message|msg|bubble|cm-bubble|msg-bubble|message-box|chat-bubble|bubble-box|talk-bubble)(?![-_a-zA-Z0-9])/;
+ const MINE=/sent|mine|self|right/i, OTHER=/received|other|them|left/i;
+ const clean=String(css).replace(/\/\*[\s\S]*?\*\//g,"").replace(/@(import|charset|namespace)[^;]*;/gi,"");
+ const out=[];
+ const walk=src=>{
+  let i=0;
+  while(i<src.length){
+   const b=src.indexOf("{",i); if(b<0)return;
+   const sel=src.slice(i,b).trim();
+   let d=1,j=b+1; while(j<src.length&&d>0){const ch=src[j];if(ch==="{")d++;else if(ch==="}")d--;j++;}
+   const body=src.slice(b+1,j-1);
+   if(/^@(media|supports|layer|container)/i.test(sel)){walk(body);}
+   else if(sel.charAt(0)!=="@"&&TOKEN.test(sel)){
+     const pm=MINE.test(sel), po=OTHER.test(sel);
+     const ps=(sel.match(/::?[a-z-]+/i)||[])[0]||"";
+     const t=["#messages .bubble"+ps,"#bubbleCustomPreview .bubble"+ps];
+     if(pm&&!po)t.push("#messages .bubble.mine"+ps,"#bubbleCustomPreview .bubble.mine"+ps);
+     if(po&&!pm)t.push("#messages .bubble.other"+ps,"#bubbleCustomPreview .bubble.other"+ps);
+     out.push(t.join(",")+"{"+body+"}");
+   }
+   i=j;
+  }
+ };
+ walk(clean);
+ return out.join("\n");
+}
+/* 清洗粘贴进来的CSS：去掉 <style> 包裹、Markdown 代码围栏、HTML 实体 */
+function sanitizeBubbleCSS(raw){
+ let t=String(raw==null?"":raw);
+ t=t.replace(/<\/?style[^>]*>/gi," ");
+ t=t.replace(/^```[a-zA-Z0-9_-]*\s*/,"").replace(/```\s*$/,"");
+ t=t.replace(/(^|[^`])```[a-zA-Z0-9_-]*/g,"$1");
+ t=t.replace(/&quot;/g,'"').replace(/&#0*34;/g,'"')
+    .replace(/&apos;/g,"'").replace(/&#0*39;/g,"'")
+    .replace(/&lt;/g,"<").replace(/&gt;/g,">")
+    .replace(/&#0*60;/g,"<").replace(/&#0*62;/g,">")
+    .replace(/&amp;/g,"&");
+ return t.replace(/^\uFEFF/,"").trim();
+}
+/* 实时预览：用与真实聊天一致的DOM结构渲染两条示例气泡，反映当前CSS效果 */
+function renderBubblePreview(css){
+ const host=document.getElementById("bubbleCustomPreview");
+ if(!host)return;
+ if(css==null){const ta=document.getElementById("bubbleCustomCSS");css=ta?ta.value:"";}
+ css=sanitizeBubbleCSS(css);
+ applyBubbleCustomSheet(css);
+ const row=(mine,txt,time)=>'<div class="message-row message-container '+(mine?'mine':'other')+'">'
+   +(mine?'':'<div class="message-avatar" aria-hidden="true">猫</div>')
+   +'<div class="message-content"><div class="message-time">'+time+'</div>'
+   +'<div class="bubble message '+(mine?'message-sent mine':'message-received other')+'">'
+   +'<div class="bubble-body message-body message-text">'+txt+'</div></div></div>'
+   +(mine?'<div class="message-avatar" aria-hidden="true">我</div>':'')
+   +'</div>';
+ host.innerHTML=row(false,"喵～你好呀，这是对方气泡。","10:21")
+   +row(true,"奶瓶猫咪气泡效果预览。","10:22");
 }
 function randInt(min,max){
  min=Math.max(0,Number(min)||0);max=Math.max(min,Number(max)||min);
@@ -7466,14 +7667,16 @@ function showActivePrompt(chat){
 }
 function scheduleActiveMessage(chat){
  clearTimeout(activeTimers[chat.id]);
- const s=getSettings(chat.id);if(!s.activeEnabled)return;
+ const s=getSettings(chat.id);if(!s.activeEnabled){cancelNativeAhead(chat.id);return;}
  const library=libTexts(chat.replyLibrary);
- if(!library.length)return;
+ if(!library.length){cancelNativeAhead(chat.id);return;}
  const unit=s.activeUnit==="seconds"?1000:60000;
  const delay=randInt(s.activeMin,s.activeMax)*unit;
  recordTask(chat.id,"active",delay);
+ scheduleAheadChain(chat,6);
  activeTimers[chat.id]=setTimeout(()=>{
    clearTaskRecord(chat.id,"active");
+   cancelNativeAhead(chat.id);
    if(!getSettings(chat.id)?.activeEnabled)return;
    showActivePrompt(chat);
    setTimeout(()=>{
@@ -8305,6 +8508,7 @@ function closeChat(){
 function renderMessages(){
  const c=state.chats.find(x=>x.id===currentId);if(!c)return;
  const box=$("messages");const s=getSettings(c.id);
+ applyBubbleCustomSheet(s&&s.bubbleCustomCSS);
  if(!c.messages.length){box.innerHTML='<div class="empty">开始新的对话</div>';}
  else{
    box.innerHTML=c.messages.map((m,msgIdx)=>{
@@ -8338,7 +8542,7 @@ function renderMessages(){
      if(isRedPacket){
        const rpBubble=typeof renderRedPacketBubble==='function'?renderRedPacketBubble(m,c):'<div class="rp-bubble">🧧 红包</div>';
        return `
-        <div class="message-row ${mine?'mine':'other'}" data-msg-index="${msgIdx}">
+        <div class="message-row message-container ${mine?'mine':'other'}" data-msg-index="${msgIdx}">
           ${mine?"":`<div class="message-avatar" style="${avatarStyle(av)}" aria-hidden="true">${avatarHTML(av)}</div>`}
           <div class="message-content">
             <div class="message-time">${esc(m.time||"")}</div>
@@ -8363,28 +8567,28 @@ function renderMessages(){
      const bStyle=getBubbleStyle(s,mine);
      let bubbleHtml="";
      if(isSticker){
-       bubbleHtml=`<div class="bubble sticker-bubble" style="${bStyle}">${quoteHtml}<img src="${esc(m.text)}" alt="表情包" onerror="this.parentElement.textContent='[表情包]'"></div>`;
+       bubbleHtml=`<div class="bubble message sticker-bubble ${mine?'message-sent mine':'message-received other'}" style="${cssAttr(bStyle)}">${quoteHtml}<img src="${esc(m.text)}" alt="表情包" onerror="this.parentElement.textContent='[表情包]'"></div>`;
      }else if(isImage&&hasCaption){
        // 图文混合
-       bubbleHtml=`<div class="bubble image-text-bubble" style="${bStyle}">${quoteHtml}<img src="${esc(m.text)}" alt="图片" class="chat-image" onerror="this.parentElement.textContent='[图片]'"><div class="bubble-body">${esc(m.caption)}</div></div>`;
+       bubbleHtml=`<div class="bubble message image-text-bubble ${mine?'message-sent mine':'message-received other'}" style="${cssAttr(bStyle)}">${quoteHtml}<img src="${esc(m.text)}" alt="图片" class="chat-image" onerror="this.parentElement.textContent='[图片]'"><div class="bubble-body message-body message-text">${esc(m.caption)}</div></div>`;
      }else if(isImage){
-       bubbleHtml=`<div class="bubble image-bubble" style="${bStyle}">${quoteHtml}<img src="${esc(m.text)}" alt="图片" class="chat-image" onerror="this.parentElement.textContent='[图片]'"></div>`;
+       bubbleHtml=`<div class="bubble message image-bubble ${mine?'message-sent mine':'message-received other'} msg-image message-image-bubble-none" style="${cssAttr(bStyle)}">${quoteHtml}<img src="${esc(m.text)}" alt="图片" class="chat-image" onerror="this.parentElement.textContent='[图片]'"></div>`;
      }else if(isVoice){
        const dur=m.duration?formatVoiceDuration(m.duration):"";
-       bubbleHtml=`<div class="bubble voice-bubble" style="${bStyle}">${quoteHtml}<div class="voice-msg" data-voice-msg="${esc(m.text)}" onclick="playVoiceMessage(this)"><div class="voice-play-btn"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3" fill="currentColor" stroke="none"/></svg></div><div class="voice-wave"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div><span class="voice-duration">${dur}</span></div></div>`;
+       bubbleHtml=`<div class="bubble message voice-bubble ${mine?'message-sent mine':'message-received other'}" style="${cssAttr(bStyle)}">${quoteHtml}<div class="voice-msg" data-voice-msg="${esc(m.text)}" onclick="playVoiceMessage(this)"><div class="voice-play-btn"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3" fill="currentColor" stroke="none"/></svg></div><div class="voice-wave"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div><span class="voice-duration">${dur}</span></div></div>`;
      }else{
-       bubbleHtml=`<div class="bubble" style="${bStyle}">${quoteHtml}<div class="bubble-body">${esc(m.text)}</div></div>`;
+       bubbleHtml=`<div class="bubble message ${mine?'message-sent mine':'message-received other'}" style="${cssAttr(bStyle)}">${quoteHtml}<div class="bubble-body message-body message-text">${esc(m.text)}</div></div>`;
      }
      // 已撤回消息渲染
      if(m.recalled){
        const recallText=mine?"你撤回了一条消息":(c.name||"对方")+"撤回了一条消息";
        return `
-       <div class="message-row ${mine?"mine":"other"}" data-msg-index="${msgIdx}">
+       <div class="message-row message-container ${mine?"mine":"other"}" data-msg-index="${msgIdx}">
          ${mine?"":`<div class="message-avatar" style="${avatarStyle(av)}" aria-hidden="true">${avatarHTML(av)}</div>`}
          <div class="message-content">
            <div class="message-time">${esc(m.recalledTime||m.time||"")}</div>
            <div style="display:flex;flex-direction:column;align-items:${mine?'flex-end':'flex-start'}">
-             <span class="message-recalled">${esc(recallText)}</span>
+             <span class="message-recalled message-system sys-msg chat-sys-msg">${esc(recallText)}</span>
            </div>
          </div>
          ${mine?`<div class="message-avatar" style="${avatarStyle(av)}" aria-hidden="true">${avatarHTML(av)}</div>`:""}
@@ -8395,7 +8599,7 @@ function renderMessages(){
      // 使用者收藏标记
      const userFavHtml=m.userFavorited?`<div class="user-fav-mark"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>我收藏的</div>`:"";
      return `
-       <div class="message-row ${mine?"mine":"other"}" data-msg-index="${msgIdx}">
+       <div class="message-row message-container ${mine?"mine":"other"}" data-msg-index="${msgIdx}">
          ${mine?"":`<div class="message-avatar" style="${avatarStyle(av)}" aria-hidden="true">${avatarHTML(av)}</div>`}
          <div class="message-content">
            ${readIcon}
@@ -8410,7 +8614,11 @@ function renderMessages(){
        </div>`;
    }).join("");
  }
- requestAnimationFrame(()=>box.scrollTop=box.scrollHeight);
+ const _toBottom=()=>{try{box.scrollTop=box.scrollHeight;}catch(e){}};
+_toBottom();
+requestAnimationFrame(()=>{_toBottom();requestAnimationFrame(_toBottom);});
+try{box.querySelectorAll("img").forEach(_im=>{if(!_im.complete){_im.addEventListener("load",_toBottom,{once:true});_im.addEventListener("error",_toBottom,{once:true});}});}catch(e){}
+[60,180,400].forEach(_t=>setTimeout(_toBottom,_t));
 }
 
 /* ===== 已读标记 ===== */
@@ -8743,7 +8951,7 @@ function savePreset(preset,chatId){
       }
       localStorage.setItem(key,JSON.stringify(compressed));
       Object.assign(preset,compressed);
-      try{toast("存储空间不足，预设已压缩保存");}catch(e2){}
+      // 预设已压缩后保存，属正常优化，不再打扰
       return true;
     }catch(e2){
       console.error("[预设] 压缩后仍失败:",e2);
@@ -8947,7 +9155,7 @@ function saveWorldBook(wb,chatId){
       }
       localStorage.setItem(key,JSON.stringify(compressed));
       Object.assign(wb,compressed);
-      try{toast("存储空间不足，世界书已压缩保存");}catch(e2){}
+      // 世界书已压缩后保存，属正常优化，不再打扰
       return true;
     }catch(e2){
       console.error("[世界书] 压缩后仍失败:",e2);
@@ -10549,6 +10757,66 @@ let recordTimer=null;
 let recordedAudioUrl=null;
 let recordedDuration=0;
 let voiceSendPending=false;
+let nativeMedia=null;
+let nativeRecordFile=null;
+let nativeRecDir="";
+function _ensureMicPermission(){
+  return new Promise(resolve=>{
+    try{
+      if(window.cordova&&cordova.plugins&&cordova.plugins.permissions&&cordova.plugins.permissions.RECORD_AUDIO){
+        cordova.plugins.permissions.requestPermission(cordova.plugins.permissions.RECORD_AUDIO,
+          function(st){resolve(!!(st&&st.hasPermission));},function(){resolve(false);});
+        return;
+      }
+    }catch(e){}
+    resolve(true);
+  });
+}
+function _fallbackToNativeRecording(){
+  return _nativeRecStart().then(()=>{toast("开始录音（原生），说完点击发送");return true;})
+    .catch(err=>{console.warn("原生录音不可用:",err);toast("无法访问麦克风，请到系统设置里给“溯佳”开启麦克风权限，将发送模拟语音");return false;});
+}
+function _nativeRecStart(){
+  return new Promise((resolve,reject)=>{
+    try{
+      if(typeof Media==="undefined"){reject(new Error("no-media-plugin"));return;}
+      const fname="rec_"+Date.now()+".m4a";
+      try{nativeRecDir=cordova.file.dataDirectory||"";}catch(e){nativeRecDir="";}
+      nativeRecordFile=fname;
+      nativeMedia=new Media((nativeRecDir||"")+fname,function(){},function(e){console.warn("[录音] 原生媒体错误:",e);});
+      if(!nativeMedia.startRecord){reject(new Error("no-startRecord"));return;}
+      nativeMedia.startRecord();
+      resolve(true);
+    }catch(e){reject(e);}
+  });
+}
+function _readRecFile(fname){
+  return new Promise((resolve,reject)=>{
+    if(!fname){reject(new Error("no-file"));return;}
+    const bases=[];
+    if(nativeRecDir)bases.push(nativeRecDir);
+    try{bases.push(cordova.file.dataDirectory);}catch(e){}
+    try{bases.push(cordova.file.externalDataDirectory);}catch(e){}
+    try{bases.push(cordova.file.cacheDirectory);}catch(e){}
+    bases.push("");
+    let i=0;
+    const next=()=>{
+      if(i>=bases.length){reject(new Error("read-fail"));return;}
+      const p=bases[i++]+fname;
+      try{
+        window.resolveLocalFileSystemURL(p,function(entry){
+          entry.file(function(file){
+            const r=new FileReader();
+            r.onloadend=function(){resolve(r.result);};
+            r.onerror=function(){next();};
+            r.readAsDataURL(file);
+          },function(){next();});
+        },function(){next();});
+      }catch(e){next();}
+    };
+    next();
+  });
+}
 
 function formatRecordTime(ms){
   const sec=Math.floor(ms/1000);
@@ -10579,21 +10847,17 @@ function startRecording(){
   recordTimer=setInterval(()=>{
     $("voiceRecordTime").textContent=formatRecordTime(Date.now()-recordStartTime);
   },100);
-  // 检查浏览器是否支持录音
-  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
-    // 不支持录音，发送按钮已立即可用，点击后发送模拟语音
-    toast("当前浏览器不支持录音，将发送模拟语音");
-    return;
-  }
-  // 尝试获取麦克风权限
-  navigator.mediaDevices.getUserMedia({audio:true}).then(stream=>{
+  // 开始录音：先确保麦克风权限，再走网页录音；失败则回退原生录音插件
+  _ensureMicPermission().then(()=>{
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){return Promise.reject(new Error("no-getusermedia"));}
+    return navigator.mediaDevices.getUserMedia({audio:true});
+  }).then(stream=>{
     try{
       mediaRecorder=new MediaRecorder(stream);
     }catch(e){
-      toast("录音初始化失败，将发送模拟语音");
       stream.getTracks().forEach(t=>t.stop());
       mediaRecorder=null;
-      return;
+      return _fallbackToNativeRecording();
     }
     mediaRecorder.ondataavailable=e=>{if(e.data.size>0)recordedChunks.push(e.data);};
     mediaRecorder.onstop=()=>{
@@ -10626,13 +10890,12 @@ function startRecording(){
       }
       stream.getTracks().forEach(t=>t.stop());
     };
-    mediaRecorder.start();
+    try{mediaRecorder.start();}catch(e){mediaRecorder=null;return _fallbackToNativeRecording();}
     toast("开始录音，说完点击发送");
+    return true;
   }).catch(err=>{
-    console.error("录音失败:",err);
-    toast("无法访问麦克风，将发送模拟语音");
-    mediaRecorder=null;
-    // 发送按钮已可用，用户点击后发送模拟语音
+    console.warn("网页录音不可用，尝试原生录音:",err);
+    return _fallbackToNativeRecording();
   });
 }
 function stopRecording(send){
@@ -10644,6 +10907,13 @@ function stopRecording(send){
   if(!send){
     // 取消录音
     voiceSendPending=false;
+    try{
+      if(nativeMedia){
+        try{nativeMedia.stopRecord&&nativeMedia.stopRecord();}catch(e){}
+        try{nativeMedia.release&&nativeMedia.release();}catch(e){}
+        nativeMedia=null;nativeRecordFile=null;
+      }
+    }catch(e){}
     $("voiceRecordPanel").style.display="none";
     recordedChunks=[];
     recordedAudioUrl=null;
@@ -10722,6 +10992,20 @@ $("voiceCancelBtn")?.addEventListener("click",()=>stopRecording(false));
 $("voiceSendBtn")?.addEventListener("click",(e)=>{
   e.preventDefault();
   e.stopPropagation();
+  // 原生录音：停止、读取文件后再发送
+  if(nativeMedia){
+    recordedDuration=Math.max(1,Math.round((Date.now()-recordStartTime)/1000));
+    const _nm=nativeMedia;nativeMedia=null;
+    const _fname=nativeRecordFile;nativeRecordFile=null;
+    try{_nm.stopRecord&&_nm.stopRecord();}catch(e){}
+    try{_nm.release&&_nm.release();}catch(e){}
+    if(recordTimer){clearInterval(recordTimer);recordTimer=null;}
+    $("micBtn").classList.remove("recording");
+    $("voiceRecordPanel").style.display="none";
+    _readRecFile(_fname).then(url=>{recordedAudioUrl=url;sendVoiceMessage();})
+      .catch(err=>{console.warn("读取原生录音失败:",err);toast("读取录音失败，将发送模拟语音");sendVoiceMessage();});
+    return;
+  }
   // 如果已经有录音数据，直接发送
   if(recordedAudioUrl){
     stopRecording(true);
@@ -12190,9 +12474,182 @@ function showInAppNotif(chat,text){
   $("notifText").textContent=text;
   $("notifTime").textContent=now();
   el.classList.add("show");
-  el.onclick=()=>{el.classList.remove("show");openChat(chat.id);};
+  el.onclick=()=>{hideInAppNotif();openChat(chat.id);};
   clearTimeout(notifTimer);
-  notifTimer=setTimeout(()=>el.classList.remove("show"),4200);
+  notifTimer=setTimeout(hideInAppNotif,4200);
+}
+function hideInAppNotif(){
+  try{const el=$("inappNotif");if(el)el.classList.remove("show");}catch(e){}
+  try{if(notifTimer){clearTimeout(notifTimer);notifTimer=null;}}catch(e){}
+}
+// 兜底：APP切到后台/息屏或页面被隐藏时，立即收起应用内横幅，避免它残留在最顶部
+if(typeof document!=="undefined"&&!window.__inappHideHooked){
+  window.__inappHideHooked=1;
+  document.addEventListener("visibilitychange",function(){if(document.hidden){hideInAppNotif();}});
+  window.addEventListener("pagehide",function(){hideInAppNotif();});
+  window.addEventListener("blur",function(){hideInAppNotif();});
+}
+/* ===== 从后台长时间返回：修复系统回收图片导致的“图片全空白” + 重排原生通知 ===== */
+let _appHiddenAt=0;
+function _reviveBrokenImages(){
+  try{
+    const imgs=document.images;
+    for(let i=0;i<imgs.length;i++){
+      const im=imgs[i];
+      try{
+        const src=im.getAttribute("src")||"";
+        if(!src)continue;
+        if(im.complete&&im.naturalWidth>0)continue;
+        if(src.slice(0,5)!=="data:"&&src.slice(0,4)!=="blob")continue;
+        im.src="";
+        const _s=src;
+        setTimeout(function(){try{im.src=_s;}catch(e){}},0);
+      }catch(e){}
+    }
+  }catch(e){}
+}
+function _hasBrokenImages(){
+  try{
+    const imgs=document.images;
+    for(let i=0;i<imgs.length;i++){
+      const im=imgs[i];
+      const src=im.getAttribute("src")||"";
+      if(src&&im.complete&&im.naturalWidth===0)return true;
+    }
+  }catch(e){}
+  return false;
+}
+function onAppResume(){
+  try{
+    if(_hasBrokenImages()){
+      _reviveBrokenImages();
+      try{if(typeof currentId!=="undefined"&&currentId&&typeof renderMessages==="function")renderMessages();}catch(e){}
+      try{if(typeof renderMoments==="function")renderMoments();}catch(e){}
+    }
+  }catch(e){}
+  try{replanAllAheadChains();}catch(e){}
+}
+document.addEventListener("visibilitychange",function(){
+  if(document.hidden){_appHiddenAt=Date.now();try{replanAllAheadChains();}catch(e){}}
+  else{
+    const away=Date.now()-_appHiddenAt;
+    if(_appHiddenAt&&away>20000){try{onAppResume();}catch(e){}}
+    _appHiddenAt=0;
+  }
+});
+window.addEventListener("pagehide",function(){try{replanAllAheadChains();}catch(e){};_appHiddenAt=Date.now();});
+window.addEventListener("pageshow",function(e){try{if(e.persisted)onAppResume();}catch(e){}});
+/* ===== 原生定时通知：提前用系统闹钟调度，解决后台/息屏时通知延迟 ===== */
+const _nativeAheadIds={};
+function _stableHash(str){let h=0;const s=String(str||"");for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return h;}
+function _aheadNotifId(chatId,slot){return 100000+(_stableHash("msg:"+chatId+"#"+((slot|0))+"x")%800000);}
+function _callNotifId(chatId){return 2000000+(_stableHash("call:"+chatId)%900000);}
+function _nativeNotifyKind(){
+  try{if(window.cordova&&window.cordova.plugins&&window.cordova.plugins.notification&&window.cordova.plugins.notification.local)return "cordova";}catch(e){}
+  try{if(window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.LocalNotifications)return "capacitor";}catch(e){}
+  return null;
+}
+function cancelNativeAhead(chatId){
+  try{
+    const kind=_nativeNotifyKind();
+    for(let slot=0;slot<12;slot++){
+      const id=_aheadNotifId(chatId,slot);
+      if(kind==="cordova"){try{window.cordova.plugins.notification.local.cancel(id);}catch(e){}}
+      else if(kind==="capacitor"){try{window.Capacitor.Plugins.LocalNotifications.cancel({notifications:[{id:id}]});}catch(e){}}
+    }
+    delete _nativeAheadIds[chatId];
+  }catch(e){}
+}
+function _scheduleAheadSlot(chat,slot,delayMs,text){
+  try{
+    if(!chat||!chat.id)return false;
+    if(!(delayMs>1000))return false;
+    const ns=getNotifySettings();
+    if(!ns.notifyEnabled||!ns.sysNotifyEnabled)return false;
+    const kind=_nativeNotifyKind();
+    if(kind!=="cordova"&&kind!=="capacitor")return false;
+    const id=_aheadNotifId(chat.id,slot);
+    const at=new Date(Date.now()+delayMs);
+    const t=String(text||"新消息");
+    if(kind==="cordova"){
+      try{window.cordova.plugins.notification.local.cancel(id);}catch(e){}
+      window.cordova.plugins.notification.local.schedule({id:id,title:String(chat.name),text:t,trigger:{at:at},foreground:false,priority:2,wakeup:true,smallIcon:"icon",autoClear:true});
+    }else{
+      const P=window.Capacitor.Plugins.LocalNotifications;
+      try{P.cancel({notifications:[{id:id}]});}catch(e){}
+      P.schedule({notifications:[{id:id,title:String(chat.name),body:t,schedule:{at:at}}]});
+    }
+    _nativeAheadIds[chat.id]=id;
+    return true;
+  }catch(e){console.warn("[通知] 预调度失败:",e);return false;}
+}
+function scheduleNativeAhead(chat,delayMs,text){
+  return _scheduleAheadSlot(chat,0,delayMs,text);
+}
+// 一次性把接下来若干条「主动消息」提前排进系统闹钟，即使APP被杀死/息屏也能准点弹出
+function scheduleAheadChain(chat,n){
+  try{
+    if(!chat||!chat.id)return;
+    const kind=_nativeNotifyKind();
+    if(kind!=="cordova"&&kind!=="capacitor")return;
+    const s=getSettings(chat.id);
+    if(!s||!s.activeEnabled){cancelNativeAhead(chat.id);return;}
+    const ns=getNotifySettings();
+    if(!ns.notifyEnabled||!ns.sysNotifyEnabled){cancelNativeAhead(chat.id);return;}
+    const unit=s.activeUnit==="seconds"?1000:60000;
+    const mn=Number(s.activeMin)||0,mx=Number(s.activeMax)||0;
+    if(mx<=0)return;
+    cancelNativeAhead(chat.id);
+    const cnt=Math.max(1,Math.min(Number(n)||3,10));
+    let cum=0;
+    for(let slot=0;slot<cnt;slot++){
+      cum+=randInt(mn,mx)*unit;
+      if(cum<4000)cum=4000;
+      _scheduleAheadSlot(chat,slot,cum,"发来一条新消息");
+    }
+  }catch(e){console.warn("[通知] 预排程失败:",e);}
+}
+// APP退到后台/即将退出时，重新按当前设置排好原生通知（清理已过期规划并补足）
+function replanAllAheadChains(){
+  try{
+    if(typeof state==="undefined"||!state||!Array.isArray(state.chats))return;
+    state.chats.forEach(function(c){try{scheduleAheadChain(c,6);}catch(e){}});
+  }catch(e){}
+}
+function notifyIncomingCallNative(chat){
+  try{
+    if(!chat||!chat.id)return;
+    const s=getNotifySettings();
+    if(!s.notifyEnabled||!s.sysNotifyEnabled)return;
+    const body=chat.name+" 正在给你打电话…";
+    const title=chat.name+" 来电";
+    const kind=_nativeNotifyKind();
+    if(kind==="cordova"){
+      const id=_callNotifId(chat.id);
+      try{window.cordova.plugins.notification.local.cancel(id);}catch(e){}
+      window.cordova.plugins.notification.local.schedule({id:id,title:title,text:body,foreground:true,smallIcon:"icon",autoClear:true});
+      return;
+    }
+    if(kind==="capacitor"){
+      const P=window.Capacitor.Plugins.LocalNotifications;
+      const id=_callNotifId(chat.id);
+      try{P.cancel({notifications:[{id:id}]});}catch(e){}
+      P.schedule({notifications:[{id:id,title:title,body:body}]});
+      return;
+    }
+    if("Notification" in window&&Notification.permission==="granted"){
+      const n=new Notification(title,{body:body,tag:"sim-call-"+chat.id,requireInteraction:true,vibrate:[500,300,500,300,500]});
+      n.onclick=()=>{try{window.focus();}catch(e){};n.close();};
+    }
+  }catch(e){console.warn("[通知] 来电通知失败:",e);}
+}
+function clearIncomingCallNative(chatId){
+  try{
+    const kind=_nativeNotifyKind();
+    if(kind==="cordova"){try{window.cordova.plugins.notification.local.cancel(_callNotifId(chatId));}catch(e){}}
+    else if(kind==="capacitor"){try{window.Capacitor.Plugins.LocalNotifications.cancel({notifications:[{id:_callNotifId(chatId)}]});}catch(e){}}
+    try{if(swRegistration){swRegistration.getNotifications({tag:"sim-call-"+chatId}).then(ns=>ns.forEach(n=>n.close())).catch(()=>{});}}catch(e){}
+  }catch(e){}
 }
 /* ===== 角色撤回消息功能 ===== */
 // 角色发送消息后，有5%概率在3-8秒后撤掉这条消息
@@ -12225,12 +12682,17 @@ function triggerNotification(chat,text){
   const s=getNotifySettings();
   if(!s.notifyEnabled)return;
   const displayText=text||"[表情包]";
-  // 页面不可见时：优先用Service Worker通知（息屏可收到），回退到系统Notification
-  if(document.hidden&&s.sysNotifyEnabled){
-    if("Notification" in window&&Notification.permission==="granted"){
+  // 关键修复：只要开了系统通知，且用户当前没有正盯着这个聊天，就发“系统通知”
+  // （与能正常工作的“测试通知”走完全同一条 tryNativeNotification 路径，前台/后台都能弹）
+  const inThisChatVisible=(currentId===chat.id)&&!document.hidden;
+  if(s.sysNotifyEnabled&&!inThisChatVisible){
+    let systemShown=false;
+    try{
+      if(tryNativeNotification(chat.name,displayText))systemShown=true;
+    }catch(e){console.warn("[通知] 原生通知失败:",e);}
+    if(!systemShown&&"Notification" in window&&Notification.permission==="granted"){
       if(!showSWNotification(chat,displayText)){
         // SW不可用时（如file：//协议），直接用Notification API
-        // 注意：file：//下页面被系统杀掉后收不到，仅页面存活时有效
         try{
           const n=new Notification(chat.name,{
             body:displayText,
@@ -12240,10 +12702,12 @@ function triggerNotification(chat,text){
           });
           n.onclick=()=>{window.focus();n.close();openChat(chat.id);};
         }catch(e){
-          // 连直接Notification也不行（部分APP webview），记录日志
           console.warn("[通知] 直接Notification也失败:",e);
         }
       }
+      systemShown=true;
+    }
+    if(systemShown){
       playNotifySound(s.notifySound);
       if(navigator.vibrate)navigator.vibrate([200,100,200]);
       return;
@@ -12278,6 +12742,7 @@ function updatePermBanner(){
   }
 }
 $("requestPermBtn").addEventListener("click",()=>{
+  if(typeof NativeBridge!=="undefined"&&NativeBridge.hasNotify()){Promise.resolve(NativeBridge.requestNotificationPermission()).then(ok=>{if(ok){toast("已向系统申请通知权限");updatePermBanner();return;}});}
   if(!("Notification" in window)){toast("当前浏览器不支持通知");return;}
   Notification.requestPermission().then(perm=>{
     if(perm==="granted"){toast("通知权限已开启");updatePermBanner();registerServiceWorker();}
@@ -12494,6 +12959,12 @@ function sendTestNotification(){
   // 用第一个角色作为测试发送者
   const testChat=state.chats[0]||{name:"测试角色",avatar:DEFAULT_AVATAR,id:"test"};
   const testText="这是一条测试通知 📱 如果你在手机通知栏看到这条消息，说明通知功能正常！";
+  if(tryNativeNotification(testChat.name,testText)){
+    playNotifySound(s.notifySound);
+    if(navigator.vibrate)navigator.vibrate(80);
+    toast("测试通知已发送（系统通知），请查看通知栏");
+    return;
+  }
   
   // 立即显示应用内通知（前台时）
   if(!document.hidden){
@@ -12532,6 +13003,7 @@ function sendTestNotification(){
 }
 function loadNotifyForm(){
   const s=getNotifySettings();
+  if(typeof updateNativeEnvStatus==="function")updateNativeEnvStatus();
   $("notifyEnabled").checked=!!s.notifyEnabled;
   $("sysNotifyEnabled").checked=!!s.sysNotifyEnabled;
   $("notifySound").value=s.notifySound||"ding";
@@ -12598,6 +13070,7 @@ $("appDiagnoseBtn").addEventListener("click",()=>{
   lines.push("【系统平台】"+info.platform);
   lines.push("【访问协议】"+info.protocol+(info.isFile?" ❌不支持通知":info.isSecure?" ✅安全":" ⚠️非安全"));
   lines.push("【通知服务】"+info.swState);
+  try{ lines.push("【原生桥】"+NativeBridge.describe()+(NativeBridge.hasNotify()?" ✅ 原生通知可用":" ⚠️ 未检测到通知插件")); }catch(e){}
   lines.push("【通知权限】"+(info.notifPerm==="granted"?"✅ 已开启":info.notifPerm==="denied"?"❌ 已拒绝（需在系统设置中开启）":"⚠️ 未授权"));
   lines.push("【后台保活】"+(getNotifySettings().keepAliveEnabled?"✅ 已开启":"❌ 未开启"));
   if(info.isFile){
@@ -12716,6 +13189,7 @@ function _blobToDataURL(blob){
   });
 }
 // 读取 IndexedDB 中所有音乐 Blob 并转为 base64
+function _yieldUI(){ return new Promise(r=>setTimeout(r,0)); }
 function _dumpMusicIDB(){
   return new Promise(resolve=>{
     try{
@@ -12739,6 +13213,8 @@ function _dumpMusicIDB(){
                   entries[String(keys[i])]=await _blobToDataURL(blobs[i]);
                 }
               }catch(e){console.warn("导出音乐失败:",keys[i],e);}
+              // 每处理若干条让出一次主线程，避免大容量音乐库导出时界面卡死
+              if(i%5===4)await _yieldUI();
             }
             try{db.close();}catch(e){}
             resolve(entries);
@@ -12788,54 +13264,485 @@ function _restoreMusicIDB(entries){
     }catch(e){resolve();}
   });
 }
-async function exportData(){
+
+/* ===== 手机存储 + 系统通知 原生桥（打包成 APP 时自动启用） ===== */
+/* 打包工具可注入 window.SuiJiaNative：
+     saveFile(name, text) -> string|Promise<string>   // 保存到手机存储
+     pickFile() -> {name,text}|Promise                 // 从手机存储选择并读取文本
+     notify(title, body)                               // 发送系统通知
+     requestNotificationPermission()                   // 申请系统通知权限
+   使用 Capacitor 时会自动识别 @capacitor/filesystem 与 @capacitor/local-notifications。
+   未打包（浏览器）时自动降级：优先 File System Access，其次下载 / 选择文件。 */
+const NativeBridge={
+  _c:undefined,
+  detect(){
+    try{
+      const g=window;
+      if(g.SuiJiaNative&&(g.SuiJiaNative.saveFile||g.SuiJiaNative.pickFile||g.SuiJiaNative.notify))
+        return {kind:"generic",B:g.SuiJiaNative,label:"SuiJiaNative"};
+      if(g.AndroidBridge&&(g.AndroidBridge.saveFile||g.AndroidBridge.notify))
+        return {kind:"generic",B:g.AndroidBridge,label:"AndroidBridge"};
+      if(g.Android&&typeof g.Android==="object"&&(g.Android.saveFile||g.Android.notify))
+        return {kind:"generic",B:g.Android,label:"Android"};
+      if(g.Capacitor&&g.Capacitor.Plugins)
+        return {kind:"capacitor",P:g.Capacitor.Plugins,label:"Capacitor"};
+      if(g.plus)return {kind:"plus",label:"HTML5+/HBuilderX（打包APP）"};
+      if(g.cordova)return {kind:"cordova",label:"Cordova"};
+    }catch(e){}
+    return null;
+  },
+  reset(){ this._c=undefined; },
+  env(){ if(this._c===undefined){ const d=this.detect(); if(d)this._c=d; return d; } return this._c; },
+  describe(){ const e=this.env(); return e?(e.label||"原生环境"):"浏览器 WebView（无原生桥）"; },
+  hasSave(){ const e=this.env(); if(!e)return false;
+    if(e.kind==="generic")return typeof e.B.saveFile==="function";
+    if(e.kind==="plus")return !!(window.plus&&window.plus.io);
+    if(e.kind==="cordova")return !!(window.cordova&&(window.cordova.file||(window.cordova.plugins&&window.cordova.plugins.safMediastore)));
+    if(e.kind==="capacitor")return !!(e.P.Filesystem); return false; },
+  hasPick(){ const e=this.env(); if(!e)return false;
+    if(e.kind==="generic")return typeof e.B.pickFile==="function";
+    if(e.kind==="cordova")return !!(window.cordova&&window.cordova.plugins&&window.cordova.plugins.safMediastore&&typeof window.cordova.plugins.safMediastore.selectFile==="function");
+    if(e.kind==="capacitor")return !!(e.P.Filesystem); return false; },
+  hasNotify(){ const e=this.env(); if(!e)return false;
+    if(e.kind==="generic")return typeof e.B.notify==="function";
+    if(e.kind==="plus")return !!(window.plus&&window.plus.push);
+    if(e.kind==="cordova")return !!(window.cordova&&window.cordova.plugins&&window.cordova.plugins.notification&&window.cordova.plugins.notification.local);
+    if(e.kind==="capacitor")return !!(e.P.LocalNotifications); return false; },
+  async saveFile(name,text){ const e=this.env(); if(!e)return false;
+    if(e.kind==="generic"){ return await e.B.saveFile(name,text); }
+    if(e.kind==="capacitor"&&e.P.Filesystem){
+      await e.P.Filesystem.writeFile({path:name,data:btoa(unescape(encodeURIComponent(text))),directory:"DOCUMENTS",encoding:"base64"});
+      return "已保存到手机 Documents 目录";
+    }
+    if(e.kind==="plus"){ return await new Promise(resolve=>{
+      const io=(window.plus&&window.plus.io)?window.plus.io:null; if(!io){resolve(false);return;}
+      const roots=[io.PUBLIC_DOCUMENTS,io.PUBLIC_DOWNLOADS].filter(Boolean); let idx=0;
+      const tryRoot=()=>{
+        if(idx>=roots.length){resolve(false);return;}
+        const rt=roots[idx++];
+        io.requestFileSystem(rt,fs=>{
+          fs.root.getFile(name,{create:true},entry=>{
+            entry.createWriter(w=>{
+              w.onwrite=()=>resolve("已保存到手机存储："+entry.fullPath);
+              w.onerror=()=>tryRoot();
+              try{ w.write(text); }
+              catch(err){ try{ w.write(new Blob([text],{type:"application/json"})); }catch(e2){ tryRoot(); } }
+            },()=>tryRoot());
+          },()=>tryRoot());
+        },()=>tryRoot());
+      };
+      tryRoot();
+    }); }
+    if(e.kind==="cordova"){
+      // 1) 首选 SAF / MediaStore：写入系统“下载”公共目录（卸载后仍保留、手机文件管理器可见、可重新导入）
+      try{
+        const saf=(window.cordova&&window.cordova.plugins&&window.cordova.plugins.safMediastore)||null;
+        if(saf&&typeof saf.writeFile==="function"){
+          const b64=btoa(unescape(encodeURIComponent(text)));
+          const uri=await saf.writeFile({data:b64,filename:name});
+          if(uri)return "已保存到手机“下载”目录（卸载后仍保留，可重新导入）";
+        }
+      }catch(err){ console.warn("[存储] SAF/MediaStore 保存失败，改用文件插件:",err); }
+      // 2) 备用：cordova-plugin-file 写入公共 Download 目录
+      const pubPath=await new Promise(resolve=>{
+        try{
+          const c=window.cordova.file;
+          const base=c&&c.externalRootDirectory;
+          if(!base){ resolve(false); return; }
+          const writeInto=dirEntry=>{
+            dirEntry.getFile(name,{create:true},fileEntry=>{
+              fileEntry.createWriter(w=>{
+                w.onwrite=()=>resolve("已保存到手机存储："+(fileEntry.toURL?fileEntry.toURL():fileEntry.fullPath));
+                w.onerror=()=>resolve(false);
+                try{ w.write(new Blob([text],{type:"application/json"})); }catch(err){ try{ w.write(text); }catch(e2){ resolve(false); } }
+              },()=>resolve(false));
+            },()=>resolve(false));
+          };
+          window.resolveLocalFileSystemURL(base+"Download/",writeInto,()=>{
+            window.resolveLocalFileSystemURL(base,root=>{
+              root.getDirectory("Download",{create:true},writeInto,()=>resolve(false));
+            },()=>resolve(false));
+          });
+        }catch(err){ resolve(false); }
+      });
+      if(pubPath)return pubPath;
+      // 3) 兜底：应用私有目录（至少留下文件，但不随卸载保留）
+      return await new Promise(resolve=>{
+        try{
+          const c=window.cordova.file;
+          const dir=(c&&(c.externalDataDirectory||c.dataDirectory||c.applicationStorageDirectory))||null;
+          if(!dir){ resolve(false); return; }
+          window.resolveLocalFileSystemURL(dir,dirEntry=>{
+            dirEntry.getFile(name,{create:true},fileEntry=>{
+              fileEntry.createWriter(w=>{
+                w.onwrite=()=>resolve("已保存到APP私有目录："+fileEntry.fullPath);
+                w.onerror=()=>resolve(false);
+                try{ w.write(new Blob([text],{type:"application/json"})); }catch(err){ try{ w.write(text); }catch(e2){ resolve(false); } }
+              },()=>resolve(false));
+            },()=>resolve(false));
+          },()=>resolve(false));
+        }catch(err){ resolve(false); }
+      });
+    }
+    return false; },
+  async pickFile(){ const e=this.env(); if(!e)return null;
+    if(e.kind==="generic"){ const r=await e.B.pickFile();
+      if(typeof r==="string")return {name:"backup.json",text:r};
+      return r||null; }
+    if(e.kind==="cordova"){
+      try{
+        const saf=window.cordova&&window.cordova.plugins&&window.cordova.plugins.safMediastore;
+        if(saf&&typeof saf.selectFile==="function"&&typeof saf.readFile==="function"){
+          const uri=await saf.selectFile("");
+          if(uri){
+            const buf=await saf.readFile(uri);
+            const text=new TextDecoder("utf-8").decode(new Uint8Array(buf));
+            let fn="backup.json";
+            try{ if(saf.getFileName){ const g=await saf.getFileName(uri); if(g)fn=g; } }catch(e2){}
+            return {name:fn,text:text};
+          }
+        }
+      }catch(err){ console.warn("[存储] SAF 读取失败，改用选择文件:",err); }
+      return null;
+    }
+    if(e.kind==="capacitor"&&e.P.Filesystem){
+      try{
+        const r=await e.P.Filesystem.readFile({path:"backup.json",directory:"DOCUMENTS",encoding:"utf8"});
+        const t=typeof r.data==="string"?r.data:new TextDecoder().decode(r.data);
+        return {name:"backup.json",text:t};
+      }catch(err){ return null; }
+    }
+    return null; },
+  notify(title,body){ const e=this.env(); if(!e)return false;
+    try{
+      if(e.kind==="generic"&&typeof e.B.notify==="function"){ e.B.notify(String(title),String(body)); return true; }
+      if(e.kind==="capacitor"&&e.P.LocalNotifications){
+        e.P.LocalNotifications.schedule({notifications:[{id:Math.floor(Date.now()%2147483647),title:String(title),body:String(body)}]});
+        return true;
+      }
+      if(e.kind==="plus"&&window.plus&&window.plus.push){
+        window.plus.push.createMessage(String(body),"",{title:String(title)});
+        return true;
+      }
+      if(e.kind==="cordova"&&window.cordova&&window.cordova.plugins&&window.cordova.plugins.notification&&window.cordova.plugins.notification.local){
+        window.cordova.plugins.notification.local.schedule({
+          id:Math.floor(Date.now()%2147483647),title:String(title),text:String(body),foreground:true,smallIcon:"icon",autoClear:true
+        });
+        return true;
+      }
+    }catch(err){ console.warn("[通知] 原生通知失败:",err); }
+    return false; },
+  async requestNotificationPermission(){ const e=this.env(); if(!e)return false;
+    try{
+      if(e.kind==="generic"&&typeof e.B.requestNotificationPermission==="function"){ await e.B.requestNotificationPermission(); return true; }
+      if(e.kind==="capacitor"&&e.P.LocalNotifications&&e.P.LocalNotifications.requestPermissions){ await e.P.LocalNotifications.requestPermissions(); return true; }
+      if(e.kind==="plus"){
+        try{ const pa=window.plus&&window.plus.android;
+          if(pa&&pa.requestPermissions){ await new Promise(res=>pa.requestPermissions(["android.permission.POST_NOTIFICATIONS"],()=>res(),()=>res())); }
+        }catch(err2){ console.warn("[通知] plus 权限申请跳过:",err2); }
+        return true;
+      }
+      if(e.kind==="cordova"&&window.cordova&&window.cordova.plugins&&window.cordova.plugins.notification&&window.cordova.plugins.notification.local){
+        const ln=window.cordova.plugins.notification.local;
+        await new Promise(res=>{ try{ if(typeof ln.requestPermission==="function"){ ln.requestPermission(()=>res(),()=>res()); } else { res(); } }catch(err2){ res(); } });
+        return true;
+      }
+    }catch(err){ console.warn("[通知] 原生权限申请失败:",err); }
+    return false; }
+};
+/* 统一保存：原生 > File System Access > 下载 */
+async function saveTextToPhoneStorage(fname,text){
+  if(NativeBridge.hasSave()){
+    try{ const r=await NativeBridge.saveFile(fname,text); if(r!==false&&r!=null)return (typeof r==="string"&&r.trim())?r.trim():"已保存到手机存储"; }catch(e){ console.warn("[存储] 原生保存失败，改用网页能力:",e); }
+  }
+  if(window.showSaveFilePicker){
+    try{
+      const handle=await window.showSaveFilePicker({suggestedName:fname,types:[{description:"JSON 备份",accept:{"application/json":[".json"]}}]});
+      const w=await handle.createWritable(); await w.write(text); await w.close();
+      return "已保存到你选择的位置";
+    }catch(e){ if(e&&e.name==="AbortError")return "已取消保存"; console.warn("[存储] 另存为失败:",e); }
+  }
+  const blob=new Blob([text],{type:"application/json;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download=fname;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+  return "已下载到本机（浏览器下载目录）";
+}
+/* 统一读取：原生 > File System Access > 选择文件 */
+async function pickTextFromPhoneStorage(){
+  if(NativeBridge.hasPick()){
+    try{ const r=await NativeBridge.pickFile(); if(r&&typeof r.text==="string")return r; }catch(e){ console.warn("[存储] 原生读取失败，改用网页能力:",e); }
+  }
+  if(window.showOpenFilePicker){
+    try{
+      const arr=await window.showOpenFilePicker({types:[{description:"JSON 备份",accept:{"application/json":[".json"]}}]});
+      const f=await arr[0].getFile();
+      return {name:f.name,text:await f.text()};
+    }catch(e){ if(e&&e.name==="AbortError")return null; console.warn("[存储] 打开文件失败:",e); }
+  }
+  return await new Promise(resolve=>{
+    const inp=document.createElement("input");
+    inp.type="file"; inp.accept=".json,application/json"; inp.style.display="none";
+    let done=false;
+    const fin=v=>{ if(done)return; done=true; try{document.body.removeChild(inp);}catch(e){} resolve(v); };
+    inp.addEventListener("change",async()=>{
+      const f=inp.files&&inp.files[0];
+      try{ fin(f?{name:f.name,text:await f.text()}:null); }catch(e){ fin(null); }
+    });
+    document.body.appendChild(inp); inp.click();
+  });
+}
+async function buildBackupJSON(){
+  const stateData=JSON.parse(JSON.stringify(state));
+  const lsData={};
+  const mainKey=typeof KEY!=="undefined"?KEY:"sim-chat-v5";
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    if(!k||k===mainKey)continue;
+    try{lsData[k]=localStorage.getItem(k);}catch(e){}
+  }
+  let idbData={};
+  try{idbData=await _dumpMusicIDB();}catch(e){console.warn("IDB导出失败:",e);}
+  const backup={version:2,exportTime:new Date().toISOString(),app:"溯佳聊天模拟器",
+    state:stateData,localStorage:lsData,indexedDB:{simChatMusicDB_v3:{media:idbData}}};
+  return {json:JSON.stringify(backup),lsCount:Object.keys(lsData).length,idbCount:Object.keys(idbData).length};
+}
+/* ===== 流式导出：避免大容量音乐时把所有 Blob/整份 JSON 一次性放进内存 ===== */
+function _idbOpenMusicDB(){
+  return new Promise((resolve,reject)=>{
+    try{
+      if(!window.indexedDB){reject(new Error("no-idb"));return;}
+      const r=indexedDB.open("simChatMusicDB_v3",1);
+      r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains("media"))r.result.createObjectStore("media");};
+      r.onsuccess=()=>resolve(r.result);
+      r.onerror=()=>reject(r.error||new Error("idb-open-fail"));
+    }catch(e){reject(e);}
+  });
+}
+function _idbMusicKeys(db){
+  return new Promise(resolve=>{
+    try{
+      const rq=db.transaction("media","readonly").objectStore("media").getAllKeys();
+      rq.onsuccess=()=>resolve(rq.result||[]);
+      rq.onerror=()=>resolve([]);
+    }catch(e){resolve([]);}
+  });
+}
+function _idbMusicBlob(db,key){
+  return new Promise(resolve=>{
+    try{
+      const rq=db.transaction("media","readonly").objectStore("media").get(key);
+      rq.onsuccess=()=>resolve(rq.result||null);
+      rq.onerror=()=>resolve(null);
+    }catch(e){resolve(null);}
+  });
+}
+/* 生成器：逐段产出备份 JSON 片段；音乐逐条读取并转码，每 5 条让出主线程 */
+async function* _backupChunks(onProgress){
+  const mainKey=typeof KEY!=="undefined"?KEY:"sim-chat-v5";
+  const lsData={};
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    if(!k||k===mainKey)continue;
+    try{lsData[k]=localStorage.getItem(k);}catch(e){}
+  }
+  yield '{"version":2,"exportTime":'+JSON.stringify(new Date().toISOString())+',"app":"溯佳聊天模拟器",';
+  yield '"state":';
+  yield JSON.stringify(state);
+  await _yieldUI();
+  yield ',"localStorage":';
+  yield JSON.stringify(lsData);
+  await _yieldUI();
+  yield ',"indexedDB":{"simChatMusicDB_v3":{"media":{';
+  let db=null;
+  try{ db=await _idbOpenMusicDB(); }catch(e){ db=null; }
+  let keys=[];
+  if(db){ try{ keys=await _idbMusicKeys(db); }catch(e){ keys=[]; } }
+  let first=true, n=0;
+  for(let i=0;i<keys.length;i++){
+    let piece=null;
+    try{
+      const blob=db?await _idbMusicBlob(db,keys[i]):null;
+      if(blob&&blob.size){
+        const du=await _blobToDataURL(blob);
+        if(du!=null)piece=JSON.stringify(String(keys[i]))+":"+JSON.stringify(du);
+      }
+    }catch(e){console.warn("导出音乐失败:",keys[i],e);}
+    if(piece!=null){
+      yield (first?"":",")+piece;
+      first=false; n++;
+    }
+    if(i%5===4){ if(typeof onProgress==="function"){try{onProgress(n,keys.length);}catch(e){}} await _yieldUI(); }
+  }
+  try{ if(db)db.close(); }catch(e){}
+  yield '}}}}';
+}
+/* 原生流式写入：边生成边写入手机文件，内存里只保留当前片段 */
+/* 单目录流式写入：chunksFn 每次调用返回“全新”生成器，避免多目标重试时数据流被消耗 */
+function _streamInto(base,sub,fname,chunksFn){
+  return new Promise(resolve=>{
+    let done=false; const fin=v=>{ if(!done){done=true;resolve(v);} };
+    const utf8Len=s=>{ try{ return new TextEncoder().encode(s).length; }catch(e){ return s.length; } };
+    const start=dirEntry=>{
+      dirEntry.getFile(fname,{create:true,exclusive:false},fileEntry=>{
+        fileEntry.createWriter(async w=>{
+          let total=0;
+          const writeBlob=blob=>new Promise((res,rej)=>{
+            let settled=false;
+            const ok=()=>{ if(!settled){settled=true;res();} };
+            const bad=e=>{ if(!settled){settled=true;rej(e||new Error("write-error"));} };
+            w.onwrite=ok; w.onwriteend=ok; w.onerror=bad; w.onabort=bad;
+            try{ w.write(blob); }catch(e){ bad(e); }
+          });
+          try{
+            // 先清空同名旧文件，避免上一次残缺/更长文件的尾部残留导致 JSON 结构损坏
+            await new Promise(res=>{
+              try{ w.onwrite=()=>res(); w.onwriteend=()=>res(); w.onerror=()=>res(); w.onabort=()=>res(); w.truncate(0); }
+              catch(e){ res(); }
+            });
+            let acc="";
+            const flush=async()=>{ if(!acc)return; const t=acc; acc=""; total+=utf8Len(t); await writeBlob(new Blob([t],{type:"application/json"})); };
+            for await(const chunk of chunksFn()){
+              if(chunk===null||chunk===undefined||chunk==="")continue;
+              acc+=chunk;
+              // 累积到约 256KB 再落盘，减少写入次数、降低大块写入被截断/乱序的概率
+              if(acc.length>=262144)await flush();
+            }
+            await flush();
+            // 写入后校验文件字节数，若与写入量不一致则判定失败，交给下一个候选目录重试
+            const url="已保存到手机存储："+(fileEntry.toURL?fileEntry.toURL():fileEntry.fullPath);
+            setTimeout(()=>{
+              try{
+                fileEntry.getMetadata(md=>{
+                  if(md&&typeof md.size==="number"&&md.size!==total){ console.warn("[流式写入] 大小校验失败 期望",total,"实际",md.size); fin(false); }
+                  else fin(url);
+                },()=>fin(url));
+              }catch(e){ fin(url); }
+            },80);
+          }catch(e){ console.warn("[流式写入] 失败:",e); fin(false); }
+        },()=>fin(false));
+      },()=>fin(false));
+    };
+    const dirUrl=base+(sub||"");
+    const subName=(sub||"").replace(/\/+$/,"");
+    window.resolveLocalFileSystemURL(dirUrl,start,()=>{
+      window.resolveLocalFileSystemURL(base,root=>{
+        if(!subName){ start(root); return; }
+        root.getDirectory(subName,{create:true},start,()=>fin(false));
+      },()=>fin(false));
+    });
+  });
+}
+/* 多目标流式保存：公共下载 → 应用外部目录 → 应用内部目录，逐个尝试；
+   只要有一个目录可写即成功，且全程分块写入，内存里只保留当前片段。 */
+async function saveStreamToPhoneStorage(fname,chunksFn){
+  try{
+    const cf=window.cordova&&window.cordova.file;
+    if(!(cf&&window.resolveLocalFileSystemURL))return false;
+    const candidates=[];
+    if(cf.externalRootDirectory)candidates.push([cf.externalRootDirectory,"Download/"]);
+    if(cf.externalApplicationStorageDirectory)candidates.push([cf.externalApplicationStorageDirectory,""]);
+    if(cf.externalDataDirectory)candidates.push([cf.externalDataDirectory,""]);
+    if(cf.dataDirectory)candidates.push([cf.dataDirectory,""]);
+    for(let i=0;i<candidates.length;i++){
+      const r=await _streamInto(candidates[i][0],candidates[i][1],fname,chunksFn);
+      if(r)return r;
+    }
+    return false;
+  }catch(e){ console.warn("[流式保存] 异常:",e); return false; }
+}
+function backupFileName(){
+  const d=new Date();
+  return `溯佳全量备份_${d.getFullYear()}${(d.getMonth()+1).toString().padStart(2,"0")}${d.getDate().toString().padStart(2,"0")}_${d.getHours().toString().padStart(2,"0")}${d.getMinutes().toString().padStart(2,"0")}.json`;
+}
+async function saveBackupToPhone(){ return _runExport(); }
+async function loadBackupFromPhone(){
+  const st=document.getElementById("phoneStorageStatus");
+  try{
+    const res=await pickTextFromPhoneStorage();
+    if(!res){ if(st)st.textContent="未选择文件"; return; }
+    const file=new File([res.text],res.name||"backup.json",{type:"application/json"});
+    await importData(file);
+    if(st)st.textContent="已选择并开始恢复："+file.name;
+  }catch(e){ console.error(e); if(e&&e.name!=="AbortError")toast("读取失败："+((e&&e.message)?e.message:String(e))); }
+}
+function tryNativeNotification(title,body){ return NativeBridge.notify(title,body); }
+function updateNativeEnvStatus(){
+  const el=document.getElementById("nativeEnvStatus");
+  if(!el)return;
+  const parts=["当前环境："+NativeBridge.describe()];
+  parts.push("手机存储："+((NativeBridge.hasSave()||window.showSaveFilePicker)?"可用":"仅下载/选择文件"));
+  parts.push("系统通知："+(NativeBridge.hasNotify()?"原生可用":(("Notification" in window)?"浏览器API":"不支持")));
+  el.textContent=parts.join(" · ");
+}
+/* APP(WebView) 环境就绪后再检测一次：修复 deviceready 前探测失败导致一直“无原生桥”的问题 */
+function refreshNativeEnv(){ try{ NativeBridge.reset(); }catch(e){} updateNativeEnvStatus(); }
+document.addEventListener("deviceready",refreshNativeEnv,false);
+window.addEventListener("cordova",refreshNativeEnv,false);
+document.addEventListener("plusready",refreshNativeEnv,false);
+document.addEventListener("click",e=>{
+  if(e.target.closest("#saveToPhoneBtn")){ e.preventDefault(); saveBackupToPhone(); }
+  else if(e.target.closest("#loadFromPhoneBtn")){ e.preventDefault(); loadBackupFromPhone(); }
+  else if(e.target.closest("#nativeNotifyPermBtn")){
+    e.preventDefault();
+    Promise.resolve(NativeBridge.requestNotificationPermission()).then(ok=>{
+      if(ok){toast("已向系统申请通知权限（请留意系统弹窗）");}
+      else if("Notification" in window){
+        Notification.requestPermission().then(p=>{toast(p==="granted"?"通知权限已开启":(p==="denied"?"通知权限被拒绝":"未授权"));updatePermBanner();});
+      }else{toast("当前环境不支持系统通知");}
+    });
+  }
+});
+
+async function _runExport(){
+  const st=document.getElementById("phoneStorageStatus");
   try{
     toast("正在导出全量备份，请稍候...");
-    // 1. 主数据 state
-    const stateData=JSON.parse(JSON.stringify(state));
-    // 2. 收集所有 localStorage key（排除主key，因为已在state中）
-    const lsData={};
-    const mainKey=typeof KEY!=="undefined"?KEY:"sim-chat-v5";
-    for(let i=0;i<localStorage.length;i++){
-      const k=localStorage.key(i);
-      if(!k||k===mainKey)continue;
-      try{lsData[k]=localStorage.getItem(k);}catch(e){}
+    if(st)st.textContent="正在导出…";
+    await _yieldUI();
+    const fname=backupFileName();
+    const onProg=(n,total)=>{ if(st)st.textContent="正在导出音乐 "+n+"/"+total+" …"; };
+    // 1) 优先流式导出：内存只保留当前一条音乐，避免大容量卡死
+    let savedTo=false;
+    // 传入“生成器工厂”：每个候选目录重试时都拿到一份全新的数据流，杜绝半途耗尽的坏流
+    try{ savedTo=await saveStreamToPhoneStorage(fname,()=>_backupChunks(onProg)); }catch(e){ console.warn("流式导出失败:",e); }
+    if(!savedTo){
+      // 2) 仅在原生流式完全不可用（纯网页环境）时回退：拼接完整字符串并下载
+      if(st)st.textContent="正在打包数据…";
+      const parts=[]; let c=0;
+      for await(const chunk of _backupChunks(onProg)){ parts.push(chunk); if((c++%20)===0)await _yieldUI(); }
+      const data=parts.join("");
+      if(st)st.textContent="正在保存…";
+      await _yieldUI();
+      try{ savedTo=await saveTextToPhoneStorage(fname,data); }catch(e){ console.warn("[导出] 保存失败:",e); }
+      if(!savedTo){
+        const blob=new Blob([data],{type:"application/json"});
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement("a");a.href=url;a.download=fname;
+        document.body.appendChild(a);a.click();document.body.removeChild(a);
+        setTimeout(()=>URL.revokeObjectURL(url),1500);
+        savedTo="已下载到本机（浏览器下载目录）";
+      }
     }
-    // 3. 收集 IndexedDB 音乐数据
-    let idbData={};
-    try{idbData=await _dumpMusicIDB();}catch(e){console.warn("IDB导出失败:",e);}
-    // 4. 打包
-    const backup={
-      version:2,
-      exportTime:new Date().toISOString(),
-      app:"溯佳聊天模拟器",
-      state:stateData,
-      localStorage:lsData,
-      indexedDB:{simChatMusicDB_v3:{media:idbData}}
-    };
-    const data=JSON.stringify(backup);
-    const blob=new Blob([data],{type:"application/json"});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement("a");
-    const d=new Date();
-    const fname=`溯佳全量备份_${d.getFullYear()}${(d.getMonth()+1).toString().padStart(2,"0")}${d.getDate().toString().padStart(2,"0")}_${d.getHours().toString().padStart(2,"0")}${d.getMinutes().toString().padStart(2,"0")}.json`;
-    a.href=url;a.download=fname;
-    document.body.appendChild(a);a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    const lsCount=Object.keys(lsData).length;
-    const idbCount=Object.keys(idbData).length;
-    toast(`全量备份已导出（${lsCount}项设置+${idbCount}首音乐）：${fname}`);
+    const okMsg=`全量备份已导出：${fname}｜${savedTo}`;
+    toast(okMsg);
+    if(st)st.textContent=okMsg;
   }catch(err){
     console.error("导出失败:",err);
-    toast("导出失败："+err.message);
+    const m=(err&&err.message)?err.message:String(err);
+    toast("导出失败："+m);
+    if(st)st.textContent="导出失败："+m;
   }
 }
+async function exportData(){ return _runExport(); }
 async function importData(file){
   const reader=new FileReader();
   reader.onload=async e=>{
     try{
-      const raw=JSON.parse(e.target.result);
+      let raw;
+      try{ raw=JSON.parse(e.target.result); }
+      catch(pe){ console.error("备份JSON解析失败:",pe); const sz=(e.target.result?e.target.result.length:0); toast("备份文件已损坏或不完整（"+((pe&&pe.message)||pe)+"，文件约"+Math.round(sz/1048576)+"MB），请用最新版本重新导出后再导入"); return; }
       // 判断格式：新版 {version:2,state:{...},localStorage:{...},indexedDB:{...}} 或旧版（直接是state）
       let isNewFormat=raw&&raw.version===2&&raw.state&&typeof raw.state==="object";
       let data=isNewFormat?raw.state:raw;
@@ -12888,7 +13795,7 @@ async function importData(file){
       }
       // 3. 尝试写入 localStorage 作为快速缓存（失败不影响，数据已在 IndexedDB）
       try{
-        localStorage.setItem(KEY,JSON.stringify(data));
+        localStorage.setItem(KEY,JSON.stringify(stripStateForCache(data)));
         console.log("[导入] localStorage缓存写入成功");
       }catch(lsErr){
         console.warn("[导入] localStorage缓存写入失败（数据过大，已存IndexedDB）:",lsErr.name);
@@ -13064,7 +13971,7 @@ function sendLetter(){
   if(!text||!currentLetterChatId){toast("请输入信件内容");return;}
   const chat=getChat(currentLetterChatId);if(!chat)return;
   chat.letters.push({from:"mine",text,time:now(),read:true,kind:"sent"});
-  if(!save()){toast("存储空间不足，信件可能未保存");}
+  if(!save()){console.warn("[信件] localStorage 缓存已满，完整数据已存入 IndexedDB");}
   $("letterComposeInput").value="";
   renderLetterList();
   showLetterView("list");
@@ -13090,7 +13997,7 @@ function scheduleLetterReply(chatId){
     const replyText=generateConcatText(cur,cfg.letterConcatMin,cfg.letterConcatMax);
     if(replyText){
       cur.letters.push({from:"other",text:replyText,time:now(),read:false,kind:"reply"});
-      if(!save()){console.warn("[信件] 存储空间不足，回信未保存");}
+      if(!save()){console.warn("[信件] localStorage 缓存已满，回信数据已存入 IndexedDB");}
       // 无论用户当前在哪个页面，只要打开了该角色的信件页就刷新
       if(currentLetterChatId===cur.id){
         if(currentLetterView==="list")renderLetterList();
@@ -13122,7 +14029,9 @@ function scheduleLetter(chat){
   }
   const delay=randInt(minMin,maxMax)*60000;
   console.log("[信件] 角色 "+chat.name+" 将在 "+Math.round(delay/60000)+" 分钟后主动发信（区间 "+minMin+"-"+maxMax+" 分钟）");
+  scheduleNativeAhead(chat,delay,"发来一封信");
   letterTimers[chat.id]=setTimeout(()=>{
+    cancelNativeAhead(chat.id);
     const current=getChat(chat.id);
     if(!current){console.warn("[信件] 定时器触发时角色 "+chat.id+" 已不存在");return;}
     const cfg=getSettings(current.id);
@@ -13136,7 +14045,7 @@ function scheduleLetter(chat){
     if(text){
       if(!current.letters)current.letters=[];
       current.letters.push({from:"other",text,time:now(),read:false,kind:"active"});
-      if(!save()){console.warn("[信件] 存储空间不足，主动来信未保存");}
+      if(!save()){console.warn("[信件] localStorage 缓存已满，主动来信数据已存入 IndexedDB");}
       triggerNotification(current,"收到一封来自"+current.name+"的主动来信");
       console.log("[信件] 角色 "+current.name+" 主动来信已送达，内容长度："+text.length);
     }else{
@@ -13268,7 +14177,7 @@ $("letterReplySendBtn").addEventListener("click",()=>{
   if(!text||!currentLetterChatId){toast("请输入回信内容");return;}
   const chat=getChat(currentLetterChatId);if(!chat)return;
   chat.letters.push({from:"mine",text,time:now(),read:true,kind:"sent"});
-  if(!save()){toast("存储空间不足，信件可能未保存");}
+  if(!save()){console.warn("[信件] localStorage 缓存已满，完整数据已存入 IndexedDB");}
   $("letterReplyInput").value="";
   toast("回信已发送");
   // 角色再次回信（使用闭包捕获的 chat.id，避免全局变量变化导致回信丢失）
@@ -13519,6 +14428,7 @@ function triggerIncomingCall(chatId){
   playRingTone();
   // 震动（如果支持）
   try{if(navigator.vibrate)navigator.vibrate([500,300,500,300,500,300,500]);}catch(e){}
+  notifyIncomingCallNative(chat);
   // 超时自动拒接（未接）
   incomingCallState.timeoutTimer=setTimeout(()=>{
     if(incomingCallState.active)rejectIncomingCall(true);
@@ -13528,6 +14438,7 @@ function triggerIncomingCall(chatId){
 function answerIncomingCall(){
   if(!incomingCallState.active)return;
   const chatId=incomingCallState.chatId;
+  clearIncomingCallNative(chatId);
   clearTimeout(incomingCallState.timeoutTimer);
   stopRingTone();
   incomingCallState.active=false;
@@ -13540,6 +14451,7 @@ function answerIncomingCall(){
 function rejectIncomingCall(isMissed){
   if(!incomingCallState.active)return;
   const chatId=incomingCallState.chatId;
+  clearIncomingCallNative(chatId);
   clearTimeout(incomingCallState.timeoutTimer);
   stopRingTone();
   incomingCallState.active=false;
@@ -13660,6 +14572,30 @@ function updateCallDuration(){
   const timeStr=mins+":"+secs;
   $("callDuration").textContent=timeStr;
   $("callFloatDuration").textContent=timeStr;
+  if(callState.isMinimized)syncCallFloatText();
+}
+// 小窗字卡与全屏保持同步：直接读取当前全屏正在显示的那张字卡
+function syncCallFloatText(){
+  try{
+    const d=$("callDialogue");
+    const t=d?(d.textContent||"").trim():"";
+    const f=$("callFloatText");
+    if(f&&t)f.textContent=t;
+  }catch(e){}
+}
+// 应用小窗上次拖动后的位置（位置记忆）
+function applyCallFloatPos(){
+  try{
+    const el=$("callFloat");
+    if(!el)return;
+    const saved=JSON.parse(localStorage.getItem("callFloatPos")||"null");
+    if(saved&&typeof saved.left==="number"&&typeof saved.top==="number"){
+      const w=el.offsetWidth||240,h=el.offsetHeight||80;
+      const left=Math.max(6,Math.min(saved.left,window.innerWidth-w-6));
+      const top=Math.max(6,Math.min(saved.top,window.innerHeight-h-6));
+      el.style.left=left+"px";el.style.top=top+"px";el.style.right="auto";
+    }
+  }catch(e){}
 }
 function scheduleRoleSpeak(delay){
   if(!callState.active)return;
@@ -13727,6 +14663,8 @@ function minimizeCall(){
   callState.isMinimized=true;
   $("callFullscreen").classList.remove("show");
   $("callFloat").classList.add("show");
+  applyCallFloatPos();
+  syncCallFloatText();
 }
 function maximizeCall(){
   if(!callState.active||!callState.isMinimized)return;
@@ -13802,7 +14740,8 @@ function startBrowserVoiceRecognition(){
       }else if(event.error==="no-speech"){
         updateCallVoiceStatus("正在聆听...","listening");
       }else{
-        updateCallVoiceStatus("识别错误: "+event.error,"error");
+        // 已按用户要求去掉通话界面的“识别错误”红字提示（仅保留控制台日志）
+        updateCallVoiceStatus("正在聆听...","listening");
       }
     };
     recognition.onend=()=>{
@@ -13941,6 +14880,54 @@ $("callFloatHangup").addEventListener("click",e=>{
 });
 $("callMinimizeBtn").addEventListener("click",minimizeCall);
 $("callFloat").addEventListener("click",maximizeCall);
+/* 通话小窗可拖动：避免遮挡聊天文字，位置自动记忆 */
+(function(){
+  var el=document.getElementById("callFloat");
+  if(!el)return;
+  var dragging=false,moved=false,sx=0,sy=0,ox=0,oy=0,pid=null;
+  function savePos(){
+    try{
+      var r=el.getBoundingClientRect();
+      localStorage.setItem("callFloatPos",JSON.stringify({left:r.left,top:r.top}));
+    }catch(e){}
+  }
+  el.addEventListener("pointerdown",function(e){
+    if(e.target.closest(".call-float-hangup"))return;
+    var r=el.getBoundingClientRect();
+    dragging=true;moved=false;pid=e.pointerId;
+    sx=e.clientX;sy=e.clientY;ox=r.left;oy=r.top;
+    el.style.right="auto";el.style.left=r.left+"px";el.style.top=r.top+"px";
+    try{el.setPointerCapture(pid);}catch(_){}
+  });
+  el.addEventListener("pointermove",function(e){
+    if(!dragging)return;
+    var dx=e.clientX-sx,dy=e.clientY-sy;
+    if(!moved&&Math.abs(dx)+Math.abs(dy)>6)moved=true;
+    if(!moved)return;
+    if(e.cancelable)e.preventDefault();
+    var w=el.offsetWidth||240,h=el.offsetHeight||80;
+    var left=Math.max(6,Math.min(ox+dx,window.innerWidth-w-6));
+    var top=Math.max(6,Math.min(oy+dy,window.innerHeight-h-6));
+    el.style.left=left+"px";el.style.top=top+"px";
+  });
+  function endDrag(){
+    if(!dragging)return;
+    dragging=false;
+    try{el.releasePointerCapture(pid);}catch(_){}
+    if(moved){el.dataset.dragged="1";savePos();setTimeout(function(){try{delete el.dataset.dragged;}catch(_){}},80);}
+  }
+  el.addEventListener("pointerup",endDrag);
+  el.addEventListener("pointercancel",endDrag);
+  el.addEventListener("click",function(e){
+    if(el.dataset.dragged){e.stopPropagation();e.preventDefault();}
+  },true);
+  window.addEventListener("resize",function(){
+    try{
+      var r=el.getBoundingClientRect();
+      if(r.left>window.innerWidth-40||r.top>window.innerHeight-40)applyCallFloatPos();
+    }catch(_){}
+  });
+})();
 $("callFullscreen").addEventListener("dblclick",e=>{
   e.preventDefault();
   e.stopPropagation();
@@ -14306,15 +15293,23 @@ $("worldBookFileInput")?.addEventListener("change",(e)=>{
   setTimeout(()=>{e.target.value="";},100);
 });
 // 导出世界书
-$("exportWorldBook")?.addEventListener("click",()=>{
+$("exportWorldBook")?.addEventListener("click",async()=>{
   const wb=getWorldBook(currentWorldBookContactId);
-  const blob=new Blob([JSON.stringify(wb,null,2)],{type:"application/json"});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement("a");
-  a.href=url;a.download=(wb.name||"worldbook")+".json";
-  a.click();
-  URL.revokeObjectURL(url);
-  toast("世界书已导出");
+  const text=JSON.stringify(wb,null,2);
+  const fname=(wb.name||"worldbook")+".json";
+  let ok="";
+  try{ ok=await saveTextToPhoneStorage(fname,text); }catch(e){ console.warn("[世界书导出] 原生保存失败:",e); }
+  if(!ok){
+    const blob=new Blob([text],{type:"application/json"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;a.download=fname;
+    document.body.appendChild(a);a.click();
+    document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url),1500);
+    ok="已下载到本机";
+  }
+  toast("世界书已导出："+fname+"｜"+ok);
 });
 // 条目编辑模态框
 $("worldEntryEditBack")?.addEventListener("click",closeWorldEntryEdit);
@@ -14383,6 +15378,60 @@ const BUBBLE_MINE_PRESETS=[
   "#e9edff","#4f6df5","#d4edda","#fff3cd","#f8d7da","#d1ecf1",
   "#e2d5f1","#ffe4c4","#d6e9ff","#95e1d3","#fce38a","#f38181"
 ];
+/* 内置气泡主题：纯CSS、无外部图片，保证任何环境下都能完整显示 */
+const BUBBLE_THEME_PRESETS={
+ "猫咪气泡":[
+  "/* 猫咪气泡（内置，无需外部图片） */",
+  ".message{position:relative;overflow:hidden}",
+  ".message.message-sent{",
+  " background:linear-gradient(180deg,#ffe6f3,#ffd0e8)!important;",
+  " border:1px solid #ffb8da!important;border-radius:18px 18px 6px 18px!important;",
+  " box-shadow:0 3px 10px rgba(255,140,190,.3)!important;color:#7a3557!important;}",
+  ".message.message-received{",
+  " background:linear-gradient(180deg,#fff7fc,#ffeef7)!important;",
+  " border:1px solid #ffcde5!important;border-radius:18px 18px 18px 6px!important;",
+  " box-shadow:0 3px 10px rgba(255,140,190,.22)!important;color:#7a4a63!important;}",
+  ".message.message-sent::after{content:'';position:absolute;width:6px;height:6px;border-radius:50%;",
+  " background:#ff9ec9;bottom:7px;right:12px;box-shadow:-10px 0 0 #ff9ec9;}",
+  ".message.message-received::after{content:'';position:absolute;width:6px;height:6px;border-radius:50%;",
+  " background:#ffc2de;bottom:7px;left:12px;box-shadow:10px 0 0 #ffc2de;}"
+ ].join("\n"),
+ "清新薄荷":[
+  "/* 清新薄荷（内置） */",
+  ".message.message-sent{",
+  " background:linear-gradient(180deg,#dcfce7,#bbf7d0)!important;",
+  " border:1px solid #86efac!important;border-radius:16px 16px 6px 16px!important;",
+  " box-shadow:0 2px 8px rgba(34,197,94,.25)!important;color:#14532d!important;}",
+  ".message.message-received{",
+  " background:linear-gradient(180deg,#eff6ff,#dbeafe)!important;",
+  " border:1px solid #bfdbfe!important;border-radius:16px 16px 16px 6px!important;",
+  " box-shadow:0 2px 8px rgba(59,130,246,.2)!important;color:#1e3a8a!important;}"
+ ].join("\n"),
+ "简约描边":[
+  "/* 简约描边（内置） */",
+  ".message{background:#ffffff!important;border:1.5px solid #d0d5dd!important;",
+  " border-radius:14px!important;box-shadow:0 1px 4px rgba(0,0,0,.06)!important;color:#333333!important;}",
+  ".message.message-sent{border-color:#4f6df5!important;}"
+ ].join("\n")
+};
+document.addEventListener("click",e=>{
+ if(e.target.closest("#bubbleResetBtn")){
+   const ta=document.getElementById("bubbleCustomCSS");
+   if(ta)ta.value="";
+   if(typeof renderBubblePreview==="function")renderBubblePreview("");
+   if(typeof toast==="function")toast("已重置为默认气泡");
+   return;
+ }
+ const b=e.target.closest("[data-bubble-preset]");
+ if(!b)return;
+ const name=b.getAttribute("data-bubble-preset");
+ const css=BUBBLE_THEME_PRESETS[name];
+ if(css==null)return;
+ const ta=document.getElementById("bubbleCustomCSS");
+ if(ta)ta.value=css;
+ if(typeof renderBubblePreview==="function")renderBubblePreview(css);
+ if(typeof toast==="function")toast("已载入「"+name+"」，点“保存气泡样式”生效");
+});
 function renderBubbleContactSelect(){
   const select=$("bubbleContactSelect");if(!select)return;
   select.innerHTML=state.chats.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join("");
@@ -14399,6 +15448,7 @@ function loadBubbleForm(){
   $("bubbleRadius").value=s.bubbleRadius||"";
   $("bubbleFontSize").value=s.bubbleFontSize||"";
   $("bubbleCustomCSS").value=s.bubbleCustomCSS||"";
+  if(typeof renderBubblePreview==="function")renderBubblePreview(s.bubbleCustomCSS||"");
   // 渲染颜色选择器
   const otherBox=$("bubbleOtherColors");
   if(otherBox){
@@ -14823,9 +15873,9 @@ function collectReferencedImages(){
   }
   // 主界面数据（壁纸、小组件背景、拍立得、应用图标）
   try{
-    const hsRaw=localStorage.getItem("home-screen-data-v1");
-    if(hsRaw){
-      const hsData=JSON.parse(hsRaw);
+    // 修复：改读内存中的完整主界面数据（localStorage 里已不含图片）
+    const hsData=(typeof homeData!=="undefined"&&homeData&&Array.isArray(homeData.pages))?homeData:null;
+    if(hsData){
       if(hsData.wallpaper)refs.add(hsData.wallpaper);
       if(Array.isArray(hsData.pages)){
         hsData.pages.forEach(p=>{
@@ -14879,7 +15929,7 @@ function calcStorage(){
     }
   });
   // 统计 localStorage 键数和非主数据大小（localStorage仅作缓存）
-  let lsKeyCount=0,lsOtherBytes=0,lsCacheUsed=0;
+  let lsKeyCount=0,lsOtherBytes=0,lsCacheUsed=0,lsCacheChars=0;
   try{
     for(let i=0;i<localStorage.length;i++){
       const key=localStorage.key(i);
@@ -14887,6 +15937,7 @@ function calcStorage(){
       const val=localStorage.getItem(key)||"";
       const sz=strBytes(key)+strBytes(val);
       lsCacheUsed+=sz;
+      lsCacheChars+=(key.length+val.length);
       lsKeyCount++;
       if(key!==KEY)lsOtherBytes+=sz;
     }
@@ -14904,6 +15955,7 @@ function calcStorage(){
     lsTotal:lsTotal,
     lsKeyCount:lsKeyCount,
     lsOtherBytes:lsOtherBytes,
+    lsCacheChars:lsCacheChars,
     lsCacheUsed:lsCacheUsed,
     imageCount:imageCount,
     imageBytes:imageBytes,
@@ -14918,17 +15970,55 @@ function calcStorage(){
     ]
   };
 }
+// ===== 存储容量最大化：申请持久化存储（真实生效，非摆设） =====
+let _persistGranted=null;
+function refreshPersistStatus(){
+  const el=$("storagePersistStatus"); if(!el)return;
+  if(!navigator.storage||!navigator.storage.persisted){
+    el.innerHTML="当前环境不支持持久化存储检测，数据仍保存在大容量的 IndexedDB 中。";
+    return;
+  }
+  navigator.storage.persisted().then(function(g){
+    _persistGranted=g;
+    if(g){
+      el.innerHTML="✅ <b>已启用持久化存储</b>：数据不会被浏览器自动清理，可用容量为浏览器允许的最大配额。";
+    }else{
+      el.innerHTML="⚠️ <b>未启用持久化存储</b>：存储紧张时浏览器可能清理数据。点下方按钮申请开启（真实提升可用容量）。";
+    }
+  }).catch(function(){el.textContent="检测失败";});
+}
+async function requestPersistStorage(){
+  if(!navigator.storage||!navigator.storage.persist){
+    toast("当前环境不支持持久化存储，数据仍保存在 IndexedDB 中");
+    return;
+  }
+  try{
+    const granted=await navigator.storage.persist();
+    _persistGranted=granted;
+    await idbUpdateQuotaCache();
+    refreshPersistStatus();
+    const q=(_idbQuotaCache&&_idbQuotaCache.quota)?_idbQuotaCache.quota:0;
+    if(granted){
+      toast("已开启持久化存储，可用容量已提升至浏览器最大配额"+(q?("（约 "+formatSize(q)+"）"):""));
+    }else{
+      toast("浏览器未自动授予。请把本页「添加到主屏幕」，或用 HTTPS 安全地址打开后重试");
+    }
+  }catch(e){toast("申请失败："+e.message);}
+}
 function showStorageDetail(){
+
   const info=calcStorage();
-  const usedPct=info.lsTotal>0?((info.lsUsed/info.lsTotal)*100).toFixed(1):"0";
-  const remain=Math.max(0,info.lsTotal-info.lsUsed);
+  const LS_LIMIT=5*1024*1024;
+  const lsRealBytes=(info.lsCacheChars||0)*2;
+  const lsPct=Math.min(100,(lsRealBytes/LS_LIMIT)*100).toFixed(1);
+  const lsDanger=lsRealBytes/LS_LIMIT>0.8;
   const catTotal=info.categories.reduce((s,c)=>s+c.bytes,0)||1;
   let html=`
-    <div class="storage-detail-row"><span class="storage-detail-label">存储配额</span><span class="storage-detail-value">已用 ${formatSize(info.lsUsed)} / 总 ${formatSize(info.lsTotal)}</span></div>
-    <div class="storage-detail-row"><span class="storage-detail-label">剩余空间</span><span class="storage-detail-value" style="color:${info.lsUsed/info.lsTotal>0.8?'var(--danger)':'var(--text)'}">${formatSize(remain)}（使用率 ${usedPct}%）${info.lsUsed/info.lsTotal>0.8?' ⚠️ 即将占满':''}</span></div>
-    <div class="storage-detail-row"><span class="storage-detail-label">存储方式</span><span class="storage-detail-value">IndexedDB（大容量）+ localStorage缓存</span></div>
-    <div class="storage-detail-row"><span class="storage-detail-label">localStorage 缓存</span><span class="storage-detail-value">${info.lsKeyCount} 个键 / ${formatSize(info.lsCacheUsed||0)}（其他数据 ${formatSize(info.lsOtherBytes)}）</span></div>
-    <div class="storage-detail-row"><span class="storage-detail-label">内存中数据</span><span class="storage-detail-value">${formatSize(info.total)}</span></div>
+    <div class="storage-detail-row"><span class="storage-detail-label">localStorage 缓存</span><span class="storage-detail-value" style="color:${lsDanger?'var(--danger)':'var(--text)'}">${formatSize(lsRealBytes)} / ${formatSize(LS_LIMIT)}（${lsPct}%）${lsDanger?' ⚠️ 接近上限':''}</span></div>
+    <div class="storage-detail-row"><span class="storage-detail-label">localStorage 键</span><span class="storage-detail-value">${info.lsKeyCount} 个键（其他数据约 ${formatSize(info.lsOtherBytes)}）</span></div>
+    <div class="storage-detail-row"><span class="storage-detail-label">浏览器总配额</span><span class="storage-detail-value" id="storageQuotaRow">统计中…</span></div>
+    <div class="storage-detail-row"><span class="storage-detail-label">存储方式</span><span class="storage-detail-value">IndexedDB（大容量主存储）+ localStorage（轻量缓存）</span></div>
+    <div class="storage-detail-row"><span class="storage-detail-label">内存中主数据</span><span class="storage-detail-value">${formatSize(info.total)}</span></div>
     <div class="storage-detail-row"><span class="storage-detail-label">图片数据（真实）</span><span class="storage-detail-value">${formatSize(info.imageBytes)}（${info.imageCount}张）</span></div>
     <div class="storage-section-title">分类统计（内存中）</div>
   `;
@@ -14944,25 +16034,19 @@ function showStorageDetail(){
   });
   $("storageDetailContent").innerHTML=html;
   $("storageDetailModal").classList.add("show");
-  // 异步获取浏览器总存储配额（注意：这是整个域名的总配额，包含IndexedDB等，不等于localStorage的5MB限制）
+  refreshPersistStatus();
+  // 异步获取浏览器总存储配额（整个域名的配额，含 IndexedDB，并不等于 localStorage 的 5MB 限制）
   if(navigator.storage&&navigator.storage.estimate){
     navigator.storage.estimate().then(est=>{
+      const row=$("storageQuotaRow");if(!row)return;
       if(est&&est.quota){
-        const realTotal=est.quota;
-        const realUsed=est.usage||0;
+        const realTotal=est.quota,realUsed=est.usage||0;
         const realPct=realTotal>0?((realUsed/realTotal)*100).toFixed(1):"0";
-        const realRemain=Math.max(0,realTotal-realUsed);
-        // 更新配额缓存并刷新显示（数据已存IndexedDB，配额即浏览器总配额）
+        row.textContent=`已用 ${formatSize(realUsed)} / 总 ${formatSize(realTotal)}（${realPct}%·含图片）`;
         _idbQuotaCache={quota:realTotal,usage:realUsed,updated:Date.now()};
-        const rows=$("storageDetailContent").querySelectorAll(".storage-detail-row");
-        if(rows[0])rows[0].querySelector(".storage-detail-value").textContent=`已用 ${formatSize(realUsed)} / 总 ${formatSize(realTotal)}`;
-        if(rows[1]){
-          const realRemain2=Math.max(0,realTotal-realUsed);
-          rows[1].querySelector(".storage-detail-value").textContent=`${formatSize(realRemain2)}（使用率 ${realPct}%）${realUsed/realTotal>0.8?' ⚠️ 即将占满':''}`;
-        }
-      }
-    }).catch(()=>{});
-  }
+      }else{row.textContent="此浏览器不支持统计";}
+    }).catch(()=>{const row=$("storageQuotaRow");if(row)row.textContent="此浏览器不支持统计";});
+  }else{const row=$("storageQuotaRow");if(row)row.textContent="此浏览器不支持统计";}
 }
 // 清理孤立图片（实际上由于所有图片都存在state中，这里主要是清理重复和无效引用）
 // 验证一张 dataURL 图片是否能正常加载解码
@@ -15008,8 +16092,9 @@ async function cleanOrphanImages(onProgress){
     state.chats.forEach(chat=>{(chat.moments||[]).forEach(m=>{if(m.image&&m.image.startsWith("data:image"))totalValidate++;});});
     // 主界面图片
     try{
-      const hsRaw=localStorage.getItem("home-screen-data-v1");
-      if(hsRaw){const hsData=JSON.parse(hsRaw);
+      // 修复：改为读取内存中的完整主界面数据（localStorage 里已不含图片）
+      const hsData=(typeof homeData!=="undefined"&&homeData&&Array.isArray(homeData.pages))?homeData:null;
+      if(hsData){
         if(hsData.wallpaper&&hsData.wallpaper.startsWith("data:image"))totalValidate++;
         if(Array.isArray(hsData.pages))hsData.pages.forEach(p=>{
           (p.widgets||[]).forEach(w=>{if(w.config){if(w.config.bgImage&&w.config.bgImage.startsWith("data:image"))totalValidate++;if(w.config.polaroid&&w.config.polaroid.startsWith("data:image"))totalValidate++;}});
@@ -15140,9 +16225,9 @@ async function cleanOrphanImages(onProgress){
   }
   // 主界面数据图片验证（壁纸、小组件背景、拍立得、应用图标）
   try{
-    const hsRaw=localStorage.getItem("home-screen-data-v1");
-    if(hsRaw){
-      const hsData=JSON.parse(hsRaw);
+    // 修复：改为读取内存中的完整主界面数据（localStorage 里已不含图片）
+    const hsData=(typeof homeData!=="undefined"&&homeData&&Array.isArray(homeData.pages))?homeData:null;
+    if(hsData){
       let hsChanged=false;
       if(hsData.wallpaper&&typeof hsData.wallpaper==="string"&&hsData.wallpaper.startsWith("data:image")){
         const valid=await validateImage(hsData.wallpaper);
@@ -15175,7 +16260,9 @@ async function cleanOrphanImages(onProgress){
         }
       }
       if(hsChanged){
-        try{localStorage.setItem("home-screen-data-v1",JSON.stringify(hsData));}catch(e){}
+        // 修复：完整数据回写 IndexedDB（localStorage 仅存轻量快照），并刷新主界面
+        try{if(typeof hsSave==="function")hsSave();}catch(e){}
+        try{if(typeof renderHomeAll==="function")renderHomeAll();}catch(e){}
       }
     }
   }catch(e){}
@@ -15222,9 +16309,9 @@ async function runSlim(){
     moodCustomEmojis.forEach(e=>{if(e&&e.dataUrl)totalImages++;});
     // 主界面数据：壁纸、小组件图片、应用图标
     try{
-      const hsRaw=localStorage.getItem("home-screen-data-v1");
-      if(hsRaw){
-        const hsData=JSON.parse(hsRaw);
+      // 修复：改读内存中的完整主界面数据（localStorage 里已不含图片）
+      const hsData=(typeof homeData!=="undefined"&&homeData&&Array.isArray(homeData.pages))?homeData:null;
+      if(hsData){
         if(hsData.wallpaper)totalImages++;
         if(Array.isArray(hsData.pages)){
           hsData.pages.forEach(p=>{
@@ -15307,9 +16394,9 @@ async function runSlim(){
     }
     // 8. 主界面数据（壁纸、小组件图片、应用图标）
     try{
-      const hsRaw=localStorage.getItem("home-screen-data-v1");
-      if(hsRaw){
-        const hsData=JSON.parse(hsRaw);
+      // 修复：改读内存中的完整主界面数据（localStorage 里已不含图片）
+      const hsData=(typeof homeData!=="undefined"&&homeData&&Array.isArray(homeData.pages))?homeData:null;
+      if(hsData){
         let hsChanged=false;
         if(hsData.wallpaper){
           updateProgress("压缩主界面壁纸...");
@@ -15340,10 +16427,19 @@ async function runSlim(){
           }
         }
         if(hsChanged){
-          localStorage.setItem("home-screen-data-v1",JSON.stringify(hsData));
+          if(typeof hsSave==="function")hsSave();
         }
       }
     }catch(e){console.error("HS slim error:",e);}
+    // 9. 一起听歌背景图（独立存储，之前漏掉）
+    try{
+      if(typeof musicState==="object"&&musicState&&musicState.settings&&musicState.settings.bgImage&&String(musicState.settings.bgImage).startsWith("data:image")){
+        updateProgress("压缩听歌背景...");
+        musicState.settings.bgImage=await compressDataUrl(musicState.settings.bgImage,800,0.8);
+        done++;
+        if(typeof saveMusicState==="function")saveMusicState();
+      }
+    }catch(e){console.error("Music bg slim error:",e);}
     // 首次保存
     let saveOk=save();
     saveCustomMoodEmojis();
@@ -15378,36 +16474,25 @@ async function runSlim(){
       saveOk=save();
       saveCustomMoodEmojis();
     }
-    // 计算压缩后大小和真实释放量
+    // 计算压缩后大小与真实释放量（基于真实字节，而非布尔值）
     const afterSize=strBytes(JSON.stringify(state));
-    let afterLsUsed=0;
-    try{
-      for(let i=0;i<localStorage.length;i++){
-        const k=localStorage.key(i);if(!k)continue;
-        afterLsUsed+=strBytes(k)+strBytes(localStorage.getItem(k)||"");
-      }
-    }catch(e){}
     const freedState=Math.max(0,beforeSize-afterSize);
-    const freedLs=Math.max(0,beforeLsUsed-afterLsUsed);
+    const fits=afterSize<(4.5*1024*1024);
     fill.style.width="100%";
-    if(saveOk){
+    if(fits){
       text.textContent="压缩完成！";
-      sub.textContent=`共处理 ${done} 张，释放 ${formatSize(freedLs)}`;
+      sub.textContent=`共处理 ${done} 张，释放约 ${formatSize(freedState)}`;
     }else{
-      text.textContent="压缩完成但空间仍紧张";
-      sub.textContent=`已处理 ${done} 张，释放 ${formatSize(freedLs)}，建议清理旧聊天记录`;
+      text.textContent="压缩完成（数据已存入 IndexedDB）";
+      sub.textContent=`已处理 ${done} 张，释放约 ${formatSize(freedState)}；剩余图片数据已由 IndexedDB 承载`;
     }
     setTimeout(()=>{
       $("slimProgressModal").classList.remove("show");
       fill.style.width="0%";
-      if(saveOk){
-        if(freedLs>0){
-          toast(`瘦身完成，真实释放 ${formatSize(freedLs)} 存储空间（${done}张图片已优化）`);
-        }else{
-          toast(`瘦身完成，所有图片已是最优大小（${done}张已检查）`);
-        }
+      if(freedState>0){
+        toast(`瘦身完成，释放约 ${formatSize(freedState)} 存储空间（${done}张图片已优化）`);
       }else{
-        toast("空间仍不足，建议删除部分旧聊天记录后再试");
+        toast(`瘦身完成，图片已是最优大小（${done}张已检查）`);
       }
       renderChats($("search").value);renderContacts();
       if(currentId)renderMessages();
@@ -15420,6 +16505,7 @@ async function runSlim(){
 }
 // 事件绑定
 $("storageBtn").addEventListener("click",showStorageDetail);
+$("storagePersistBtn")?.addEventListener("click",requestPersistStorage);
 $("storageDetailOk").addEventListener("click",()=>{
   $("storageDetailModal").classList.remove("show");
 });
@@ -16949,7 +18035,7 @@ function hsReconcileWithIdb(){
       }
       // 回写 localStorage（尽力而为）
       try{
-        const data=JSON.stringify(homeData);
+        const data=JSON.stringify(hsStripForCache(homeData));
         localStorage.setItem(HS_KEY,data);
         try{localStorage.setItem(HS_KEY+"_backup",data);}catch(e2){}
       }catch(e){}
@@ -16960,54 +18046,38 @@ function hsReconcileWithIdb(){
   }).catch(()=>{_homeHydrated=true;});
 }
 setTimeout(()=>{try{_homeHydrated=true;}catch(e){}},4000);  // 兜底：IDB 不可用时放行保存
+// 【路线二】把主界面数据去掉 base64 图片后再写入 localStorage（仅作轻量缓存）
+function hsStripForCache(d){
+  try{
+    const c=JSON.parse(JSON.stringify(d));
+    const blank=(o,k)=>{try{if(o&&typeof o[k]==="string"&&o[k].startsWith("data:"))o[k]="";}catch(e){}};
+    if(typeof c.wallpaper==="string"&&c.wallpaper.startsWith("data:"))c.wallpaper="";
+    (c.pages||[]).forEach(p=>{
+      (p.widgets||[]).forEach(w=>{if(w&&w.config){blank(w.config,"bgImage");blank(w.config,"polaroid");}});
+      (p.apps||[]).forEach(a=>blank(a,"icon"));
+    });
+    c._cacheStripped=1;
+    return c;
+  }catch(e){return d;}
+}
 function hsSave(){
   const HS_BACKUP_KEY=HS_KEY+"_backup";
   // 打上时间戳，便于加载时比较 localStorage 与 IndexedDB 哪份更新
   try{homeData._savedAt=Date.now();}catch(e){}
-  // 主界面数据写入 IndexedDB（主存储）
-  // 【修复】恢复完成前禁止写入，避免刷新瞬间的保存用默认(无图)数据覆盖云端真实数据
+  // 完整数据（含壁纸/小组件图片/图标）写入 IndexedDB（大容量主存储）
   if(_homeHydrated){try{hsIdbSave(homeData);}catch(e){}}
-  // 先尝试直接保存
+  // localStorage 只写去掉图片的“轻量快照”，保证永远不触及 5MB 上限
   try{
-    const data=JSON.stringify(homeData);
+    const data=JSON.stringify(hsStripForCache(homeData));
     localStorage.setItem(HS_KEY,data);
     try{localStorage.setItem(HS_BACKUP_KEY,data);}catch(e2){}
     return;
   }catch(e){
-    console.warn("HS 直接保存失败，尝试压缩图片:",e);
+    console.warn("HS 轻量快照保存失败（完整数据仍在 IndexedDB）:",e);
   }
-  // 失败则压缩图片后重试（不修改原 homeData，用副本）
-  try{
-    const compressed=JSON.parse(JSON.stringify(homeData));
-    let hasImage=false;
-    if(compressed.wallpaper){compressed.wallpaper=hsCompressDataUrlSync(compressed.wallpaper,1200,0.75);hasImage=true;}
-    compressed.pages.forEach(p=>{
-      (p.widgets||[]).forEach(w=>{
-        if(w.config){
-          if(w.config.bgImage){w.config.bgImage=hsCompressDataUrlSync(w.config.bgImage,800,0.72);hasImage=true;}
-          if(w.config.polaroid){w.config.polaroid=hsCompressDataUrlSync(w.config.polaroid,400,0.75);hasImage=true;}
-        }
-      });
-      (p.apps||[]).forEach(a=>{if(a.icon){a.icon=hsCompressDataUrlSync(a.icon,200,0.75);hasImage=true;}});
-    });
-    const data2=JSON.stringify(compressed);
-    localStorage.setItem(HS_KEY,data2);
-    try{localStorage.setItem(HS_BACKUP_KEY,data2);}catch(e2){}
-    // 压缩后的数据回写到 homeData，避免后续重复压缩
-    homeData=compressed;
-    if(hasImage){try{if(typeof toast==="function")toast("图片已压缩保存");}catch(e){}}
-    return;
-  }catch(e){
-    console.error("HS 压缩后保存仍失败:",e);
-  }
-  // 还是失败：保留 localStorage 中原有数据不变，绝不覆盖清空
-  try{
-    if(typeof toast==="function"){
-      toast("存储空间不足，本次设置未保存。请清理音乐或删除部分图片后重试。");
-    }
-  }catch(e){}
 }
 // 同步压缩 dataUrl 图片（canvas 压缩，失败则返回原图）
+
 function hsCompressDataUrlSync(dataUrl,maxWidth,quality){
   try{
     if(!dataUrl||typeof dataUrl!=="string"||!dataUrl.startsWith("data:"))return dataUrl;
