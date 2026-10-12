@@ -4784,6 +4784,20 @@ body.dark .rp-history-title{color:#f0f0f2;}
           <svg class="lib-group-toggle-arrow" viewBox="0 0 24 24" width="18" height="18"><path d="m9 5 7 7-7 7"/></svg>
         </button>
         <div class="lib-group-content" id="libGroupContent">
+        <!-- 灵感拾取 -->
+        <button class="menu-item" data-menu="inspireLib">
+          <div class="menu-icon"><svg viewBox="0 0 24 24"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg></div>
+          <div class="menu-info"><div class="menu-name">灵感拾取</div><div class="menu-desc">拾取你在聊天、信件和朋友圈说过的话，按人物保存</div></div>
+          <div class="menu-arrow"><svg viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg></div>
+        </button>
+        <div class="menu-panel" id="panel-inspireLib">
+          <div class="inspire-toggle-row">
+            <div class="inspire-toggle-label"><span class="inspire-toggle-name">灵感拾取</span><span class="inspire-toggle-state" id="inspireStateText">已关闭</span></div>
+            <button class="inspire-switch" id="inspireSwitch" role="switch" aria-checked="false" aria-label="灵感拾取开关"></button>
+          </div>
+          <div class="field-help" style="margin:6px 0 12px">开启后，人物可能会拾取你（也就是用户“我”）在聊天、信件和朋友圈中说过的话，并在之后的互动中使用。拾取内容会按人物保存，你可以随时查看和删除。开启后，拾取内容也会出现在对应人物的“聊天字卡库”里的“灵感拾取”分类中。</div>
+          <div id="inspireList" class="inspire-list"></div>
+        </div>
         <!-- 聊天字卡库 -->
         <button class="menu-item" data-menu="replyLib">
           <div class="menu-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg></div>
@@ -6637,6 +6651,8 @@ const initial={
  momentVisitors:[],
  userStickerLibrary:[],
  notifySettings:structuredClone(DEFAULT_NOTIFY_SETTINGS),
+	 inspirationEnabled:false,
+	 inspirationProb:5,
  pets:{},
  chats:[
   {id:"1",name:"林然",letter:"林",
@@ -8782,7 +8798,8 @@ function send(){
  }
  c.messages.push(msg);
  updateStreak(c);
- $("message").value="";resizeInput();clearPendingImage();updateSend();save();renderMessages();renderStreak();
+ try{ if(window.inspirationMaybePick) window.inspirationMaybePick(c,(msg&&msg.text)||"","聊天"); }catch(_ie){}
+  $("message").value="";resizeInput();clearPendingImage();updateSend();save();renderMessages();renderStreak();
  scheduleReadReceipt(c.id,msgIndex);
  // 角色5%概率收藏这条消息
  scheduleFavorite(c.id,msgIndex);
@@ -11269,6 +11286,7 @@ $("publishMoment").addEventListener("click",()=>{
    text,image:pendingMomentImage||"",time:Date.now(),source:"我发布",comments:[]
  });
  $("momentInput").value="";clearMomentImage();save();renderMoments();toast("动态已发布");
+ state.chats.forEach(function(_ic){ try{ if(window.inspirationMaybePick) window.inspirationMaybePick(_ic,text,"朋友圈"); }catch(_ie){} });
  scheduleMomentReplies(momentId);
 });
 /* 朋友圈回复评论 */
@@ -13508,21 +13526,155 @@ async function buildBackupJSON(){
     state:stateData,localStorage:lsData,indexedDB:{simChatMusicDB_v3:{media:idbData}}};
   return {json:JSON.stringify(backup),lsCount:Object.keys(lsData).length,idbCount:Object.keys(idbData).length};
 }
+/* ===== 流式导出：避免大容量音乐时把所有 Blob/整份 JSON 一次性放进内存 ===== */
+function _idbOpenMusicDB(){
+  return new Promise((resolve,reject)=>{
+    try{
+      if(!window.indexedDB){reject(new Error("no-idb"));return;}
+      const r=indexedDB.open("simChatMusicDB_v3",1);
+      r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains("media"))r.result.createObjectStore("media");};
+      r.onsuccess=()=>resolve(r.result);
+      r.onerror=()=>reject(r.error||new Error("idb-open-fail"));
+    }catch(e){reject(e);}
+  });
+}
+function _idbMusicKeys(db){
+  return new Promise(resolve=>{
+    try{
+      const rq=db.transaction("media","readonly").objectStore("media").getAllKeys();
+      rq.onsuccess=()=>resolve(rq.result||[]);
+      rq.onerror=()=>resolve([]);
+    }catch(e){resolve([]);}
+  });
+}
+function _idbMusicBlob(db,key){
+  return new Promise(resolve=>{
+    try{
+      const rq=db.transaction("media","readonly").objectStore("media").get(key);
+      rq.onsuccess=()=>resolve(rq.result||null);
+      rq.onerror=()=>resolve(null);
+    }catch(e){resolve(null);}
+  });
+}
+/* 生成器：逐段产出备份 JSON 片段；音乐逐条读取并转码，每 5 条让出主线程 */
+async function* _backupChunks(onProgress){
+  const mainKey=typeof KEY!=="undefined"?KEY:"sim-chat-v5";
+  const lsData={};
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    if(!k||k===mainKey)continue;
+    try{lsData[k]=localStorage.getItem(k);}catch(e){}
+  }
+  yield '{"version":2,"exportTime":'+JSON.stringify(new Date().toISOString())+',"app":"溯佳聊天模拟器",';
+  yield '"state":';
+  yield JSON.stringify(state);
+  await _yieldUI();
+  yield ',"localStorage":';
+  yield JSON.stringify(lsData);
+  await _yieldUI();
+  yield ',"indexedDB":{"simChatMusicDB_v3":{"media":{';
+  let db=null;
+  try{ db=await _idbOpenMusicDB(); }catch(e){ db=null; }
+  let keys=[];
+  if(db){ try{ keys=await _idbMusicKeys(db); }catch(e){ keys=[]; } }
+  let first=true, n=0;
+  for(let i=0;i<keys.length;i++){
+    let piece=null;
+    try{
+      const blob=db?await _idbMusicBlob(db,keys[i]):null;
+      if(blob&&blob.size){
+        const du=await _blobToDataURL(blob);
+        if(du!=null)piece=JSON.stringify(String(keys[i]))+":"+JSON.stringify(du);
+      }
+    }catch(e){console.warn("导出音乐失败:",keys[i],e);}
+    if(piece!=null){
+      yield (first?"":",")+piece;
+      first=false; n++;
+    }
+    if(i%5===4){ if(typeof onProgress==="function"){try{onProgress(n,keys.length);}catch(e){}} await _yieldUI(); }
+  }
+  try{ if(db)db.close(); }catch(e){}
+  yield '}}}}';
+}
+/* 原生流式写入：边生成边写入手机文件，内存里只保留当前片段 */
+/* 单目录流式写入：chunksFn 每次调用返回“全新”生成器，避免多目标重试时数据流被消耗 */
+function _streamInto(base,sub,fname,chunksFn){
+  return new Promise(resolve=>{
+    let done=false; const fin=v=>{ if(!done){done=true;resolve(v);} };
+    const utf8Len=s=>{ try{ return new TextEncoder().encode(s).length; }catch(e){ return s.length; } };
+    const start=dirEntry=>{
+      dirEntry.getFile(fname,{create:true,exclusive:false},fileEntry=>{
+        fileEntry.createWriter(async w=>{
+          let total=0;
+          const writeBlob=blob=>new Promise((res,rej)=>{
+            let settled=false;
+            const ok=()=>{ if(!settled){settled=true;res();} };
+            const bad=e=>{ if(!settled){settled=true;rej(e||new Error("write-error"));} };
+            w.onwrite=ok; w.onwriteend=ok; w.onerror=bad; w.onabort=bad;
+            try{ w.write(blob); }catch(e){ bad(e); }
+          });
+          try{
+            // 先清空同名旧文件，避免上一次残缺/更长文件的尾部残留导致 JSON 结构损坏
+            await new Promise(res=>{
+              try{ w.onwrite=()=>res(); w.onwriteend=()=>res(); w.onerror=()=>res(); w.onabort=()=>res(); w.truncate(0); }
+              catch(e){ res(); }
+            });
+            let acc="";
+            const flush=async()=>{ if(!acc)return; const t=acc; acc=""; total+=utf8Len(t); await writeBlob(new Blob([t],{type:"application/json"})); };
+            for await(const chunk of chunksFn()){
+              if(chunk===null||chunk===undefined||chunk==="")continue;
+              acc+=chunk;
+              // 累积到约 256KB 再落盘，减少写入次数、降低大块写入被截断/乱序的概率
+              if(acc.length>=262144)await flush();
+            }
+            await flush();
+            // 写入后校验文件字节数，若与写入量不一致则判定失败，交给下一个候选目录重试
+            const url="已保存到手机存储："+(fileEntry.toURL?fileEntry.toURL():fileEntry.fullPath);
+            setTimeout(()=>{
+              try{
+                fileEntry.getMetadata(md=>{
+                  if(md&&typeof md.size==="number"&&md.size!==total){ console.warn("[流式写入] 大小校验失败 期望",total,"实际",md.size); fin(false); }
+                  else fin(url);
+                },()=>fin(url));
+              }catch(e){ fin(url); }
+            },80);
+          }catch(e){ console.warn("[流式写入] 失败:",e); fin(false); }
+        },()=>fin(false));
+      },()=>fin(false));
+    };
+    const dirUrl=base+(sub||"");
+    const subName=(sub||"").replace(/\/+$/,"");
+    window.resolveLocalFileSystemURL(dirUrl,start,()=>{
+      window.resolveLocalFileSystemURL(base,root=>{
+        if(!subName){ start(root); return; }
+        root.getDirectory(subName,{create:true},start,()=>fin(false));
+      },()=>fin(false));
+    });
+  });
+}
+/* 多目标流式保存：公共下载 → 应用外部目录 → 应用内部目录，逐个尝试；
+   只要有一个目录可写即成功，且全程分块写入，内存里只保留当前片段。 */
+async function saveStreamToPhoneStorage(fname,chunksFn){
+  try{
+    const cf=window.cordova&&window.cordova.file;
+    if(!(cf&&window.resolveLocalFileSystemURL))return false;
+    const candidates=[];
+    if(cf.externalRootDirectory)candidates.push([cf.externalRootDirectory,"Download/"]);
+    if(cf.externalApplicationStorageDirectory)candidates.push([cf.externalApplicationStorageDirectory,""]);
+    if(cf.externalDataDirectory)candidates.push([cf.externalDataDirectory,""]);
+    if(cf.dataDirectory)candidates.push([cf.dataDirectory,""]);
+    for(let i=0;i<candidates.length;i++){
+      const r=await _streamInto(candidates[i][0],candidates[i][1],fname,chunksFn);
+      if(r)return r;
+    }
+    return false;
+  }catch(e){ console.warn("[流式保存] 异常:",e); return false; }
+}
 function backupFileName(){
   const d=new Date();
   return `溯佳全量备份_${d.getFullYear()}${(d.getMonth()+1).toString().padStart(2,"0")}${d.getDate().toString().padStart(2,"0")}_${d.getHours().toString().padStart(2,"0")}${d.getMinutes().toString().padStart(2,"0")}.json`;
 }
-async function saveBackupToPhone(){
-  const st=document.getElementById("phoneStorageStatus");
-  try{
-    toast("正在生成备份并保存到手机存储...");
-    const r=await buildBackupJSON();
-    const fname=backupFileName();
-    const msg=await saveTextToPhoneStorage(fname,r.json);
-    toast(`备份已保存（${r.lsCount}项设置+${r.idbCount}首音乐）`);
-    if(st)st.textContent="上次保存："+fname+" · "+msg;
-  }catch(e){ console.error(e); const m=(e&&e.message)?e.message:String(e); toast("保存失败："+m); if(st)st.textContent="保存失败："+m; }
-}
+async function saveBackupToPhone(){ return _runExport(); }
 async function loadBackupFromPhone(){
   const st=document.getElementById("phoneStorageStatus");
   try{
@@ -13561,68 +13713,54 @@ document.addEventListener("click",e=>{
   }
 });
 
-async function exportData(){
+async function _runExport(){
+  const st=document.getElementById("phoneStorageStatus");
   try{
-    const st=document.getElementById("phoneStorageStatus");
     toast("正在导出全量备份，请稍候...");
     if(st)st.textContent="正在导出…";
     await _yieldUI();
-    // 1. 收集所有 localStorage key（排除主key，因为已在state中）
-    const lsData={};
-    const mainKey=typeof KEY!=="undefined"?KEY:"sim-chat-v5";
-    for(let i=0;i<localStorage.length;i++){
-      const k=localStorage.key(i);
-      if(!k||k===mainKey)continue;
-      try{lsData[k]=localStorage.getItem(k);}catch(e){}
-    }
-    await _yieldUI();
-    // 2. 收集 IndexedDB 音乐数据（内部已分块让出主线程）
-    let idbData={};
-    try{idbData=await _dumpMusicIDB();}catch(e){console.warn("IDB导出失败:",e);}
-    await _yieldUI();
-    // 3. 分块序列化：大容量数据一次性 JSON.stringify 会长时间占满主线程导致卡死，
-    //    这里把 state / localStorage / indexedDB 分别序列化，并在每段之间让出主线程，
-    //    同时避免对 state 做多余的“序列化→解析→再序列化”克隆。
-    if(st)st.textContent="正在打包数据…";
-    const head='{"version":2,"exportTime":'+JSON.stringify(new Date().toISOString())+',"app":"溯佳聊天模拟器",';
-    const stateStr=JSON.stringify(state);
-    await _yieldUI();
-    const lsStr=JSON.stringify(lsData);
-    await _yieldUI();
-    const idbStr=JSON.stringify(idbData);
-    await _yieldUI();
-    const data=head+'"state":'+stateStr+',"localStorage":'+lsStr+',"indexedDB":{"simChatMusicDB_v3":{"media":'+idbStr+'}}}';
-    const d=new Date();
-    const fname=`溯佳全量备份_${d.getFullYear()}${(d.getMonth()+1).toString().padStart(2,"0")}${d.getDate().toString().padStart(2,"0")}_${d.getHours().toString().padStart(2,"0")}${d.getMinutes().toString().padStart(2,"0")}.json`;
-    const lsCount=Object.keys(lsData).length;
-    const idbCount=Object.keys(idbData).length;
-    await _yieldUI();
-    // 4. 统一保存通道：原生保存优先，失败再回退到网页下载/另存为
-    let savedTo="";
-    try{ savedTo=await saveTextToPhoneStorage(fname,data); }catch(e){ console.warn("[导出] 统一保存通道失败，就地兜底下载:",e); }
+    const fname=backupFileName();
+    const onProg=(n,total)=>{ if(st)st.textContent="正在导出音乐 "+n+"/"+total+" …"; };
+    // 1) 优先流式导出：内存只保留当前一条音乐，避免大容量卡死
+    let savedTo=false;
+    // 传入“生成器工厂”：每个候选目录重试时都拿到一份全新的数据流，杜绝半途耗尽的坏流
+    try{ savedTo=await saveStreamToPhoneStorage(fname,()=>_backupChunks(onProg)); }catch(e){ console.warn("流式导出失败:",e); }
     if(!savedTo){
-      const blob=new Blob([data],{type:"application/json"});
-      const url=URL.createObjectURL(blob);
-      const a=document.createElement("a");
-      a.href=url;a.download=fname;
-      document.body.appendChild(a);a.click();
-      document.body.removeChild(a);
-      setTimeout(()=>URL.revokeObjectURL(url),1500);
-      savedTo="已下载到本机（浏览器下载目录）";
+      // 2) 仅在原生流式完全不可用（纯网页环境）时回退：拼接完整字符串并下载
+      if(st)st.textContent="正在打包数据…";
+      const parts=[]; let c=0;
+      for await(const chunk of _backupChunks(onProg)){ parts.push(chunk); if((c++%20)===0)await _yieldUI(); }
+      const data=parts.join("");
+      if(st)st.textContent="正在保存…";
+      await _yieldUI();
+      try{ savedTo=await saveTextToPhoneStorage(fname,data); }catch(e){ console.warn("[导出] 保存失败:",e); }
+      if(!savedTo){
+        const blob=new Blob([data],{type:"application/json"});
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement("a");a.href=url;a.download=fname;
+        document.body.appendChild(a);a.click();document.body.removeChild(a);
+        setTimeout(()=>URL.revokeObjectURL(url),1500);
+        savedTo="已下载到本机（浏览器下载目录）";
+      }
     }
-    const okMsg=`全量备份已导出（${lsCount}项设置+${idbCount}首音乐）：${fname}｜${savedTo}`;
+    const okMsg=`全量备份已导出：${fname}｜${savedTo}`;
     toast(okMsg);
     if(st)st.textContent=okMsg;
   }catch(err){
     console.error("导出失败:",err);
-    toast("导出失败："+err.message);
+    const m=(err&&err.message)?err.message:String(err);
+    toast("导出失败："+m);
+    if(st)st.textContent="导出失败："+m;
   }
 }
+async function exportData(){ return _runExport(); }
 async function importData(file){
   const reader=new FileReader();
   reader.onload=async e=>{
     try{
-      const raw=JSON.parse(e.target.result);
+      let raw;
+      try{ raw=JSON.parse(e.target.result); }
+      catch(pe){ console.error("备份JSON解析失败:",pe); const sz=(e.target.result?e.target.result.length:0); toast("备份文件已损坏或不完整（"+((pe&&pe.message)||pe)+"，文件约"+Math.round(sz/1048576)+"MB），请用最新版本重新导出后再导入"); return; }
       // 判断格式：新版 {version:2,state:{...},localStorage:{...},indexedDB:{...}} 或旧版（直接是state）
       let isNewFormat=raw&&raw.version===2&&raw.state&&typeof raw.state==="object";
       let data=isNewFormat?raw.state:raw;
@@ -13851,6 +13989,7 @@ function sendLetter(){
   if(!text||!currentLetterChatId){toast("请输入信件内容");return;}
   const chat=getChat(currentLetterChatId);if(!chat)return;
   chat.letters.push({from:"mine",text,time:now(),read:true,kind:"sent"});
+  try{ if(window.inspirationMaybePick) window.inspirationMaybePick(chat,text,"信件"); }catch(_ie){}
   if(!save()){console.warn("[信件] localStorage 缓存已满，完整数据已存入 IndexedDB");}
   $("letterComposeInput").value="";
   renderLetterList();
@@ -14057,6 +14196,7 @@ $("letterReplySendBtn").addEventListener("click",()=>{
   if(!text||!currentLetterChatId){toast("请输入回信内容");return;}
   const chat=getChat(currentLetterChatId);if(!chat)return;
   chat.letters.push({from:"mine",text,time:now(),read:true,kind:"sent"});
+  try{ if(window.inspirationMaybePick) window.inspirationMaybePick(chat,text,"信件"); }catch(_ie){}
   if(!save()){console.warn("[信件] localStorage 缓存已满，完整数据已存入 IndexedDB");}
   $("letterReplyInput").value="";
   toast("回信已发送");
@@ -22661,5 +22801,179 @@ window.addRoleBalance=addRoleBalance;
   </div>
 </div>
 
+
+<style>
+.inspire-toggle-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:2px}
+.inspire-toggle-label{display:flex;flex-direction:column}
+.inspire-toggle-name{font-size:15px;font-weight:600}
+.inspire-toggle-state{font-size:12px;color:var(--muted,#8a8f99);margin-top:2px}
+.inspire-switch{width:48px;height:28px;border-radius:999px;border:0;background:#c7c7cc;position:relative;cursor:pointer;transition:background .2s;flex:0 0 auto}
+.inspire-switch::after{content:"";position:absolute;top:2px;left:2px;width:24px;height:24px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.inspire-switch[aria-checked="true"]::after{left:22px}
+.inspire-list{margin-top:8px}
+.inspire-char{background:#fafbfc;border:1px solid var(--border,#eceef1);border-radius:12px;padding:10px 12px;margin-bottom:10px}
+.inspire-char-head{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.inspire-char-name{font-size:14px;font-weight:600;flex:1;min-width:0}
+.inspire-char-count{font-size:12px;color:var(--muted,#8a8f99)}
+.inspire-del-all{border:0;background:transparent;color:#ff3b30;font-size:12px;cursor:pointer;padding:2px 6px}
+.inspire-empty{font-size:12px;color:var(--muted,#8a8f99);padding:2px}
+.inspire-items{display:flex;flex-direction:column;gap:6px}
+.inspire-item{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--border,#eceef1);border-radius:9px;padding:7px 9px}
+.inspire-item-text{flex:1;min-width:0;font-size:13px;line-height:1.4;word-break:break-word}
+.inspire-del{border:0;background:transparent;color:#ff3b30;font-size:12px;cursor:pointer;flex:0 0 auto;padding:2px 6px}
+.inspire-confirm-mask{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;z-index:99999;padding:24px}
+.inspire-confirm-card{background:#fff;border-radius:16px;max-width:340px;width:100%;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+.inspire-confirm-title{font-size:17px;font-weight:700;text-align:center;padding:20px 18px 8px}
+.inspire-confirm-text{font-size:14px;line-height:1.6;color:#555;text-align:center;padding:0 18px 18px}
+.inspire-confirm-actions{display:flex;border-top:1px solid #eceef1}
+.inspire-btn-cancel,.inspire-btn-ok{flex:1;border:0;background:transparent;padding:14px 0;font-size:16px;cursor:pointer}
+.inspire-btn-cancel{color:#8a8f99;border-right:1px solid #eceef1}
+.inspire-btn-ok{color:#0a84ff;font-weight:600}
+body.dark .inspire-char{background:#1c1c1e!important}
+body.dark .inspire-item{background:#2c2c2e!important;border-color:#333!important}
+body.dark .inspire-confirm-card{background:#1c1c1e!important}
+body.dark .inspire-confirm-text{color:#c7c7cc!important}
+body.dark .inspire-confirm-actions{border-top-color:#333!important}
+body.dark .inspire-btn-cancel{border-right-color:#333!important}
+</style>
+<script>
+/* ================= 灵感拾取 ================= */
+(function(){
+  var INSPIRE_CAT="灵感拾取";
+
+  function _ie(){ try{ return (typeof state!=="undefined"&&state)||null; }catch(e){ return null; } }
+
+  function getChatById(id){
+    try{ if(typeof getChat==="function"){ var c=getChat(id); if(c) return c; } }catch(e){}
+    var st=_ie(); if(!st||!Array.isArray(st.chats)) return null;
+    for(var i=0;i<st.chats.length;i++){ if(st.chats[i]&&st.chats[i].id===id) return st.chats[i]; }
+    return null;
+  }
+
+  function inspirationMaybePick(chat, rawText, source){
+    try{
+      var st=_ie(); if(!st||!chat) return;
+      if(!st.inspirationEnabled) return;
+      var text=(rawText==null?"":String(rawText)).trim();
+      if(!text) return;
+      if(/^data:/i.test(text)) return;
+      if(/^\[(图片|语音|视频|表情|文件|位置|链接)\]/.test(text)) return;
+      if(text.length<2||text.length>80) return;
+      var prob=5;
+      prob=Math.max(0,Math.min(100,prob));
+      if(Math.random()*100>=prob) return;
+      if(!Array.isArray(chat.replyLibrary)) chat.replyLibrary=[];
+      var exist=chat.replyLibrary.some(function(it){return it&&it.text===text&&it.category===INSPIRE_CAT;});
+      if(exist) return;
+      chat.replyLibrary.push({text:text,category:INSPIRE_CAT,source:source||"",ts:Date.now()});
+      try{ if(typeof save==="function") save(); }catch(e){}
+      try{ renderInspirationPanel(); }catch(e){}
+    }catch(e){ try{console.warn("灵感拾取异常",e);}catch(_){} }
+  }
+  window.inspirationMaybePick=inspirationMaybePick;
+
+  function esc_(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];}); }
+
+  function renderInspirationPanel(){
+    var host=document.getElementById("inspireList"); if(!host) return;
+    var st=_ie(); if(!st){ host.innerHTML=""; return; }
+    var sw=document.getElementById("inspireSwitch");
+    if(sw){ sw.setAttribute("aria-checked", st.inspirationEnabled?"true":"false"); sw.style.background=st.inspirationEnabled?"#34c759":"#c7c7cc"; }
+    var stt=document.getElementById("inspireStateText");
+    if(stt) stt.textContent=st.inspirationEnabled?"已开启":"已关闭";
+    var chats=Array.isArray(st.chats)?st.chats:[];
+    var html="", total=0;
+    chats.forEach(function(c){
+      var picks=(Array.isArray(c.replyLibrary)?c.replyLibrary:[]).filter(function(it){return it&&it.category===INSPIRE_CAT;});
+      total+=picks.length;
+      html+='<div class="inspire-char"><div class="inspire-char-head"><span class="inspire-char-name">'+esc_(c.name||"未命名")+'</span><span class="inspire-char-count">'+picks.length+' 条</span>'+(picks.length?('<button class="inspire-del-all" data-clear="'+esc_(c.id)+'">清空</button>'):"")+'</div>';
+      if(!picks.length){ html+='<div class="inspire-empty">暂无拾取</div>'; }
+      else{
+        html+='<div class="inspire-items">';
+        picks.slice().reverse().forEach(function(it){
+          var idx=c.replyLibrary.indexOf(it);
+          html+='<div class="inspire-item"><div class="inspire-item-text">'+esc_(it.text)+'</div><button class="inspire-del" data-cid="'+esc_(c.id)+'" data-idx="'+idx+'">删除</button></div>';
+        });
+        html+='</div>';
+      }
+      html+='</div>';
+    });
+    if(!total){ html='<div class="inspire-empty" style="padding:14px 2px">还没有拾取到任何内容。开启后，人物会在你说过的话中随机拾取，并归入对应人物的字卡库。</div>'+html; }
+    host.innerHTML=html;
+  }
+  window.renderInspirationPanel=renderInspirationPanel;
+
+  function openInspireConfirm(onOk){
+    var ov=document.createElement("div");
+    ov.className="inspire-confirm-mask";
+    ov.innerHTML='<div class="inspire-confirm-card">'
+      +'<div class="inspire-confirm-title">开启灵感拾取？</div>'
+      +'<div class="inspire-confirm-text">开启后，人物可能会拾取你在聊天、信件和朋友圈中说过的话，并在之后的互动中使用。拾取内容会按人物保存，你可以随时查看和删除。</div>'
+      +'<div class="inspire-confirm-actions"><button class="inspire-btn-cancel">取消</button><button class="inspire-btn-ok">确认开启</button></div>'
+      +'</div>';
+    document.body.appendChild(ov);
+    function close(){ try{ document.body.removeChild(ov); }catch(e){} }
+    ov.querySelector(".inspire-btn-cancel").addEventListener("click",close);
+    ov.querySelector(".inspire-btn-ok").addEventListener("click",function(){ close(); try{ onOk(); }catch(e){} });
+    ov.addEventListener("click",function(e){ if(e.target===ov) close(); });
+  }
+
+  function setInspire(on){
+    var st=_ie(); if(!st) return;
+    st.inspirationEnabled=!!on;
+    try{ if(typeof save==="function") save(); }catch(e){}
+    renderInspirationPanel();
+    try{ if(typeof toast==="function") toast(on?"灵感拾取已开启":"灵感拾取已关闭"); }catch(e){}
+  }
+
+  function initInspiration(){
+    var st=_ie(); if(!st) return;
+    if(typeof st.inspirationEnabled!=="boolean") st.inspirationEnabled=false;
+    if(typeof st.inspirationProb!=="number"||!isFinite(st.inspirationProb)) st.inspirationProb=5;
+    var sw=document.getElementById("inspireSwitch");
+    if(sw&&!sw._bound){
+      sw._bound=true;
+      sw.addEventListener("click",function(){
+        var cur=_ie()?_ie().inspirationEnabled:false;
+        if(cur){ setInspire(false); }
+        else{ openInspireConfirm(function(){ setInspire(true); }); }
+      });
+    }
+    var list=document.getElementById("inspireList");
+    if(list&&!list._bound){
+      list._bound=true;
+      list.addEventListener("click",function(e){
+        var t=e.target;
+        if(t&&t.classList&&t.classList.contains("inspire-del")){
+          e.stopPropagation();
+          var cid=t.getAttribute("data-cid"), idx=parseInt(t.getAttribute("data-idx"),10);
+          var c=getChatById(cid);
+          if(c&&Array.isArray(c.replyLibrary)&&idx>=0&&idx<c.replyLibrary.length){
+            c.replyLibrary.splice(idx,1);
+            try{ if(typeof save==="function") save(); }catch(_){}
+            renderInspirationPanel();
+            try{ if(typeof toast==="function") toast("已删除该条拾取"); }catch(_){}
+          }
+        } else if(t&&t.classList&&t.classList.contains("inspire-del-all")){
+          e.stopPropagation();
+          var cid2=t.getAttribute("data-clear");
+          var c2=getChatById(cid2);
+          if(c2&&Array.isArray(c2.replyLibrary)){
+            c2.replyLibrary=c2.replyLibrary.filter(function(it){return !(it&&it.category===INSPIRE_CAT);});
+            try{ if(typeof save==="function") save(); }catch(_){}
+            renderInspirationPanel();
+            try{ if(typeof toast==="function") toast("已清空该人物的拾取"); }catch(_){}
+          }
+        }
+      });
+    }
+    renderInspirationPanel();
+  }
+  window.initInspiration=initInspiration;
+
+  if(document.readyState==="loading"){ document.addEventListener("DOMContentLoaded",initInspiration); }
+  else{ initInspiration(); }
+})();
+</script>
 </body>
 </html>
