@@ -25,10 +25,20 @@ jobs:
       - name: Install Cordova
         run: npm install -g cordova
 
-      - name: Copy WWW to www
+      - name: Prepare www directory
         run: |
-          rm -rf www
-          cp -r WWW www
+          pwd
+          ls -la
+          if [ -d "www" ]; then
+            echo "www directory already exists"
+          elif [ -d "WWW" ]; then
+            cp -r WWW www
+            echo "copied WWW to www"
+          else
+            echo "ERROR: neither www nor WWW found in repository root"
+            exit 1
+          fi
+          echo "--- www contents ---"
           ls -la www
 
       - name: Add plugins
