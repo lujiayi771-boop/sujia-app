@@ -1536,6 +1536,24 @@ body.dark .lib-group-toggle-icon{background:#2c2c2e!important}
 .menu-panel.show{display:block}
 .menu-panel .section-card{margin-top:0;background:#fff}
 .menu-panel .reply-library-box{background:#fff}
+/* ===== 字卡使用统计 ===== */
+.card-stats-list{display:flex;flex-direction:column;gap:12px}
+.card-stat-block{background:#fff;border:1px solid var(--border,#e6e8ec);border-radius:12px;padding:12px 14px}
+.card-stat-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.card-stat-name{font-weight:700;font-size:15px;color:var(--text,#1a1a1a)}
+.card-stat-badge{font-size:12px;color:var(--muted,#888);background:#f1f3f7;border-radius:8px;padding:2px 8px;white-space:nowrap}
+.card-stat-sub{margin-top:4px;font-size:12px;color:var(--muted,#888)}
+.card-stat-grid{margin-top:10px;display:flex;flex-direction:column;gap:10px}
+.card-stat-sec .card-stat-title{font-size:13px;font-weight:600;color:var(--text,#1a1a1a);margin-bottom:6px}
+.card-stat-item{display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px dashed var(--border,#e6e8ec)}
+.card-stat-item:first-of-type{border-top:0}
+.card-stat-rank{flex:0 0 18px;height:18px;line-height:18px;text-align:center;font-size:11px;border-radius:50%;background:#eef1f6;color:var(--muted,#888)}
+.card-stat-text{flex:1;min-width:0;font-size:13px;color:var(--text,#1a1a1a);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card-stat-meta{flex:0 0 auto;font-size:12px;color:#5b6b8c;white-space:nowrap}
+body.dark .card-stat-block{background:var(--surface)!important;border-color:var(--border)!important}
+body.dark .card-stat-badge{background:rgba(255,255,255,.08)}
+body.dark .card-stat-rank{background:rgba(255,255,255,.1)}
+body.dark .card-stat-meta{color:#9fb0d0}
 /* ===== 信件功能 ===== */
 .letter-btn{width:40px;height:40px;flex:0 0 40px;display:grid;place-items:center;background:transparent;border:0;cursor:pointer;color:#5f6670;border-radius:12px}
 .letter-btn:hover{background:#f0f2f5}
@@ -4827,6 +4845,20 @@ body.dark .rp-history-title{color:#f0f0f2;}
           </div>
         </div>
 
+        <!-- 字卡使用统计 -->
+        <button class="menu-item" data-menu="cardStats">
+          <div class="menu-icon"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l3-4 3 2 4-6"/></svg></div>
+          <div class="menu-info"><div class="menu-name">字卡使用统计</div><div class="menu-desc">查看每个角色字卡的使用次数与闲置情况</div></div>
+          <div class="menu-arrow"><svg viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg></div>
+        </button>
+        <div class="menu-panel" id="panel-cardStats">
+          <div class="reply-library-desc">统计每个角色字卡的使用情况：最常用的字卡、长时间未使用的字卡，以及双方消息总数，帮助你决定是否清理闲置字卡。</div>
+          <div id="cardStatsList" class="card-stats-list"></div>
+          <div class="reply-library-actions" style="margin-top:10px">
+            <button class="library-btn library-save" onclick="try{renderCardStats()}catch(e){console.error(e)}">刷新统计</button>
+          </div>
+        </div>
+
         <!-- 朋友圈字卡库 -->
         <button class="menu-item" data-menu="momentLib">
           <div class="menu-icon"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M4 10h16"/><circle cx="8" cy="7" r="1"/></svg></div>
@@ -6608,11 +6640,38 @@ const DEFAULT_REPLY_LIBRARY=[
  {text:"没问题。",category:"默认"},{text:"我在呢。",category:"问候"},{text:"好，我明白了。",category:"默认"}
 ];
 function libTexts(lib){
- return (Array.isArray(lib)?lib:[]).map(x=>typeof x==="string"?x:(x&&x.text)?x.text:"").filter(Boolean);
+ const arr=(Array.isArray(lib)?lib:[]);
+ const out=arr.map(x=>typeof x==="string"?x:(x&&x.text)?x.text:"").filter(Boolean);
+ try{Object.defineProperty(out,"__srcLib",{value:arr,enumerable:false,configurable:true,writable:true});}catch(e){}
+ return out;
+}
+/* ===== 字卡使用统计：记录字卡被抽取使用 ===== */
+function recordCardUse(srcLib,text){
+ try{
+  if(!Array.isArray(srcLib)||text==null)return;
+  const t=String(text);
+  for(let i=0;i<srcLib.length;i++){
+   const it=srcLib[i];
+   if(!it||typeof it!=="object")continue;
+   if(String(it.text||"")===t){
+    it.useCount=(Number(it.useCount)||0)+1;
+    it.lastUsedAt=Date.now();
+    return;
+   }
+  }
+ }catch(e){}
 }
 function normalizeLib(lib){
  if(!Array.isArray(lib))return [];
- return lib.map(x=>typeof x==="string"?{text:x,category:"默认"}:(x&&x.text?{text:String(x.text),category:x.category||"默认"}:null)).filter(Boolean);
+ return lib.map(x=>{
+  if(typeof x==="string")return {text:x,category:"默认"};
+  if(x&&x.text){
+   const o=Object.assign({},x);
+   o.text=String(x.text);o.category=x.category||"默认";
+   return o;
+  }
+  return null;
+ }).filter(Boolean);
 }
 const DEFAULT_REPLY_SETTINGS={
  passiveEnabled:true,passiveMin:30,passiveMax:35,
@@ -6940,6 +6999,7 @@ function idbUpdateQuotaCache(){
 }
 // 页面加载后从 IndexedDB 同步数据（如果 localStorage 缓存不完整）
 async function idbSyncOnLoad(){
+  try{_showBusy("正在加载数据…");}catch(e){}
   try{
     const idbData=await idbLoadState();
     if(!idbData||!Array.isArray(idbData.chats)){_stateHydrated=true;return;}
@@ -7071,6 +7131,7 @@ async function idbSyncOnLoad(){
     }
     _stateHydrated=true;
   }catch(e){console.warn("[IDB] 同步失败:",e);_stateHydrated=true;}
+  try{_hideBusy();}catch(e){}
 }
 
 let _saveErrThrottle=0;
@@ -7664,7 +7725,12 @@ function randomItems(list,count){
  const n=Math.min(source.length,Math.max(1,Number(count)||1));
  const a=[...source];
  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
- return a.slice(0,n);
+ const picked=a.slice(0,n);
+ try{
+  const src=(Array.isArray(list)&&list.__srcLib)?list.__srcLib:(Array.isArray(list)?list:null);
+  if(src){for(const t of picked)recordCardUse(src,t);}
+ }catch(e){}
+ return picked;
 }
 function formatMomentTime(ts){
  const d=new Date(ts);const today=new Date();
@@ -9652,7 +9718,7 @@ async function triggerAIReply(chatId){
       console.warn("[AI回复] 回复格式异常，降级为字卡模式回复");
       const library=libTexts(current.replyLibrary);
       if(library.length){
-        const text=library[Math.floor(Math.random()*library.length)];
+        const text=library[Math.floor(Math.random()*library.length)];recordCardUse(library.__srcLib,text);
         current.messages.push({from:"other",text:String(text),time:now(),kind:"passive"});
         updateStreak(current);save();
         if(currentId===current.id){renderMessages();renderStreak();}
@@ -9675,7 +9741,7 @@ async function triggerAIReply(chatId){
     // AI失败时降级为字卡模式回复
     const library=libTexts(current.replyLibrary);
     if(library.length){
-      const text=library[Math.floor(Math.random()*library.length)];
+      const text=library[Math.floor(Math.random()*library.length)];recordCardUse(library.__srcLib,text);
       const _ri=current.messages.length;
       current.messages.push({from:"other",text:String(text),time:now(),kind:"passive"});
       updateStreak(current);save();
@@ -12509,6 +12575,83 @@ if(typeof document!=="undefined"&&!window.__inappHideHooked){
 }
 /* ===== 从后台长时间返回：修复系统回收图片导致的“图片全空白” + 重排原生通知 ===== */
 let _appHiddenAt=0;
+/* ===== 修复：长时间后台返回时数据卡死 —— 恢复协调器（去抖 + 单飞 + 空闲分批 + 过渡遮罩） ===== */
+let _resumeRunning=false;
+let _resumeTimer=null;
+let _resumePending=false;
+let _compensating=false;
+let _lastCompensateAt=0;
+let _busyEl=null;
+let _busyHideTimer=null;
+let _busyCount=0;
+function _idleRun(fn,timeout){
+  try{ if(typeof window.requestIdleCallback==="function"){ return window.requestIdleCallback(fn,{timeout:timeout||1500}); } }catch(e){}
+  return setTimeout(fn,16);
+}
+function _showBusy(text){
+  try{
+    _busyCount++;
+    if(!_busyEl){
+      _busyEl=document.createElement("div");
+      _busyEl.id="_resumeBusy";
+      _busyEl.style.cssText="position:fixed;left:0;top:0;right:0;bottom:0;z-index:2147483000;background:rgba(12,12,14,.5);display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;opacity:0;transition:opacity .18s ease;";
+      _busyEl.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;gap:12px"><div style="width:26px;height:26px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:_resumeSpin .8s linear infinite"></div><span id="_resumeBusyText">正在处理…</span></div>';
+      var st=document.createElement("style");
+      st.textContent="@keyframes _resumeSpin{to{transform:rotate(360deg)}}";
+      (document.head||document.documentElement).appendChild(st);
+      (document.body||document.documentElement).appendChild(_busyEl);
+    }
+    var t=document.getElementById("_resumeBusyText");
+    if(t&&text)t.textContent=text;
+    _busyEl.style.display="flex";
+    try{requestAnimationFrame(function(){try{_busyEl.style.opacity="1";}catch(e){}});}catch(e){try{_busyEl.style.opacity="1";}catch(e2){}}
+  }catch(e){}
+}
+function _hideBusy(){
+  try{
+    if(_busyCount>0)_busyCount--;
+    if(_busyCount>0)return;
+    if(!_busyEl)return;
+    _busyEl.style.opacity="0";
+    clearTimeout(_busyHideTimer);
+    _busyHideTimer=setTimeout(function(){try{if(_busyEl)_busyEl.style.display="none";}catch(e){}},220);
+  }catch(e){}
+}
+function _scheduleResume(reason){
+  try{
+    if(_resumeRunning){_resumePending=true;return;}
+    clearTimeout(_resumeTimer);
+    _resumeTimer=setTimeout(_runResume,90);
+  }catch(e){}
+}
+function _runResume(){
+  _resumeTimer=null;
+  if(_resumeRunning){_resumePending=true;return;}
+  _resumeRunning=true;
+  var needRepaint=false;
+  try{ if(typeof _hasBrokenImages==="function"&&_hasBrokenImages())needRepaint=true; }catch(e){}
+  _showBusy("正在恢复数据…");
+  _idleRun(function(){
+    try{
+      if(needRepaint){try{_reviveBrokenImages();}catch(e){}}
+      try{ if(typeof compensateMissedTasks==="function")compensateMissedTasks(); }catch(e){}
+    }catch(e){}
+    _idleRun(function(){
+      try{ if(typeof replanAllAheadChains==="function")replanAllAheadChains(); }catch(e){}
+      _idleRun(function(){
+        try{
+          if(needRepaint){
+            try{if(typeof currentId!=="undefined"&&currentId&&typeof renderMessages==="function")renderMessages();}catch(e){}
+            try{if(typeof renderMoments==="function")renderMoments();}catch(e){}
+          }
+        }catch(e){}
+        _resumeRunning=false;
+        _hideBusy();
+        if(_resumePending){_resumePending=false;setTimeout(function(){_scheduleResume("again");},120);}
+      },1500);
+    },1500);
+  },1500);
+}
 function _reviveBrokenImages(){
   try{
     const imgs=document.images;
@@ -12538,25 +12681,19 @@ function _hasBrokenImages(){
   return false;
 }
 function onAppResume(){
-  try{
-    if(_hasBrokenImages()){
-      _reviveBrokenImages();
-      try{if(typeof currentId!=="undefined"&&currentId&&typeof renderMessages==="function")renderMessages();}catch(e){}
-      try{if(typeof renderMoments==="function")renderMoments();}catch(e){}
-    }
-  }catch(e){}
-  try{replanAllAheadChains();}catch(e){}
+  _scheduleResume("resume");
 }
 document.addEventListener("visibilitychange",function(){
-  if(document.hidden){_appHiddenAt=Date.now();try{replanAllAheadChains();}catch(e){}}
+  if(document.hidden){_appHiddenAt=Date.now();}
   else{
-    const away=Date.now()-_appHiddenAt;
-    if(_appHiddenAt&&away>20000){try{onAppResume();}catch(e){}}
+    const away=Date.now()-(_appHiddenAt||0);
     _appHiddenAt=0;
+    // 返回前台：仅当切走超过阈值才触发恢复重活，统一走恢复协调器（去抖+单飞）
+    if(away>8000){_scheduleResume("visible");}
   }
 });
-window.addEventListener("pagehide",function(){try{replanAllAheadChains();}catch(e){};_appHiddenAt=Date.now();});
-window.addEventListener("pageshow",function(e){try{if(e.persisted)onAppResume();}catch(e){}});
+window.addEventListener("pagehide",function(){_appHiddenAt=Date.now();});
+window.addEventListener("pageshow",function(e){if(e.persisted){_scheduleResume("pageshow");}});
 /* ===== 原生定时通知：提前用系统闹钟调度，解决后台/息屏时通知延迟 ===== */
 const _nativeAheadIds={};
 function _stableHash(str){let h=0;const s=String(str||"");for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return h;}
@@ -12784,76 +12921,100 @@ function clearTaskRecord(chatId,type){
   try{localStorage.setItem("scheduled_tasks",JSON.stringify(scheduledTasks));}catch(e){}
 }
 function compensateMissedTasks(){
-  // 页面从后台恢复时，检查是否有错过的定时器
-  const nowTs=Date.now();
-  Object.entries(scheduledTasks).forEach(([chatId,tasks])=>{
-    const chat=getChat(chatId);if(!chat)return;
-    Object.entries(tasks).forEach(([type,info])=>{
-      if(nowTs>=info.expectedAt){
-        // 错过的任务立即补发
-        if(type==="active"){
-          const s=getSettings(chatId);
-          if(s.activeEnabled){
-            const items=randomItems(chat.replyLibrary,1);
-            if(items.length){
-              let quote=null;
-              if(Math.random()<0.05){
-                const myMsgs=chat.messages.filter(m=>m.from==="mine"&&m.type!=="sticker"&&m.type!=="image");
-                if(myMsgs.length){
-                  const lastMine=myMsgs[myMsgs.length-1];
-                  quote={text:lastMine.text,from:"mine",name:"我"};
+  // 【修复】可重入保护 + 节流：后台返回时可能被多个可见性事件同时触发，
+  // 叠加执行会对超大 state 反复做全量 JSON 序列化与重渲染，直接卡死。
+  const _tNow=Date.now();
+  if(_compensating)return;
+  if(_tNow-_lastCompensateAt<1200)return;
+  _lastCompensateAt=_tNow;
+  _compensating=true;
+  let _dirtyActive=false,_dirtyMoment=false;
+  try{
+    const nowTs=Date.now();
+    Object.entries(scheduledTasks).forEach(([chatId,tasks])=>{
+      const chat=getChat(chatId);if(!chat)return;
+      Object.entries(tasks).forEach(([type,info])=>{
+        if(nowTs>=info.expectedAt){
+          // 错过的任务立即补发
+          if(type==="active"){
+            const s=getSettings(chatId);
+            if(s.activeEnabled){
+              const items=randomItems(chat.replyLibrary,1);
+              if(items.length){
+                let quote=null;
+                if(Math.random()<0.05){
+                  const myMsgs=chat.messages.filter(m=>m.from==="mine"&&m.type!=="sticker"&&m.type!=="image");
+                  if(myMsgs.length){
+                    const lastMine=myMsgs[myMsgs.length-1];
+                    quote={text:lastMine.text,from:"mine",name:"我"};
+                  }
                 }
-              }
-              chat.messages.push({from:"other",text:String(items[0]),time:now(),kind:"active",quote});
-              updateStreak(chat);
-              save();if(currentId===chat.id){renderMessages();renderStreak();}renderChats($("search").value);
-              triggerNotification(chat,String(items[0]));
-            }
-          }
-          scheduleActiveMessage(chat);
-        }else if(type==="moment"){
-          const s=getSettings(chatId);
-          if(s.momentsEnabled){
-            // 错过的朋友圈立即补发1条（防刷屏：距离上一条发布超过10分钟才补发）
-            const lastMoment=state.moments.filter(m=>m.authorId===chatId).sort((a,b)=>b.time-a.time)[0];
-            const canPost=!lastMoment||(Date.now()-lastMoment.time)>600000;
-            if(canPost){
-              const useMl2=s.useMomentLibrary;
-              const includeChat2=s.momentIncludeChatLibrary;
-              let lib2=[];
-              if(useMl2){
-                const ml=Array.isArray(chat.momentLibrary)?chat.momentLibrary:[];
-                const cl=Array.isArray(chat.replyLibrary)?chat.replyLibrary:[];
-                lib2=includeChat2?[...ml,...cl]:ml;
-              }else{
-                lib2=Array.isArray(chat.replyLibrary)?chat.replyLibrary:[];
-              }
-              const lib=libTexts(lib2);
-              if(lib.length){
-                const count=useMl2?randInt(s.momentLibraryCountMin,s.momentLibraryCountMax):randInt(s.momentCountMin,s.momentCountMax);
-                const items=randomItems(lib,count);
-                if(items.length){
-                  let sourceLabel="角色自动发布";
-                  if(useMl2&&includeChat2)sourceLabel="角色自动发布（双字卡库）";
-                  else if(useMl2)sourceLabel="角色自动发布（专属字卡）";
-                  state.moments.push({
-                    id:"m"+Date.now()+Math.random().toString(16).slice(2),
-                    authorId:chat.id,author:chat.name,
-                    letter:chat.letter||chat.name.slice(0,1),
-                    avatar:chat.avatar?structuredClone(chat.avatar):null,
-                    text:items.join("\n"),image:"",time:Date.now(),source:sourceLabel,comments:[]
-                  });
-                  save();renderMoments();
-                }
+                chat.messages.push({from:"other",text:String(items[0]),time:now(),kind:"active",quote});
+                updateStreak(chat);
+                _dirtyActive=true;
+                try{triggerNotification(chat,String(items[0]));}catch(e){}
               }
             }
-            scheduleMomentPost(chat);
+            try{scheduleActiveMessage(chat);}catch(e){}
+          }else if(type==="moment"){
+            const s=getSettings(chatId);
+            if(s.momentsEnabled){
+              // 错过的朋友圈立即补发1条（防刷屏：距离上一条发布超过10分钟才补发）
+              const lastMoment=state.moments.filter(m=>m.authorId===chatId).sort((a,b)=>b.time-a.time)[0];
+              const canPost=!lastMoment||(Date.now()-lastMoment.time)>600000;
+              if(canPost){
+                const useMl2=s.useMomentLibrary;
+                const includeChat2=s.momentIncludeChatLibrary;
+                let lib2=[];
+                if(useMl2){
+                  const ml=Array.isArray(chat.momentLibrary)?chat.momentLibrary:[];
+                  const cl=Array.isArray(chat.replyLibrary)?chat.replyLibrary:[];
+                  lib2=includeChat2?[...ml,...cl]:ml;
+                }else{
+                  lib2=Array.isArray(chat.replyLibrary)?chat.replyLibrary:[];
+                }
+                const lib=libTexts(lib2);
+                if(lib.length){
+                  const count=useMl2?randInt(s.momentLibraryCountMin,s.momentLibraryCountMax):randInt(s.momentCountMin,s.momentCountMax);
+                  const items=randomItems(lib,count);
+                  if(items.length){
+                    let sourceLabel="角色自动发布";
+                    if(useMl2&&includeChat2)sourceLabel="角色自动发布（双字卡库）";
+                    else if(useMl2)sourceLabel="角色自动发布（专属字卡）";
+                    state.moments.push({
+                      id:"m"+Date.now()+Math.random().toString(16).slice(2),
+                      authorId:chat.id,author:chat.name,
+                      letter:chat.letter||chat.name.slice(0,1),
+                      avatar:chat.avatar?structuredClone(chat.avatar):null,
+                      text:items.join("\n"),image:"",time:Date.now(),source:sourceLabel,comments:[]
+                    });
+                    _dirtyMoment=true;
+                  }
+                }
+              }
+              try{scheduleMomentPost(chat);}catch(e){}
+            }
           }
+          delete tasks[type];
         }
-        delete tasks[type];
-      }
+      });
     });
-  });
+  }catch(e){console.warn("[compensate] 补偿任务失败:",e);}
+  finally{
+    _compensating=false;
+    // 统一收尾：只在末尾做一次 save + 一次重渲染，避免每个补发任务都触发全量序列化
+    try{
+      if(_dirtyActive||_dirtyMoment){
+        save();
+        if(_dirtyActive){
+          try{if(typeof currentId!=="undefined"&&currentId&&typeof renderMessages==="function")renderMessages();}catch(e){}
+          try{if(typeof renderStreak==="function")renderStreak();}catch(e){}
+          try{renderChats($("search").value);}catch(e){}
+        }
+        if(_dirtyMoment){try{renderMoments();}catch(e){}}
+      }
+    }catch(e){}
+  }
 }
 async function requestWakeLock(){
   const s=getNotifySettings();
@@ -12938,29 +13099,25 @@ function stopKeepalive(){
 // 页面可见性变化：从后台恢复时补偿错过的任务
 document.addEventListener("visibilitychange",()=>{
   if(!document.hidden){
-    // 无论是否开启保活，都补偿错过的定时任务
-    compensateMissedTasks();
+    // 返回前台：补偿+重排+重渲染统一交由恢复协调器（去抖+单飞+空闲分批）
+    _scheduleResume("visible2");
     const s=getNotifySettings();
     if(s.keepAliveEnabled&&s.wakeLockEnabled)requestWakeLock();
     updateKeepaliveBadge();
-  }else{
-    // 页面隐藏时释放 Wake Lock（系统会自动处理，但主动释放更干净）
   }
 });
 // 页面卸载前保存（双重保险：beforeunload + pagehide）
+let _flushedExit=false;
 function _flushSaveOnExit(){
+  // 【修复】去掉原来的 300ms 主线程忙等（会在切后台/卸载时直接冻结界面），
+  // 改为一次性触发保存，让浏览器/IndexedDB 异步事务自行落盘。
+  if(_flushedExit)return;
+  _flushedExit=true;
   try{
-    // 先刷新表情包防抖保存，确保最新数据被保存
     if(typeof stickerFlushSave==="function")stickerFlushSave();
-    // 同步写入 localStorage（快速缓存）
     save();
-    // 给 IndexedDB 事务留出时间完成写入（页面卸载时浏览器可能来不及完成异步事务）
-    // 这里短暂阻塞主线程，让浏览器有机会将已发起的 IndexedDB 事务刷入磁盘
-    try{
-      const waitUntil=Date.now()+300;
-      while(Date.now()<waitUntil){/* 短暂等待，给 IndexedDB 事务完成时间 */}
-    }catch(e){}
   }catch(e){console.warn("[exit] 保存失败:",e);}
+  setTimeout(function(){_flushedExit=false;},1000);
 }
 window.addEventListener("beforeunload",_flushSaveOnExit);
 window.addEventListener("pagehide",_flushSaveOnExit);
@@ -13191,10 +13348,61 @@ document.addEventListener("click",e=>{
       if(!isOpen){
         panel.classList.add("show");
         item.classList.add("expanded");
+        if(key==="cardStats"&&typeof renderCardStats==="function"){try{renderCardStats();}catch(e){console.error(e);}}
       }
     }
   }
 });
+/* ===== 字卡使用统计：渲染 ===== */
+function renderCardStats(){
+  var host=document.getElementById("cardStatsList");
+  if(!host)return;
+  function _es(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
+  function fmtAgo(ts){
+    if(!ts)return "从未使用";
+    var d=Date.now()-ts;if(d<0)d=0;
+    var min=Math.floor(d/60000);
+    if(min<1)return "刚刚";
+    if(min<60)return min+" 分钟前";
+    var hr=Math.floor(min/60);
+    if(hr<24)return hr+" 小时前";
+    var day=Math.floor(hr/24);
+    if(day<30)return day+" 天前";
+    var mon=Math.floor(day/30);
+    if(mon<12)return mon+" 个月前";
+    return Math.floor(mon/12)+" 年前";
+  }
+  var chats=(typeof state!=="undefined"&&state&&Array.isArray(state.chats))?state.chats:[];
+  if(!chats.length){host.innerHTML='<div class="field-help">暂无角色</div>';return;}
+  var html="";
+  chats.forEach(function(chat){
+    var lib=normalizeLib(chat.replyLibrary);
+    if(!lib.length)return;
+    var msgs=Array.isArray(chat.messages)?chat.messages:[];
+    var totalMsgs=msgs.length;
+    var mineMsgs=0,otherMsgs=0;
+    msgs.forEach(function(m){if(!m)return;if(m.from==="mine")mineMsgs++;else if(m.from==="other")otherMsgs++;});
+    var used=lib.map(function(c){return {text:c.text,useCount:Number(c.useCount)||0,lastUsedAt:Number(c.lastUsedAt)||0};});
+    var totalUse=used.reduce(function(a,c){return a+c.useCount;},0);
+    var topByCount=used.filter(function(c){return c.useCount>0;}).sort(function(a,b){return (b.useCount-a.useCount)||(b.lastUsedAt-a.lastUsedAt);}).slice(0,5);
+    var topByIdle=used.slice().sort(function(a,b){return (a.lastUsedAt||0)-(b.lastUsedAt||0);}).slice(0,5);
+    var sec=function(title,items,fmt){
+      var body=items.length?items.map(function(it,i){
+        return '<div class="card-stat-item"><span class="card-stat-rank">'+(i+1)+'</span><span class="card-stat-text">'+_es(it.text)+'</span><span class="card-stat-meta">'+_es(fmt(it))+'</span></div>';
+      }).join(""):'<div class="field-help">暂无数据</div>';
+      return '<div class="card-stat-sec"><div class="card-stat-title">'+title+'</div>'+body+'</div>';
+    };
+    html+='<div class="card-stat-block">'+
+      '<div class="card-stat-head"><span class="card-stat-name">'+_es(chat.name)+'</span><span class="card-stat-badge">'+totalMsgs+' 句 · 字卡使用 '+totalUse+' 次</span></div>'+
+      '<div class="card-stat-sub">双方消息：我 '+mineMsgs+' 句 · '+_es(chat.name)+' '+otherMsgs+' 句（共 '+totalMsgs+' 句）</div>'+
+      '<div class="card-stat-grid">'+
+        sec("使用最多的字卡 TOP5",topByCount,function(it){return "用了 "+it.useCount+" 次";})+
+        sec("最久未使用的字卡 TOP5",topByIdle,function(it){return fmtAgo(it.lastUsedAt);})+
+      '</div>'+
+    '</div>';
+  });
+  host.innerHTML=html||'<div class="field-help">暂无字卡数据</div>';
+}
 
 /* ===== 导出/导入备份（全量版：包含所有 localStorage + IndexedDB 音乐数据） ===== */
 // 将 Blob 转为 base64 dataURL
@@ -14630,7 +14838,7 @@ function roleSpeak(){
   if(!chat)return;
   const library=libTexts(chat.replyLibrary);
   if(!library.length)return;
-  const text=library[Math.floor(Math.random()*library.length)];
+  const text=library[Math.floor(Math.random()*library.length)];recordCardUse(library.__srcLib,text);
   addCallBubble(text,"role");
 }
 function addCallBubble(text,type){
@@ -17258,7 +17466,7 @@ function startBubbleTimer(){
       if(role && role.replyLibrary && role.replyLibrary.length > 0 && Math.random() < 0.3){
           const allCards = role.replyLibrary.map(c=>typeof c==="string"?c:(c&&c.text)?c.text:"").filter(Boolean);
           if(allCards.length > 0){
-             try{showRoleBubble(allCards[Math.floor(Math.random()*allCards.length)]);}catch(e){console.error(e);}
+             try{const _ct=allCards[Math.floor(Math.random()*allCards.length)];recordCardUse(role.replyLibrary,_ct);showRoleBubble(_ct);}catch(e){console.error(e);}
              return;
           }
       }
@@ -17471,7 +17679,7 @@ function sendMusicComment(){
       if(role&&role.replyLibrary){
         const allCards=role.replyLibrary.map(c=>typeof c==="string"?c:(c&&c.text)?c.text:"").filter(Boolean);
         if(allCards.length>0&&Math.random()<0.5){
-          const reply=allCards[Math.floor(Math.random()*allCards.length)];
+          const reply=allCards[Math.floor(Math.random()*allCards.length)];recordCardUse(role.replyLibrary,reply);
           musicState.comments[songId].push({
             from:"role",
             name:role.name,
@@ -19582,7 +19790,7 @@ window.initHomeScreen=initHomeScreen;
     window.__musicBubbleFixed=setInterval(()=>{
       if(!musicState.isPlaying||!musicState.invitedRole)return;
       const settings=musicState.settings||{}, role=state.chats.find(c=>c.id===musicState.invitedRole.id);let shown=false;
-      if(settings.cardReply&&role?.replyLibrary?.length&&Math.random()<.3){const a=role.replyLibrary.map(x=>typeof x==='string'?x:x?.text||'').filter(Boolean);if(a.length){showRoleBubble(a[Math.floor(Math.random()*a.length)]);shown=true;}}
+      if(settings.cardReply&&role?.replyLibrary?.length&&Math.random()<.3){const a=role.replyLibrary.map(x=>typeof x==='string'?x:x?.text||'').filter(Boolean);if(a.length){const _ct=a[Math.floor(Math.random()*a.length)];recordCardUse(role.replyLibrary,_ct);showRoleBubble(_ct);shown=true;}}
       if(settings.randomComment&&settings.randomCards?.length&&Math.random()<.25){const t=settings.randomCards[Math.floor(Math.random()*settings.randomCards.length)];setTimeout(()=>showRoleBubble(t),shown?1600:0);}
       if(settings.allowControl&&Math.random()<.12)setTimeout(()=>{const a=['next','pause','mode'][Math.floor(Math.random()*3)];if(a==='next'){showRoleBubble('我来换一首');nextFixed();}else if(a==='mode'){modeFixed();showRoleBubble('我换了播放模式');}else if(musicState.isPlaying){musicAudio?.pause();musicState.isPlaying=false;showRoleBubble('先暂停一下');window.updateMusicPlayerUI?.();}else{const p=musicAudio?.play();if(p?.catch)p.catch(()=>{});musicState.isPlaying=true;showRoleBubble('继续听吧');window.updateMusicPlayerUI?.();}},900);
     },8000);
