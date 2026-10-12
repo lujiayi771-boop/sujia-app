@@ -27,30 +27,30 @@ jobs:
 
       - name: Prepare www directory
         run: |
-          pwd
+          echo "=== repository root ==="
           ls -la
           if [ -d "www" ]; then
-            echo "www directory already exists"
+            echo "www exists"
           elif [ -d "WWW" ]; then
             cp -r WWW www
             echo "copied WWW to www"
           else
-            echo "ERROR: neither www nor WWW found in repository root"
+            echo "ERROR: no www or WWW folder in root"
             exit 1
           fi
-          echo "--- www contents ---"
+          echo "=== www contents ==="
           ls -la www
 
       - name: Add plugins
         run: |
-          cordova plugin add cordova-plugin-file@7.0.0
-          cordova plugin add cordova-plugin-local-notification
-          cordova plugin add cordova-plugin-media
+          cordova plugin add cordova-plugin-file --force
+          cordova plugin add cordova-plugin-local-notification --force
+          cordova plugin add cordova-plugin-media --force
 
       - name: Build Android APK
         run: |
-          cordova platform add android
-          cordova build android
+          cordova platform add android --force
+          cordova build android --force
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
