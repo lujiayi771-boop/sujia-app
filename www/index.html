@@ -7204,7 +7204,24 @@ function stripStateForCache(obj){
     return c;
   }catch(e){return obj;}
 }
+let _saveTimer=null;
+let _savePending=false;
+let _lsNeedsStrip=false;
+// 【性能优化】save() 合并写入：短时间内多次调用只触发一次真正的全量序列化+落盘，
+// 避免每次点击都同步 JSON.stringify(270MB) 造成界面卡顿。
 function save(){
+  _savePending=true;
+  if(_saveTimer)return true;
+  _saveTimer=setTimeout(()=>{_saveTimer=null;_savePending=false;try{_saveNow();}catch(e){}},150);
+  return true;
+}
+// 【性能优化】需要"真实写入结果"或退出前需要立即落盘的场景，直接调用它。
+function saveNow(){
+  if(_saveTimer){clearTimeout(_saveTimer);_saveTimer=null;}
+  _savePending=false;
+  return _saveNow();
+}
+function _saveNow(){
  try{
    // 给没有timestamp的消息添加时间戳（用于删除旧消息）
    const nowTs=Date.now();
@@ -7216,7 +7233,6 @@ function save(){
      }
    });
    state._lastSaved=Date.now();
-   const stateStr=JSON.stringify(state);
    // 1. 写入 IndexedDB（主存储，配额大）
    // 【修复】从 IndexedDB 恢复完成前，绝不能用（可能是默认/空的）state 覆盖云端主存储，
    // 否则启动瞬间的自动保存会把真实数据覆盖为默认数据，导致刷新后“最近数据全部消失”。
@@ -7232,14 +7248,21 @@ function save(){
      // 优先保存“完整快照”（含图片），确保任何情况下重进APP图片都在；
      // 只有当完整快照超出 localStorage 配额时，才退化为去图片的轻量快照。
      let light;
-     try{
-       light=JSON.stringify(state);
-       localStorage.setItem(KEY,light);
-       try{localStorage.setItem(KEY+"_backup",light);}catch(e){}
-     }catch(_big){
+     if(_lsNeedsStrip){
        light=JSON.stringify(stripStateForCache(state));
        localStorage.setItem(KEY,light);
        try{localStorage.setItem(KEY+"_backup",light);}catch(e){}
+     }else{
+       try{
+         light=JSON.stringify(state);
+         localStorage.setItem(KEY,light);
+         try{localStorage.setItem(KEY+"_backup",light);}catch(e){}
+       }catch(_big){
+         _lsNeedsStrip=true;
+         light=JSON.stringify(stripStateForCache(state));
+         localStorage.setItem(KEY,light);
+         try{localStorage.setItem(KEY+"_backup",light);}catch(e){}
+       }
      }
    }catch(lsErr){
      _lsFull=true;
@@ -7259,8 +7282,8 @@ function save(){
    return false;
  }
 }
-window.addEventListener("pagehide",()=>{try{if(typeof stickerFlushSave==="function")stickerFlushSave();save();}catch(e){}});
-document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden"){try{if(typeof stickerFlushSave==="function")stickerFlushSave();save();}catch(e){}}});
+window.addEventListener("pagehide",()=>{try{if(typeof stickerFlushSave==="function")stickerFlushSave();saveNow();}catch(e){}});
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden"){try{if(typeof stickerFlushSave==="function")stickerFlushSave();saveNow();}catch(e){}}});
 function esc(s){
  return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
 }
@@ -8168,11 +8191,16 @@ function renderMoments(){
 }
 
 /* ===== 聊天列表 & 联系人 ===== */
+let _lastChatsSig=null;
 function renderChats(filter=""){
  const q=filter.trim().toLowerCase();
  let list=state.chats.filter(c=>!q||c.name.toLowerCase().includes(q)||c.messages.some(m=>m.type!=="sticker"&&m.type!=="voice"&&m.text&&m.text.toLowerCase().includes(q)));
  // 置顶排序：置顶的排在前面
  list.sort((a,b)=>(b.pinned?1:0)-(a.pinned?1:0));
+ // 【性能优化】渲染签名：列表内容未变化时跳过整表重建，避免重复解析 HTML。（带搜索过滤时始终重建）
+ const _chatsSig=(q?"":list.map(c=>{const last=c.messages[c.messages.length-1];return c.id+"|"+(c.pinned?1:0)+"|"+c.name+"|"+(last?(last.type||"")+":"+(last.time||"")+":"+((last.text||last.caption||"").length):"")+"|"+(c.avatar?(c.avatar.image?("i"+c.avatar.image.length):("e"+(c.avatar.emoji||c.avatar.text||"")+String(c.avatar.color||""))):"")}).join("~"));
+ if(_chatsSig&&_chatsSig===_lastChatsSig)return;
+ _lastChatsSig=_chatsSig;
  if(!list.length){$("chatList").innerHTML='<div class="empty">没有找到聊天</div>';return;}
  $("chatList").innerHTML=list.map(c=>{
   const last=c.messages[c.messages.length-1];
@@ -8633,13 +8661,19 @@ function closeChat(){
  clearQuote();clearPendingImage();
  renderChats($("search").value);renderContacts();
 }
+let _msgRender={chatId:null,count:0,lastRef:null};
 function renderMessages(){
  const c=state.chats.find(x=>x.id===currentId);if(!c)return;
  const box=$("messages");const s=getSettings(c.id);
  applyBubbleCustomSheet(s&&s.bubbleCustomCSS);
- if(!c.messages.length){box.innerHTML='<div class="empty">开始新的对话</div>';}
+ const _curLen=c.messages.length;
+ // 【性能优化】仅当同一会话、消息数量严格增加、且此前最后一条消息的对象引用未变时，
+ // 才走"只追加新增消息"的增量渲染；编辑/撤回/删除等一律回退全量渲染，保证一致性。
+ const _canAppend=(_msgRender.chatId===c.id&&_msgRender.count>0&&_curLen>_msgRender.count&&c.messages[_msgRender.count-1]===_msgRender.lastRef);
+ if(!c.messages.length){box.innerHTML='<div class="empty">开始新的对话</div>';_msgRender={chatId:c.id,count:0,lastRef:null};}
  else{
-   box.innerHTML=c.messages.map((m,msgIdx)=>{
+   const _startIdx=_canAppend?_msgRender.count:0;
+   const _msgHtml=c.messages.map((m,msgIdx)=>{if(msgIdx<_startIdx)return "";
      const mine=m.from==="mine";
      const av=mine?state.userAvatar:c.avatar;
      const showRead=mine&&s.readReceiptEnabled;
@@ -8741,6 +8775,8 @@ function renderMessages(){
          ${mine?`<div class="message-avatar" style="${avatarStyle(av)}" aria-hidden="true">${avatarHTML(av)}</div>`:""}
        </div>`;
    }).join("");
+   if(_canAppend)box.insertAdjacentHTML("beforeend",_msgHtml); else box.innerHTML=_msgHtml;
+   _msgRender={chatId:c.id,count:_curLen,lastRef:_curLen?c.messages[_curLen-1]:null};
  }
  const _toBottom=()=>{try{box.scrollTop=box.scrollHeight;}catch(e){}};
 _toBottom();
@@ -11948,7 +11984,7 @@ function stickerDebouncedSave(){
   _stickerSaveTimer=setTimeout(()=>{save();_stickerSaveTimer=null;},150);
 }
 function stickerFlushSave(){
-  if(_stickerSaveTimer){clearTimeout(_stickerSaveTimer);_stickerSaveTimer=null;save();}
+  if(_stickerSaveTimer){clearTimeout(_stickerSaveTimer);_stickerSaveTimer=null;saveNow();}
 }
 $("stickerUploadBtn").addEventListener("click",()=>$("stickerFileInput").click());
 $("stickerFileInput").addEventListener("change",async e=>{
@@ -13169,7 +13205,7 @@ window.addEventListener("beforeunload",_flushSaveOnExit);
 window.addEventListener("pagehide",_flushSaveOnExit);
 // 页面可见性变化时也保存（移动端切后台容易被杀死）
 document.addEventListener("visibilitychange",()=>{
-  if(document.hidden){try{if(typeof stickerFlushSave==="function")stickerFlushSave();save();}catch(e){}}
+  if(document.hidden){try{if(typeof stickerFlushSave==="function")stickerFlushSave();saveNow();}catch(e){}}
 });
 /* ===== 通知与保活设置表单 ===== */
 
@@ -13868,7 +13904,9 @@ function _streamInto(base,sub,fname,chunksFn){
             let settled=false;
             const ok=()=>{ if(!settled){settled=true;res();} };
             const bad=e=>{ if(!settled){settled=true;rej(e||new Error("write-error"));} };
-            w.onwrite=ok; w.onwriteend=ok; w.onerror=bad; w.onabort=bad;
+            // 【修复】必须以 onwriteend 为准：大文件分块写入时 onwrite 可能在数据真正落盘前就触发，
+            // 旧逻辑据此提前 resolve，导致后续块/收尾写入被跳过，最终文件尾部被截断。
+            w.onwriteend=ok; w.onerror=bad; w.onabort=bad;
             try{ w.write(blob); }catch(e){ bad(e); }
           });
           try{
@@ -14012,13 +14050,106 @@ async function _runExport(){
   }
 }
 async function exportData(){ return _runExport(); }
+/* 【修复】大文件备份在“尾部被截断”时，JSON 无法整体解析（典型报错：
+   Expected ',' or '}' after property value ... at position <接近文件末尾>）。
+   本函数尝试把“已完整写入”的部分恢复出来，尽量不丢数据：
+   1) 备份末段固定为 ..."indexedDB":{"simChatMusicDB_v3":{"media":{ "k":"v", ... }}}}，
+      截断多发生在 media 段或结尾的 }}}} 上。这里在 media 内定位“最后一个完整键值对”的结束位置，
+      丢掉不完整的尾条目后补全剩余括号。
+   2) 若上述不适用，则通用回退：截到最后一个完整的 } / ]，再去掉未闭合字符串并补全括号。
+   成功返回修复后的字符串，失败返回 null。 */
+function _salvageBackupJSON(src){
+  if(typeof src!=="string"||!src.length)return null;
+  // —— 方案 1：在 media 段内定位最后一个完整条目 ——
+  try{
+    const marker="\"indexedDB\":{\"simChatMusicDB_v3\":{\"media\":{";
+    const mi=src.lastIndexOf(marker);
+    if(mi>=0){
+      let i=mi+marker.length;
+      let st="key"; // key -> colon -> value
+      let inStr=false, esc=false, lastGood=i;
+      for(;i<src.length;i++){
+        const c=src[i];
+        if(inStr){
+          if(esc)esc=false;
+          else if(c==="\\")esc=true;
+          else if(c==='"'){
+            inStr=false;
+            if(st==="value"){ lastGood=i+1; st="key"; }
+            else if(st==="key"){ st="colon"; }
+          }
+          continue;
+        }
+        if(c==='"'){ inStr=true; continue; }
+        if(st==="colon"&&c===":"){ st="value"; }
+      }
+      let head=src.slice(0,lastGood).replace(/[\s,]+$/,"");
+      // 重新扫描 head，补全所有未闭合括号
+      let stack=[], inS=false, es=false;
+      for(let q=0;q<head.length;q++){
+        const ch=head[q];
+        if(inS){ if(es)es=false; else if(ch==="\\")es=true; else if(ch==='"')inS=false; continue; }
+        if(ch==='"')inS=true;
+        else if(ch==="{")stack.push("}");
+        else if(ch==="[")stack.push("]");
+        else if(ch==="}"||ch==="]"){ if(stack.length&&stack[stack.length-1]===ch)stack.pop(); }
+      }
+      let out=head;
+      for(let z=stack.length-1;z>=0;z--)out+=stack[z];
+      JSON.parse(out);
+      return out;
+    }
+  }catch(e){}
+  // —— 方案 2：通用回退 ——
+  try{
+    let head=src.replace(/[\s,]+$/,"");
+    let cut=Math.max(head.lastIndexOf("}"),head.lastIndexOf("]"));
+    if(cut>0){
+      let body=head.slice(0,cut+1);
+      let stack=[], inS=false, es=false;
+      for(let q=0;q<body.length;q++){
+        const ch=body[q];
+        if(inS){ if(es)es=false; else if(ch==="\\")es=true; else if(ch==='"')inS=false; continue; }
+        if(ch==='"')inS=true;
+        else if(ch==="{")stack.push("}");
+        else if(ch==="[")stack.push("]");
+        else if(ch==="}"||ch==="]"){ if(stack.length&&stack[stack.length-1]===ch)stack.pop(); }
+      }
+      let out=body;
+      for(let z=stack.length-1;z>=0;z--)out+=stack[z];
+      JSON.parse(out);
+      return out;
+    }
+  }catch(e){}
+  return null;
+}
 async function importData(file){
   const reader=new FileReader();
   reader.onload=async e=>{
     try{
+      let _txt=e.target.result;
+      // 【修复】若用 ArrayBuffer 读取，先解码为 UTF-8 文本
+      if(_txt&&typeof _txt!=="string"){ try{ _txt=new TextDecoder("utf-8").decode(_txt); }catch(er){ _txt=String(_txt); } }
       let raw;
-      try{ raw=JSON.parse(e.target.result); }
-      catch(pe){ console.error("备份JSON解析失败:",pe); const sz=(e.target.result?e.target.result.length:0); toast("备份文件已损坏或不完整（"+((pe&&pe.message)||pe)+"，文件约"+Math.round(sz/1048576)+"MB），请用最新版本重新导出后再导入"); return; }
+      try{ raw=JSON.parse(_txt); }
+      catch(pe){
+        console.error("备份JSON解析失败:",pe);
+        // 【修复】大文件尾部被截断时，尝试自动修复后再导入
+        let fixed=null;
+        try{ fixed=_salvageBackupJSON(_txt); }catch(e2){ fixed=null; }
+        if(fixed!=null){
+          try{
+            raw=JSON.parse(fixed);
+            console.warn("备份文件尾部不完整，已自动修复后导入");
+            toast("检测到备份文件尾部不完整，已自动修复并导入（尽可能保留数据）");
+          }catch(pe2){ fixed=null; }
+        }
+        if(fixed==null){
+          const sz=(_txt?_txt.length:0);
+          toast("备份文件已损坏或不完整（"+((pe&&pe.message)||pe)+"，文件约"+Math.round(sz/1048576)+"MB），请用最新版本重新导出后再导入");
+          return;
+        }
+      }
       // 判断格式：新版 {version:2,state:{...},localStorage:{...},indexedDB:{...}} 或旧版（直接是state）
       let isNewFormat=raw&&raw.version===2&&raw.state&&typeof raw.state==="object";
       let data=isNewFormat?raw.state:raw;
@@ -14131,6 +14262,8 @@ async function importData(file){
       toast("导入失败："+err.message);
     }
   };
+  // 【修复】大文件优先用 ArrayBuffer + TextDecoder 读取，规避部分 WebView 的 readAsText 大文件截断
+  try{ if(typeof reader.readAsArrayBuffer==="function"){ reader.readAsArrayBuffer(file); return; } }catch(e){}
   reader.readAsText(file);
 }
 $("exportDataBtn").addEventListener("click",exportData);
@@ -16885,7 +17018,7 @@ async function runSlim(){
       }
     }catch(e){console.error("Music bg slim error:",e);}
     // 首次保存
-    let saveOk=save();
+    let saveOk=saveNow();
     saveCustomMoodEmojis();
     // 如果首次保存失败（空间仍不足），自动执行二次深度压缩
     if(!saveOk){
@@ -16915,7 +17048,7 @@ async function runSlim(){
       if(Array.isArray(moodCustomEmojis))
         for(const e of moodCustomEmojis)
           {if(e&&e.dataUrl)e.dataUrl=await compressDataUrl(e.dataUrl,100,0.55);}
-      saveOk=save();
+      saveOk=saveNow();
       saveCustomMoodEmojis();
     }
     // 计算压缩后大小与真实释放量（基于真实字节，而非布尔值）
