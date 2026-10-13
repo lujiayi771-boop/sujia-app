@@ -1536,6 +1536,27 @@ body.dark .lib-group-toggle-icon{background:#2c2c2e!important}
 .menu-panel.show{display:block}
 .menu-panel .section-card{margin-top:0;background:#fff}
 .menu-panel .reply-library-box{background:#fff}
+/* ===== 来电铃声 ===== */
+.ringtone-box{border:1px solid var(--border,#e6e8ec);border-radius:12px;padding:12px 14px;margin-top:15px}
+.ringtone-title{font-size:14px;font-weight:600;color:var(--text,#1a1a1a)}
+.ringtone-sub{font-size:12px;color:var(--muted,#888);font-weight:400}
+.ringtone-status{margin-top:6px;font-size:13px;color:var(--muted,#888);word-break:break-all}
+.ringtone-btnrow{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.ringtone-btn{flex:1;min-width:72px;padding:9px 6px;border:1px solid var(--border,#e6e8ec);background:#fff;border-radius:9px;font-size:13px;cursor:pointer;color:var(--text,#1a1a1a)}
+.ringtone-btn.primary{background:#a9805f;border-color:#a9805f;color:#fff}
+.ringtone-presets{display:none;gap:8px;margin-top:10px;flex-wrap:wrap}
+.ringtone-presets.show{display:flex}
+.ringtone-preset-item{padding:7px 12px;border:1px solid var(--border,#e6e8ec);border-radius:16px;background:#fff;font-size:12px;cursor:pointer;color:var(--text,#1a1a1a)}
+.ringtone-preset-item.active{background:#a9805f;border-color:#a9805f;color:#fff}
+.ringtone-urlrow{display:flex;gap:8px;margin-top:10px}
+.ringtone-url{flex:1;min-width:0;padding:9px 12px;border:1px solid var(--border,#e6e8ec);border-radius:9px;font-size:13px;background:#fff;color:var(--text,#1a1a1a)}
+.ringtone-upload{flex:0 0 40px;height:40px;border:1px solid var(--border,#e6e8ec);background:#fff;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.ringtone-upload svg{width:18px;height:18px;fill:none;stroke:var(--text,#1a1a1a);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+body.dark .ringtone-box{border-color:var(--border)!important}
+body.dark .ringtone-btn,body.dark .ringtone-preset-item,body.dark .ringtone-url,body.dark .ringtone-upload{background:var(--surface);color:var(--text);border-color:var(--border)}
+body.dark .ringtone-btn.primary{background:#a9805f;color:#fff}
+body.dark .ringtone-preset-item.active{background:#a9805f;color:#fff}
+body.dark .ringtone-upload svg{stroke:var(--text)}
 /* ===== 字卡使用统计 ===== */
 .card-stats-list{display:flex;flex-direction:column;gap:12px}
 .card-stat-block{background:#fff;border:1px solid var(--border,#e6e8ec);border-radius:12px;padding:12px 14px}
@@ -5604,6 +5625,30 @@ body.dark .rp-history-title{color:#f0f0f2;}
               <option value="pop">气泡</option><option value="chime">风铃</option>
             </select>
           </div>
+          <!-- 来电铃声 -->
+          <div class="ringtone-box" id="ringtoneBox">
+            <div class="ringtone-title">来电铃声 <span class="ringtone-sub">（后台/锁屏全屏来电时播放）</span></div>
+            <div class="ringtone-status" id="ringtoneStatus">未设置（用内置铃声）</div>
+            <div class="ringtone-btnrow">
+              <button class="ringtone-btn primary" id="ringtoneChooseBtn" type="button">选择铃声</button>
+              <button class="ringtone-btn" id="ringtoneFileBtn" type="button">从文件选</button>
+              <button class="ringtone-btn" id="ringtonePreviewBtn" type="button">试听</button>
+              <button class="ringtone-btn" id="ringtoneResetBtn" type="button">恢复默认</button>
+            </div>
+            <div class="ringtone-presets" id="ringtonePresetList">
+              <button class="ringtone-preset-item" type="button" data-preset="classic">经典双音</button>
+              <button class="ringtone-preset-item" type="button" data-preset="cheerful">轻快</button>
+              <button class="ringtone-preset-item" type="button" data-preset="deep">低沉</button>
+              <button class="ringtone-preset-item" type="button" data-preset="chime">风铃</button>
+            </div>
+            <div class="ringtone-urlrow">
+              <input type="text" id="ringtoneUrl" class="ringtone-url" placeholder="可填自定义URL（留空用内置）">
+              <button class="ringtone-upload" id="ringtoneUrlApply" type="button" title="应用此URL">
+                <svg viewBox="0 0 24 24"><path d="M12 16V4m0 0 4 4m-4-4-4 4"/><path d="M4 20h16"/></svg>
+              </button>
+            </div>
+            <input type="file" id="ringtoneFile" accept="audio/*" style="display:none">
+          </div>
           <div class="toggle-row" style="margin-top:15px">
             <div><div class="toggle-name">后台保活</div><div class="field-help">开启后通过心跳机制维持定时器运行，页面挂后台或息屏时仍按设置发送消息。</div></div>
             <label class="toggle"><input id="keepAliveEnabled" type="checkbox" checked><span class="toggle-track"></span></label>
@@ -6692,7 +6737,8 @@ const DEFAULT_REPLY_SETTINGS={
 };
 const DEFAULT_NOTIFY_SETTINGS={
  notifyEnabled:true,sysNotifyEnabled:true,notifySound:"ding",
- keepAliveEnabled:true,wakeLockEnabled:false
+ keepAliveEnabled:true,wakeLockEnabled:false,
+ ringtoneMode:"builtin",ringtonePreset:"classic",ringtoneData:"",ringtoneUrl:"",ringtoneName:""
 };
 const DEFAULT_AVATAR={type:"color",color:"#e9ecf1",text:"",image:""};
 const DEFAULT_CHAT_BG={type:"color",color:"#f5f6f8",image:"",maskOpacity:0};
@@ -13184,6 +13230,7 @@ function loadNotifyForm(){
   $("notifySound").value=s.notifySound||"ding";
   $("keepAliveEnabled").checked=!!s.keepAliveEnabled;
   $("wakeLockEnabled").checked=!!s.wakeLockEnabled;
+  if(typeof _ringtoneUpdateUI==="function"){try{_ringtoneUpdateUI();}catch(e){}}
   updatePermBanner();
   updateKeepaliveBadge();
 }
@@ -13323,6 +13370,8 @@ $("saveNotifySettings").addEventListener("click",()=>{
   s.notifyEnabled=$("notifyEnabled").checked;
   s.sysNotifyEnabled=$("sysNotifyEnabled").checked;
   s.notifySound=$("notifySound").value;
+  if(!s.ringtoneData){const _ru=$("ringtoneUrl");if(_ru)s.ringtoneUrl=(_ru.value||"").trim();}
+  if(typeof _ringtoneUpdateUI==="function"){try{_ringtoneUpdateUI();}catch(e){}}
   s.keepAliveEnabled=$("keepAliveEnabled").checked;
   s.wakeLockEnabled=$("wakeLockEnabled").checked;
   save();
@@ -13349,6 +13398,7 @@ document.addEventListener("click",e=>{
         panel.classList.add("show");
         item.classList.add("expanded");
         if(key==="cardStats"&&typeof renderCardStats==="function"){try{renderCardStats();}catch(e){console.error(e);}}
+        if(key==="notify"&&typeof _ringtoneUpdateUI==="function"){try{_ringtoneUpdateUI();}catch(e){console.error(e);}}
       }
     }
   }
@@ -14706,14 +14756,34 @@ function rejectIncomingCall(isMissed){
   if(typeof toast==="function")toast(isMissed?("未接来电："+chat.name):"已拒接");
 }
 
-// 简单铃声（Web Audio API生成双音铃声）
-function playRingTone(){
+// ===== 自定义来电铃声（内置合成 + 本地文件 + 自定义URL） =====
+const RINGTONE_PRESETS={
+  classic:{name:"经典双音",freq:[620,520],beat:500,type:"sine",vol:0.15},
+  cheerful:{name:"轻快",freq:[880,1046],beat:340,type:"triangle",vol:0.13},
+  deep:{name:"低沉",freq:[300,240],beat:700,type:"sine",vol:0.16},
+  chime:{name:"风铃",freq:[1046,1318],beat:420,type:"sine",vol:0.12}
+};
+function ringtoneState(){
+  const s=getNotifySettings();
+  if(!s.ringtoneMode)s.ringtoneMode="builtin";
+  if(s.ringtonePreset===undefined)s.ringtonePreset="classic";
+  if(typeof s.ringtoneData!=="string")s.ringtoneData="";
+  if(typeof s.ringtoneUrl!=="string")s.ringtoneUrl="";
+  if(typeof s.ringtoneName!=="string")s.ringtoneName="";
+  return s;
+}
+function _ringtoneCustomSrc(){
+  const s=ringtoneState();
+  return s.ringtoneData||s.ringtoneUrl||"";
+}
+function playRingToneBuiltin(presetKey){
   try{
     const AudioCtx=window.AudioContext||window.webkitAudioContext;
     if(!AudioCtx)return;
     if(!incomingCallState.ringAudio)incomingCallState.ringAudio=new AudioCtx();
     const ctx=incomingCallState.ringAudio;
     if(ctx.state==="suspended")ctx.resume();
+    const preset=RINGTONE_PRESETS[presetKey]||RINGTONE_PRESETS.classic;
     let beat=0;
     const playBeat=()=>{
       if(!incomingCallState.active)return;
@@ -14721,18 +14791,39 @@ function playRingTone(){
       const gain=ctx.createGain();
       osc.connect(gain);
       gain.connect(ctx.destination);
-      osc.type="sine";
-      // 交替两个音高模拟铃声
-      osc.frequency.value=beat%2===0?620:520;
+      osc.type=preset.type||"sine";
+      osc.frequency.value=preset.freq[beat%preset.freq.length];
       gain.gain.setValueAtTime(0,ctx.currentTime);
-      gain.gain.linearRampToValueAtTime(0.15,ctx.currentTime+0.02);
+      gain.gain.linearRampToValueAtTime(preset.vol||0.15,ctx.currentTime+0.02);
       gain.gain.linearRampToValueAtTime(0,ctx.currentTime+0.3);
       osc.start(ctx.currentTime);
       osc.stop(ctx.currentTime+0.35);
       beat++;
     };
     playBeat();
-    incomingCallState.ringInterval=setInterval(playBeat,500);
+    incomingCallState.ringInterval=setInterval(playBeat,preset.beat||500);
+  }catch(e){console.warn("铃声播放失败:",e);}
+}
+function playRingTone(){
+  try{
+    stopRingtonePreview();
+    const custom=_ringtoneCustomSrc();
+    if(custom){
+      try{
+        if(!incomingCallState.customRing||incomingCallState.customRingSrc!==custom){
+          const au=new Audio(custom);
+          au.loop=true;
+          incomingCallState.customRing=au;
+          incomingCallState.customRingSrc=custom;
+        }
+        const au=incomingCallState.customRing;
+        au.currentTime=0;
+        const p=au.play();
+        if(p&&p.catch)p.catch(function(){try{playRingToneBuiltin(ringtoneState().ringtonePreset);}catch(e){}});
+        return;
+      }catch(e){/* 自定义失败则落回内置 */}
+    }
+    playRingToneBuiltin(ringtoneState().ringtonePreset);
   }catch(e){console.warn("铃声播放失败:",e);}
 }
 
@@ -14741,7 +14832,132 @@ function stopRingTone(){
     clearInterval(incomingCallState.ringInterval);
     incomingCallState.ringInterval=null;
   }
+  try{
+    if(incomingCallState.customRing){
+      incomingCallState.customRing.pause();
+      try{incomingCallState.customRing.currentTime=0;}catch(e){}
+    }
+  }catch(e){}
 }
+// 试听（独立通道，不进入来电状态）
+let _rtPreviewAudio=null,_rtPreviewInterval=null,_rtPreviewTimer=null;
+function stopRingtonePreview(){
+  try{
+    if(_rtPreviewInterval){clearInterval(_rtPreviewInterval);_rtPreviewInterval=null;}
+    if(_rtPreviewTimer){clearTimeout(_rtPreviewTimer);_rtPreviewTimer=null;}
+    if(_rtPreviewAudio){try{_rtPreviewAudio.pause();_rtPreviewAudio.currentTime=0;}catch(e){}_rtPreviewAudio=null;}
+  }catch(e){}
+}
+function previewRingtone(){
+  stopRingtonePreview();
+  const custom=_ringtoneCustomSrc();
+  if(custom){
+    try{
+      _rtPreviewAudio=new Audio(custom);
+      _rtPreviewAudio.loop=true;
+      const p=_rtPreviewAudio.play();
+      if(p&&p.catch)p.catch(function(){toast("试听失败，请检查文件或URL");stopRingtonePreview();});
+      _rtPreviewTimer=setTimeout(stopRingtonePreview,5000);
+      toast("试听中…（5秒）");
+      return;
+    }catch(e){toast("试听失败");return;}
+  }
+  try{
+    const AudioCtx=window.AudioContext||window.webkitAudioContext;
+    if(!AudioCtx){toast("当前环境不支持试听");return;}
+    if(!incomingCallState.ringAudio)incomingCallState.ringAudio=new AudioCtx();
+    const ctx=incomingCallState.ringAudio;
+    if(ctx.state==="suspended")ctx.resume();
+    const preset=RINGTONE_PRESETS[ringtoneState().ringtonePreset]||RINGTONE_PRESETS.classic;
+    let beat=0;
+    const playBeat=()=>{
+      const osc=ctx.createOscillator();
+      const gain=ctx.createGain();
+      osc.connect(gain);gain.connect(ctx.destination);
+      osc.type=preset.type||"sine";
+      osc.frequency.value=preset.freq[beat%preset.freq.length];
+      gain.gain.setValueAtTime(0,ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(preset.vol||0.15,ctx.currentTime+0.02);
+      gain.gain.linearRampToValueAtTime(0,ctx.currentTime+0.3);
+      osc.start(ctx.currentTime);osc.stop(ctx.currentTime+0.35);beat++;
+    };
+    playBeat();
+    _rtPreviewInterval=setInterval(playBeat,preset.beat||500);
+    _rtPreviewTimer=setTimeout(stopRingtonePreview,5000);
+    toast("试听中…（5秒）");
+  }catch(e){console.warn("试听失败:",e);}
+}
+function _ringtoneUpdateUI(){
+  try{
+    const s=ringtoneState();
+    const statusEl=document.getElementById("ringtoneStatus");
+    if(statusEl){
+      const custom=_ringtoneCustomSrc();
+      if(custom){statusEl.textContent=s.ringtoneName||s.ringtoneUrl||"已选本地文件";}
+      else{
+        const p=s.ringtonePreset||"classic";
+        statusEl.textContent=(p==="classic")?"未设置（用内置铃声）":("内置 · "+((RINGTONE_PRESETS[p]||{}).name||p));
+      }
+    }
+    const urlEl=document.getElementById("ringtoneUrl");
+    if(urlEl&&document.activeElement!==urlEl)urlEl.value=s.ringtoneUrl||"";
+    const list=document.getElementById("ringtonePresetList");
+    if(list)list.querySelectorAll(".ringtone-preset-item").forEach(function(b){b.classList.toggle("active",(s.ringtonePreset||"classic")===b.dataset.preset);});
+  }catch(e){}
+}
+(function(){
+  const chooseBtn=document.getElementById("ringtoneChooseBtn");
+  if(chooseBtn)chooseBtn.addEventListener("click",function(){
+    const list=document.getElementById("ringtonePresetList");
+    if(list)list.classList.toggle("show");
+  });
+  document.querySelectorAll("#ringtonePresetList .ringtone-preset-item").forEach(function(btn){
+    btn.addEventListener("click",function(){
+      const s=ringtoneState();
+      s.ringtonePreset=btn.dataset.preset||"classic";
+      s.ringtoneData="";s.ringtoneUrl="";s.ringtoneName="";
+      save();_ringtoneUpdateUI();
+      toast("已选择内置铃声："+btn.textContent);
+    });
+  });
+  const fileBtn=document.getElementById("ringtoneFileBtn");
+  const fileInput=document.getElementById("ringtoneFile");
+  if(fileBtn&&fileInput)fileBtn.addEventListener("click",function(){fileInput.click();});
+  if(fileInput)fileInput.addEventListener("change",function(e){
+    const f=e.target.files&&e.target.files[0];if(!f)return;
+    if(f.size>8*1024*1024)toast("音频较大（建议8MB以内），可能影响保存");
+    const reader=new FileReader();
+    reader.onload=function(ev){
+      try{
+        const s=ringtoneState();
+        s.ringtoneData=ev.target.result||"";s.ringtoneUrl="";s.ringtoneName=f.name;
+        save();_ringtoneUpdateUI();
+        toast("已选择铃声："+f.name);
+      }catch(err){toast("读取音频失败");}
+    };
+    reader.onerror=function(){toast("读取音频失败");};
+    reader.readAsDataURL(f);
+    try{e.target.value="";}catch(err){}
+  });
+  const urlApply=document.getElementById("ringtoneUrlApply");
+  if(urlApply)urlApply.addEventListener("click",function(){
+    const urlEl=document.getElementById("ringtoneUrl");
+    const v=urlEl?(urlEl.value||"").trim():"";
+    const s=ringtoneState();
+    if(!v){s.ringtoneUrl="";s.ringtoneName="";save();_ringtoneUpdateUI();toast("已清空自定义URL");return;}
+    s.ringtoneUrl=v;s.ringtoneData="";s.ringtoneName="自定义URL";
+    save();_ringtoneUpdateUI();toast("已应用自定义URL");
+  });
+  const previewBtn=document.getElementById("ringtonePreviewBtn");
+  if(previewBtn)previewBtn.addEventListener("click",previewRingtone);
+  const resetBtn=document.getElementById("ringtoneResetBtn");
+  if(resetBtn)resetBtn.addEventListener("click",function(){
+    const s=ringtoneState();
+    s.ringtoneData="";s.ringtoneUrl="";s.ringtoneName="";s.ringtonePreset="classic";
+    stopRingtonePreview();
+    save();_ringtoneUpdateUI();toast("已恢复默认铃声");
+  });
+})();
 
 
 function openCallHub(){
