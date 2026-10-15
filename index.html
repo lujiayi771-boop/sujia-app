@@ -1536,6 +1536,45 @@ body.dark .lib-group-toggle-icon{background:#2c2c2e!important}
 .menu-panel.show{display:block}
 .menu-panel .section-card{margin-top:0;background:#fff}
 .menu-panel .reply-library-box{background:#fff}
+/* ===== 来电铃声 ===== */
+.ringtone-box{border:1px solid var(--border,#e6e8ec);border-radius:12px;padding:12px 14px;margin-top:15px}
+.ringtone-title{font-size:14px;font-weight:600;color:var(--text,#1a1a1a)}
+.ringtone-sub{font-size:12px;color:var(--muted,#888);font-weight:400}
+.ringtone-status{margin-top:6px;font-size:13px;color:var(--muted,#888);word-break:break-all}
+.ringtone-btnrow{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.ringtone-btn{flex:1;min-width:72px;padding:9px 6px;border:1px solid var(--border,#e6e8ec);background:#fff;border-radius:9px;font-size:13px;cursor:pointer;color:var(--text,#1a1a1a)}
+.ringtone-btn.primary{background:#a9805f;border-color:#a9805f;color:#fff}
+.ringtone-presets{display:none;gap:8px;margin-top:10px;flex-wrap:wrap}
+.ringtone-presets.show{display:flex}
+.ringtone-preset-item{padding:7px 12px;border:1px solid var(--border,#e6e8ec);border-radius:16px;background:#fff;font-size:12px;cursor:pointer;color:var(--text,#1a1a1a)}
+.ringtone-preset-item.active{background:#a9805f;border-color:#a9805f;color:#fff}
+.ringtone-urlrow{display:flex;gap:8px;margin-top:10px}
+.ringtone-url{flex:1;min-width:0;padding:9px 12px;border:1px solid var(--border,#e6e8ec);border-radius:9px;font-size:13px;background:#fff;color:var(--text,#1a1a1a)}
+.ringtone-upload{flex:0 0 40px;height:40px;border:1px solid var(--border,#e6e8ec);background:#fff;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.ringtone-upload svg{width:18px;height:18px;fill:none;stroke:var(--text,#1a1a1a);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+body.dark .ringtone-box{border-color:var(--border)!important}
+body.dark .ringtone-btn,body.dark .ringtone-preset-item,body.dark .ringtone-url,body.dark .ringtone-upload{background:var(--surface);color:var(--text);border-color:var(--border)}
+body.dark .ringtone-btn.primary{background:#a9805f;color:#fff}
+body.dark .ringtone-preset-item.active{background:#a9805f;color:#fff}
+body.dark .ringtone-upload svg{stroke:var(--text)}
+/* ===== 字卡使用统计 ===== */
+.card-stats-list{display:flex;flex-direction:column;gap:12px}
+.card-stat-block{background:#fff;border:1px solid var(--border,#e6e8ec);border-radius:12px;padding:12px 14px}
+.card-stat-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.card-stat-name{font-weight:700;font-size:15px;color:var(--text,#1a1a1a)}
+.card-stat-badge{font-size:12px;color:var(--muted,#888);background:#f1f3f7;border-radius:8px;padding:2px 8px;white-space:nowrap}
+.card-stat-sub{margin-top:4px;font-size:12px;color:var(--muted,#888)}
+.card-stat-grid{margin-top:10px;display:flex;flex-direction:column;gap:10px}
+.card-stat-sec .card-stat-title{font-size:13px;font-weight:600;color:var(--text,#1a1a1a);margin-bottom:6px}
+.card-stat-item{display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px dashed var(--border,#e6e8ec)}
+.card-stat-item:first-of-type{border-top:0}
+.card-stat-rank{flex:0 0 18px;height:18px;line-height:18px;text-align:center;font-size:11px;border-radius:50%;background:#eef1f6;color:var(--muted,#888)}
+.card-stat-text{flex:1;min-width:0;font-size:13px;color:var(--text,#1a1a1a);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card-stat-meta{flex:0 0 auto;font-size:12px;color:#5b6b8c;white-space:nowrap}
+body.dark .card-stat-block{background:var(--surface)!important;border-color:var(--border)!important}
+body.dark .card-stat-badge{background:rgba(255,255,255,.08)}
+body.dark .card-stat-rank{background:rgba(255,255,255,.1)}
+body.dark .card-stat-meta{color:#9fb0d0}
 /* ===== 信件功能 ===== */
 .letter-btn{width:40px;height:40px;flex:0 0 40px;display:grid;place-items:center;background:transparent;border:0;cursor:pointer;color:#5f6670;border-radius:12px}
 .letter-btn:hover{background:#f0f2f5}
@@ -4784,6 +4823,20 @@ body.dark .rp-history-title{color:#f0f0f2;}
           <svg class="lib-group-toggle-arrow" viewBox="0 0 24 24" width="18" height="18"><path d="m9 5 7 7-7 7"/></svg>
         </button>
         <div class="lib-group-content" id="libGroupContent">
+        <!-- 灵感拾取 -->
+        <button class="menu-item" data-menu="inspireLib">
+          <div class="menu-icon"><svg viewBox="0 0 24 24"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg></div>
+          <div class="menu-info"><div class="menu-name">灵感拾取</div><div class="menu-desc">拾取你在聊天、信件和朋友圈说过的话，按人物保存</div></div>
+          <div class="menu-arrow"><svg viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg></div>
+        </button>
+        <div class="menu-panel" id="panel-inspireLib">
+          <div class="inspire-toggle-row">
+            <div class="inspire-toggle-label"><span class="inspire-toggle-name">灵感拾取</span><span class="inspire-toggle-state" id="inspireStateText">已关闭</span></div>
+            <button class="inspire-switch" id="inspireSwitch" role="switch" aria-checked="false" aria-label="灵感拾取开关"></button>
+          </div>
+          <div class="field-help" style="margin:6px 0 12px">开启后，人物可能会拾取你（也就是用户“我”）在聊天、信件和朋友圈中说过的话，并在之后的互动中使用。拾取内容会按人物保存，你可以随时查看和删除。开启后，拾取内容也会出现在对应人物的“聊天字卡库”里的“灵感拾取”分类中。</div>
+          <div id="inspireList" class="inspire-list"></div>
+        </div>
         <!-- 聊天字卡库 -->
         <button class="menu-item" data-menu="replyLib">
           <div class="menu-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg></div>
@@ -4810,6 +4863,20 @@ body.dark .rp-history-title{color:#f0f0f2;}
           <div class="reply-library-actions">
             <button class="library-btn library-reset" id="resetReplyLibrary">恢复默认词条</button>
             <button class="library-btn library-save" id="saveReplyLibrary">保存词条库</button>
+          </div>
+        </div>
+
+        <!-- 字卡使用统计 -->
+        <button class="menu-item" data-menu="cardStats">
+          <div class="menu-icon"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l3-4 3 2 4-6"/></svg></div>
+          <div class="menu-info"><div class="menu-name">字卡使用统计</div><div class="menu-desc">查看每个角色字卡的使用次数与闲置情况</div></div>
+          <div class="menu-arrow"><svg viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg></div>
+        </button>
+        <div class="menu-panel" id="panel-cardStats">
+          <div class="reply-library-desc">统计每个角色字卡的使用情况：最常用的字卡、长时间未使用的字卡，以及双方消息总数，帮助你决定是否清理闲置字卡。</div>
+          <div id="cardStatsList" class="card-stats-list"></div>
+          <div class="reply-library-actions" style="margin-top:10px">
+            <button class="library-btn library-save" onclick="try{renderCardStats()}catch(e){console.error(e)}">刷新统计</button>
           </div>
         </div>
 
@@ -5557,6 +5624,30 @@ body.dark .rp-history-title{color:#f0f0f2;}
               <option value="none">静音</option><option value="ding" selected>叮咚</option>
               <option value="pop">气泡</option><option value="chime">风铃</option>
             </select>
+          </div>
+          <!-- 来电铃声 -->
+          <div class="ringtone-box" id="ringtoneBox">
+            <div class="ringtone-title">来电铃声 <span class="ringtone-sub">（后台/锁屏全屏来电时播放）</span></div>
+            <div class="ringtone-status" id="ringtoneStatus">未设置（用内置铃声）</div>
+            <div class="ringtone-btnrow">
+              <button class="ringtone-btn primary" id="ringtoneChooseBtn" type="button">选择铃声</button>
+              <button class="ringtone-btn" id="ringtoneFileBtn" type="button">从文件选</button>
+              <button class="ringtone-btn" id="ringtonePreviewBtn" type="button">试听</button>
+              <button class="ringtone-btn" id="ringtoneResetBtn" type="button">恢复默认</button>
+            </div>
+            <div class="ringtone-presets" id="ringtonePresetList">
+              <button class="ringtone-preset-item" type="button" data-preset="classic">经典双音</button>
+              <button class="ringtone-preset-item" type="button" data-preset="cheerful">轻快</button>
+              <button class="ringtone-preset-item" type="button" data-preset="deep">低沉</button>
+              <button class="ringtone-preset-item" type="button" data-preset="chime">风铃</button>
+            </div>
+            <div class="ringtone-urlrow">
+              <input type="text" id="ringtoneUrl" class="ringtone-url" placeholder="可填自定义URL（留空用内置）">
+              <button class="ringtone-upload" id="ringtoneUrlApply" type="button" title="应用此URL">
+                <svg viewBox="0 0 24 24"><path d="M12 16V4m0 0 4 4m-4-4-4 4"/><path d="M4 20h16"/></svg>
+              </button>
+            </div>
+            <input type="file" id="ringtoneFile" accept="audio/*" style="display:none">
           </div>
           <div class="toggle-row" style="margin-top:15px">
             <div><div class="toggle-name">后台保活</div><div class="field-help">开启后通过心跳机制维持定时器运行，页面挂后台或息屏时仍按设置发送消息。</div></div>
@@ -6594,11 +6685,38 @@ const DEFAULT_REPLY_LIBRARY=[
  {text:"没问题。",category:"默认"},{text:"我在呢。",category:"问候"},{text:"好，我明白了。",category:"默认"}
 ];
 function libTexts(lib){
- return (Array.isArray(lib)?lib:[]).map(x=>typeof x==="string"?x:(x&&x.text)?x.text:"").filter(Boolean);
+ const arr=(Array.isArray(lib)?lib:[]);
+ const out=arr.map(x=>typeof x==="string"?x:(x&&x.text)?x.text:"").filter(Boolean);
+ try{Object.defineProperty(out,"__srcLib",{value:arr,enumerable:false,configurable:true,writable:true});}catch(e){}
+ return out;
+}
+/* ===== 字卡使用统计：记录字卡被抽取使用 ===== */
+function recordCardUse(srcLib,text){
+ try{
+  if(!Array.isArray(srcLib)||text==null)return;
+  const t=String(text);
+  for(let i=0;i<srcLib.length;i++){
+   const it=srcLib[i];
+   if(!it||typeof it!=="object")continue;
+   if(String(it.text||"")===t){
+    it.useCount=(Number(it.useCount)||0)+1;
+    it.lastUsedAt=Date.now();
+    return;
+   }
+  }
+ }catch(e){}
 }
 function normalizeLib(lib){
  if(!Array.isArray(lib))return [];
- return lib.map(x=>typeof x==="string"?{text:x,category:"默认"}:(x&&x.text?{text:String(x.text),category:x.category||"默认"}:null)).filter(Boolean);
+ return lib.map(x=>{
+  if(typeof x==="string")return {text:x,category:"默认"};
+  if(x&&x.text){
+   const o=Object.assign({},x);
+   o.text=String(x.text);o.category=x.category||"默认";
+   return o;
+  }
+  return null;
+ }).filter(Boolean);
 }
 const DEFAULT_REPLY_SETTINGS={
  passiveEnabled:true,passiveMin:30,passiveMax:35,
@@ -6619,7 +6737,8 @@ const DEFAULT_REPLY_SETTINGS={
 };
 const DEFAULT_NOTIFY_SETTINGS={
  notifyEnabled:true,sysNotifyEnabled:true,notifySound:"ding",
- keepAliveEnabled:true,wakeLockEnabled:false
+ keepAliveEnabled:true,wakeLockEnabled:false,
+ ringtoneMode:"builtin",ringtonePreset:"classic",ringtoneData:"",ringtoneUrl:"",ringtoneName:""
 };
 const DEFAULT_AVATAR={type:"color",color:"#e9ecf1",text:"",image:""};
 const DEFAULT_CHAT_BG={type:"color",color:"#f5f6f8",image:"",maskOpacity:0};
@@ -6637,6 +6756,8 @@ const initial={
  momentVisitors:[],
  userStickerLibrary:[],
  notifySettings:structuredClone(DEFAULT_NOTIFY_SETTINGS),
+	 inspirationEnabled:false,
+	 inspirationProb:5,
  pets:{},
  chats:[
   {id:"1",name:"林然",letter:"林",
@@ -6887,24 +7008,60 @@ function idbOpen(){
 }
 let _idbWriteQueue=Promise.resolve();
 function idbSaveState(data){
-  const snapshot=JSON.stringify(data);
-  const job=()=>new Promise(async(resolve)=>{try{const db=await idbOpen();const tx=db.transaction(IDB_STORE,"readwrite");tx.objectStore(IDB_STORE).put(snapshot,"main");tx.oncomplete=()=>resolve(true);tx.onerror=()=>resolve(false);tx.onabort=()=>resolve(false);}catch(e){console.warn("IDB save failed:",e);resolve(false);}});
+  // 【修复·防数据丢失】写出前先留一份快照，写入成功后轮换到 "backup" 槽，
+  // 这样即使主槽写入中途失败/损坏，导入或恢复时仍能从 backup 槽读回上一份完整数据。
+  const cur=JSON.stringify(data);
+  const job=()=>new Promise(async(resolve)=>{
+    try{
+      const db=await idbOpen();
+      // 1) 读取旧的主数据，作为备份（旧数据可能是 Blob，也可能是历史字符串）
+      let prev=null;
+      try{ prev=await new Promise((res)=>{const t=db.transaction(IDB_STORE,"readonly");const rq=t.objectStore(IDB_STORE).get("main");rq.onsuccess=()=>res(rq.result||null);rq.onerror=()=>res(null);}); }catch(e){}
+      // 2) 写入新数据（优先 Blob，减小 IDB 内部字符串开销；失败再退回字符串）
+      const write=(val)=>new Promise((res)=>{try{const t=db.transaction(IDB_STORE,"readwrite");t.objectStore(IDB_STORE).put(val,"main");t.oncomplete=()=>res(true);t.onerror=()=>res(false);t.onabort=()=>res(false);}catch(e){res(false);}});
+      let ok=false;
+      try{ const blob=new Blob([cur],{type:"application/json"}); ok=await write(blob); }catch(e){ ok=false; }
+      if(!ok){ ok=await write(cur); }
+      // 3) 写入成功后，把上一份完整数据轮换到备份槽
+      if(ok&&prev!=null){ try{await write2(db,prev);}catch(e){} }
+      resolve(ok);
+    }catch(e){ console.warn("IDB save failed:",e); resolve(false); }
+  });
+  const write2=(db,val)=>new Promise((res)=>{try{const t=db.transaction(IDB_STORE,"readwrite");t.objectStore(IDB_STORE).put(val,"backup");t.oncomplete=()=>res(true);t.onerror=()=>res(false);t.onabort=()=>res(false);}catch(e){res(false);}});
   _idbWriteQueue=_idbWriteQueue.then(job,job); return _idbWriteQueue;
 }
 function idbWaitForWrites(){return _idbWriteQueue.catch(()=>false);}
 function idbLoadState(){
   return new Promise(async(resolve)=>{
+    const readVal=(key)=>new Promise((res)=>{
+      try{
+        idbOpen().then(db=>{
+          const tx=db.transaction(IDB_STORE,"readonly");
+          const r=tx.objectStore(IDB_STORE).get(key);
+          r.onsuccess=()=>res(r.result!=null?r.result:null);
+          r.onerror=()=>res(null);
+        }).catch(()=>res(null));
+      }catch(e){res(null);}
+    });
+    const toText=(val)=>new Promise((res)=>{
+      if(val==null){res(null);return;}
+      if(typeof val==="string"){res(val);return;}
+      // 新版本以 Blob 存储，需要异步读成文本
+      try{
+        if(typeof Blob!=="undefined"&&val instanceof Blob){ const fr=new FileReader(); fr.onload=()=>res(typeof fr.result==="string"?fr.result:""); fr.onerror=()=>res(null); fr.readAsText(val); return; }
+        if(typeof val.text==="function"){ val.text().then(res).catch(()=>res(null)); return; }
+      }catch(e){}
+      res(null);
+    });
     try{
-      const db=await idbOpen();
-      const tx=db.transaction(IDB_STORE,"readonly");
-      const r=tx.objectStore(IDB_STORE).get("main");
-      r.onsuccess=()=>{
-        try{
-          if(r.result){resolve(JSON.parse(r.result));}
-          else resolve(null);
-        }catch(e){resolve(null);}
-      };
-      r.onerror=()=>resolve(null);
+      // 1) 先读主槽；解析失败或为空，则回退到 backup 槽
+      let main=await readVal("main");
+      let mainTxt=await toText(main);
+      if(mainTxt){ try{ resolve(JSON.parse(mainTxt)); return; }catch(e){ console.warn("主数据解析失败，尝试备份槽",e); } }
+      let bak=await readVal("backup");
+      let bakTxt=await toText(bak);
+      if(bakTxt){ try{ resolve(JSON.parse(bakTxt)); return; }catch(e){} }
+      resolve(null);
     }catch(e){resolve(null);}
   });
 }
@@ -6924,6 +7081,7 @@ function idbUpdateQuotaCache(){
 }
 // 页面加载后从 IndexedDB 同步数据（如果 localStorage 缓存不完整）
 async function idbSyncOnLoad(){
+  try{_showBusy("正在加载数据…");}catch(e){}
   try{
     const idbData=await idbLoadState();
     if(!idbData||!Array.isArray(idbData.chats)){_stateHydrated=true;return;}
@@ -7055,6 +7213,7 @@ async function idbSyncOnLoad(){
     }
     _stateHydrated=true;
   }catch(e){console.warn("[IDB] 同步失败:",e);_stateHydrated=true;}
+  try{_hideBusy();}catch(e){}
 }
 
 let _saveErrThrottle=0;
@@ -7081,7 +7240,28 @@ function stripStateForCache(obj){
     return c;
   }catch(e){return obj;}
 }
+let _saveTimer=null;
+let _savePending=false;
+let _lsNeedsStrip=false;
+let _dataDirty=false;          // 是否有未落盘的改动
+let _lastPersistAt=0;          // 上次成功落盘时间
+let _persistTimer=null;
+// 【性能优化】save() 合并写入：短时间内多次调用只触发一次真正的全量序列化+落盘，
+// 避免每次点击都同步 JSON.stringify(270MB) 造成界面卡顿。
 function save(){
+  _savePending=true;
+  _dataDirty=true;
+  if(_saveTimer)return true;
+  _saveTimer=setTimeout(()=>{_saveTimer=null;_savePending=false;try{_saveNow();}catch(e){}},150);
+  return true;
+}
+// 【性能优化】需要"真实写入结果"或退出前需要立即落盘的场景，直接调用它。
+function saveNow(){
+  if(_saveTimer){clearTimeout(_saveTimer);_saveTimer=null;}
+  _savePending=false;
+  return _saveNow();
+}
+function _saveNow(){
  try{
    // 给没有timestamp的消息添加时间戳（用于删除旧消息）
    const nowTs=Date.now();
@@ -7093,7 +7273,6 @@ function save(){
      }
    });
    state._lastSaved=Date.now();
-   const stateStr=JSON.stringify(state);
    // 1. 写入 IndexedDB（主存储，配额大）
    // 【修复】从 IndexedDB 恢复完成前，绝不能用（可能是默认/空的）state 覆盖云端主存储，
    // 否则启动瞬间的自动保存会把真实数据覆盖为默认数据，导致刷新后“最近数据全部消失”。
@@ -7109,14 +7288,21 @@ function save(){
      // 优先保存“完整快照”（含图片），确保任何情况下重进APP图片都在；
      // 只有当完整快照超出 localStorage 配额时，才退化为去图片的轻量快照。
      let light;
-     try{
-       light=JSON.stringify(state);
-       localStorage.setItem(KEY,light);
-       try{localStorage.setItem(KEY+"_backup",light);}catch(e){}
-     }catch(_big){
+     if(_lsNeedsStrip){
        light=JSON.stringify(stripStateForCache(state));
        localStorage.setItem(KEY,light);
        try{localStorage.setItem(KEY+"_backup",light);}catch(e){}
+     }else{
+       try{
+         light=JSON.stringify(state);
+         localStorage.setItem(KEY,light);
+         try{localStorage.setItem(KEY+"_backup",light);}catch(e){}
+       }catch(_big){
+         _lsNeedsStrip=true;
+         light=JSON.stringify(stripStateForCache(state));
+         localStorage.setItem(KEY,light);
+         try{localStorage.setItem(KEY+"_backup",light);}catch(e){}
+       }
      }
    }catch(lsErr){
      _lsFull=true;
@@ -7124,6 +7310,8 @@ function save(){
      try{sessionStorage.setItem("_idb_force_restore","1");}catch(e){}
      console.warn("[save] localStorage 轻量快照写入失败（完整数据仍在 IndexedDB）:",lsErr.name);
    }
+   _dataDirty=false;
+   _lastPersistAt=Date.now();
    _saveErrThrottle=0;
    return !_lsFull;
  }catch(e){
@@ -7136,8 +7324,16 @@ function save(){
    return false;
  }
 }
-window.addEventListener("pagehide",()=>{try{if(typeof stickerFlushSave==="function")stickerFlushSave();save();}catch(e){}});
-document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden"){try{if(typeof stickerFlushSave==="function")stickerFlushSave();save();}catch(e){}}});
+// 【修复·防数据丢失】周期性自动落盘：只要有未保存改动就写入 IndexedDB，
+// 即使长时间不手动导出备份，数据也不会因未保存而丢失。
+try{
+  if(_persistTimer)clearInterval(_persistTimer);
+  _persistTimer=setInterval(()=>{ try{ if(_dataDirty && _stateHydrated){ saveNow(); } }catch(e){} },20000);
+}catch(e){}
+// 请求持久化存储配额，降低系统在存储紧张时清理本应用数据的概率
+try{ if(navigator&&navigator.storage&&navigator.storage.persist){ navigator.storage.persist().then(p=>{ try{ if(!p&&navigator.storage.persisted) navigator.storage.persisted().then(q=>console.warn("[storage] 持久化未授予:",q)); }catch(e){} }).catch(()=>{}); } }catch(e){}
+window.addEventListener("pagehide",()=>{try{if(typeof stickerFlushSave==="function")stickerFlushSave();saveNow();}catch(e){}});
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden"){try{if(typeof stickerFlushSave==="function")stickerFlushSave();saveNow();}catch(e){}}});
 function esc(s){
  return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
 }
@@ -7648,7 +7844,12 @@ function randomItems(list,count){
  const n=Math.min(source.length,Math.max(1,Number(count)||1));
  const a=[...source];
  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
- return a.slice(0,n);
+ const picked=a.slice(0,n);
+ try{
+  const src=(Array.isArray(list)&&list.__srcLib)?list.__srcLib:(Array.isArray(list)?list:null);
+  if(src){for(const t of picked)recordCardUse(src,t);}
+ }catch(e){}
+ return picked;
 }
 function formatMomentTime(ts){
  const d=new Date(ts);const today=new Date();
@@ -8040,11 +8241,16 @@ function renderMoments(){
 }
 
 /* ===== 聊天列表 & 联系人 ===== */
+let _lastChatsSig=null;
 function renderChats(filter=""){
  const q=filter.trim().toLowerCase();
  let list=state.chats.filter(c=>!q||c.name.toLowerCase().includes(q)||c.messages.some(m=>m.type!=="sticker"&&m.type!=="voice"&&m.text&&m.text.toLowerCase().includes(q)));
  // 置顶排序：置顶的排在前面
  list.sort((a,b)=>(b.pinned?1:0)-(a.pinned?1:0));
+ // 【性能优化】渲染签名：列表内容未变化时跳过整表重建，避免重复解析 HTML。（带搜索过滤时始终重建）
+ const _chatsSig=(q?"":list.map(c=>{const last=c.messages[c.messages.length-1];return c.id+"|"+(c.pinned?1:0)+"|"+c.name+"|"+(last?(last.type||"")+":"+(last.time||"")+":"+((last.text||last.caption||"").length):"")+"|"+(c.avatar?(c.avatar.image?("i"+c.avatar.image.length):("e"+(c.avatar.emoji||c.avatar.text||"")+String(c.avatar.color||""))):"")}).join("~"));
+ if(_chatsSig&&_chatsSig===_lastChatsSig)return;
+ _lastChatsSig=_chatsSig;
  if(!list.length){$("chatList").innerHTML='<div class="empty">没有找到聊天</div>';return;}
  $("chatList").innerHTML=list.map(c=>{
   const last=c.messages[c.messages.length-1];
@@ -8505,13 +8711,19 @@ function closeChat(){
  clearQuote();clearPendingImage();
  renderChats($("search").value);renderContacts();
 }
+let _msgRender={chatId:null,count:0,lastRef:null};
 function renderMessages(){
  const c=state.chats.find(x=>x.id===currentId);if(!c)return;
  const box=$("messages");const s=getSettings(c.id);
  applyBubbleCustomSheet(s&&s.bubbleCustomCSS);
- if(!c.messages.length){box.innerHTML='<div class="empty">开始新的对话</div>';}
+ const _curLen=c.messages.length;
+ // 【性能优化】仅当同一会话、消息数量严格增加、且此前最后一条消息的对象引用未变时，
+ // 才走"只追加新增消息"的增量渲染；编辑/撤回/删除等一律回退全量渲染，保证一致性。
+ const _canAppend=(_msgRender.chatId===c.id&&_msgRender.count>0&&_curLen>_msgRender.count&&c.messages[_msgRender.count-1]===_msgRender.lastRef);
+ if(!c.messages.length){box.innerHTML='<div class="empty">开始新的对话</div>';_msgRender={chatId:c.id,count:0,lastRef:null};}
  else{
-   box.innerHTML=c.messages.map((m,msgIdx)=>{
+   const _startIdx=_canAppend?_msgRender.count:0;
+   const _msgHtml=c.messages.map((m,msgIdx)=>{if(msgIdx<_startIdx)return "";
      const mine=m.from==="mine";
      const av=mine?state.userAvatar:c.avatar;
      const showRead=mine&&s.readReceiptEnabled;
@@ -8613,6 +8825,8 @@ function renderMessages(){
          ${mine?`<div class="message-avatar" style="${avatarStyle(av)}" aria-hidden="true">${avatarHTML(av)}</div>`:""}
        </div>`;
    }).join("");
+   if(_canAppend)box.insertAdjacentHTML("beforeend",_msgHtml); else box.innerHTML=_msgHtml;
+   _msgRender={chatId:c.id,count:_curLen,lastRef:_curLen?c.messages[_curLen-1]:null};
  }
  const _toBottom=()=>{try{box.scrollTop=box.scrollHeight;}catch(e){}};
 _toBottom();
@@ -8782,7 +8996,8 @@ function send(){
  }
  c.messages.push(msg);
  updateStreak(c);
- $("message").value="";resizeInput();clearPendingImage();updateSend();save();renderMessages();renderStreak();
+ try{ if(window.inspirationMaybePick) window.inspirationMaybePick(c,(msg&&msg.text)||"","聊天"); }catch(_ie){}
+  $("message").value="";resizeInput();clearPendingImage();updateSend();save();renderMessages();renderStreak();
  scheduleReadReceipt(c.id,msgIndex);
  // 角色5%概率收藏这条消息
  scheduleFavorite(c.id,msgIndex);
@@ -9635,7 +9850,7 @@ async function triggerAIReply(chatId){
       console.warn("[AI回复] 回复格式异常，降级为字卡模式回复");
       const library=libTexts(current.replyLibrary);
       if(library.length){
-        const text=library[Math.floor(Math.random()*library.length)];
+        const text=library[Math.floor(Math.random()*library.length)];recordCardUse(library.__srcLib,text);
         current.messages.push({from:"other",text:String(text),time:now(),kind:"passive"});
         updateStreak(current);save();
         if(currentId===current.id){renderMessages();renderStreak();}
@@ -9658,7 +9873,7 @@ async function triggerAIReply(chatId){
     // AI失败时降级为字卡模式回复
     const library=libTexts(current.replyLibrary);
     if(library.length){
-      const text=library[Math.floor(Math.random()*library.length)];
+      const text=library[Math.floor(Math.random()*library.length)];recordCardUse(library.__srcLib,text);
       const _ri=current.messages.length;
       current.messages.push({from:"other",text:String(text),time:now(),kind:"passive"});
       updateStreak(current);save();
@@ -11269,6 +11484,7 @@ $("publishMoment").addEventListener("click",()=>{
    text,image:pendingMomentImage||"",time:Date.now(),source:"我发布",comments:[]
  });
  $("momentInput").value="";clearMomentImage();save();renderMoments();toast("动态已发布");
+ state.chats.forEach(function(_ic){ try{ if(window.inspirationMaybePick) window.inspirationMaybePick(_ic,text,"朋友圈"); }catch(_ie){} });
  scheduleMomentReplies(momentId);
 });
 /* 朋友圈回复评论 */
@@ -11818,7 +12034,7 @@ function stickerDebouncedSave(){
   _stickerSaveTimer=setTimeout(()=>{save();_stickerSaveTimer=null;},150);
 }
 function stickerFlushSave(){
-  if(_stickerSaveTimer){clearTimeout(_stickerSaveTimer);_stickerSaveTimer=null;save();}
+  if(_stickerSaveTimer){clearTimeout(_stickerSaveTimer);_stickerSaveTimer=null;saveNow();}
 }
 $("stickerUploadBtn").addEventListener("click",()=>$("stickerFileInput").click());
 $("stickerFileInput").addEventListener("change",async e=>{
@@ -12491,6 +12707,83 @@ if(typeof document!=="undefined"&&!window.__inappHideHooked){
 }
 /* ===== 从后台长时间返回：修复系统回收图片导致的“图片全空白” + 重排原生通知 ===== */
 let _appHiddenAt=0;
+/* ===== 修复：长时间后台返回时数据卡死 —— 恢复协调器（去抖 + 单飞 + 空闲分批 + 过渡遮罩） ===== */
+let _resumeRunning=false;
+let _resumeTimer=null;
+let _resumePending=false;
+let _compensating=false;
+let _lastCompensateAt=0;
+let _busyEl=null;
+let _busyHideTimer=null;
+let _busyCount=0;
+function _idleRun(fn,timeout){
+  try{ if(typeof window.requestIdleCallback==="function"){ return window.requestIdleCallback(fn,{timeout:timeout||1500}); } }catch(e){}
+  return setTimeout(fn,16);
+}
+function _showBusy(text){
+  try{
+    _busyCount++;
+    if(!_busyEl){
+      _busyEl=document.createElement("div");
+      _busyEl.id="_resumeBusy";
+      _busyEl.style.cssText="position:fixed;left:0;top:0;right:0;bottom:0;z-index:2147483000;background:rgba(12,12,14,.5);display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;opacity:0;transition:opacity .18s ease;";
+      _busyEl.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;gap:12px"><div style="width:26px;height:26px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:_resumeSpin .8s linear infinite"></div><span id="_resumeBusyText">正在处理…</span></div>';
+      var st=document.createElement("style");
+      st.textContent="@keyframes _resumeSpin{to{transform:rotate(360deg)}}";
+      (document.head||document.documentElement).appendChild(st);
+      (document.body||document.documentElement).appendChild(_busyEl);
+    }
+    var t=document.getElementById("_resumeBusyText");
+    if(t&&text)t.textContent=text;
+    _busyEl.style.display="flex";
+    try{requestAnimationFrame(function(){try{_busyEl.style.opacity="1";}catch(e){}});}catch(e){try{_busyEl.style.opacity="1";}catch(e2){}}
+  }catch(e){}
+}
+function _hideBusy(){
+  try{
+    if(_busyCount>0)_busyCount--;
+    if(_busyCount>0)return;
+    if(!_busyEl)return;
+    _busyEl.style.opacity="0";
+    clearTimeout(_busyHideTimer);
+    _busyHideTimer=setTimeout(function(){try{if(_busyEl)_busyEl.style.display="none";}catch(e){}},220);
+  }catch(e){}
+}
+function _scheduleResume(reason){
+  try{
+    if(_resumeRunning){_resumePending=true;return;}
+    clearTimeout(_resumeTimer);
+    _resumeTimer=setTimeout(_runResume,90);
+  }catch(e){}
+}
+function _runResume(){
+  _resumeTimer=null;
+  if(_resumeRunning){_resumePending=true;return;}
+  _resumeRunning=true;
+  var needRepaint=false;
+  try{ if(typeof _hasBrokenImages==="function"&&_hasBrokenImages())needRepaint=true; }catch(e){}
+  _showBusy("正在恢复数据…");
+  _idleRun(function(){
+    try{
+      if(needRepaint){try{_reviveBrokenImages();}catch(e){}}
+      try{ if(typeof compensateMissedTasks==="function")compensateMissedTasks(); }catch(e){}
+    }catch(e){}
+    _idleRun(function(){
+      try{ if(typeof replanAllAheadChains==="function")replanAllAheadChains(); }catch(e){}
+      _idleRun(function(){
+        try{
+          if(needRepaint){
+            try{if(typeof currentId!=="undefined"&&currentId&&typeof renderMessages==="function")renderMessages();}catch(e){}
+            try{if(typeof renderMoments==="function")renderMoments();}catch(e){}
+          }
+        }catch(e){}
+        _resumeRunning=false;
+        _hideBusy();
+        if(_resumePending){_resumePending=false;setTimeout(function(){_scheduleResume("again");},120);}
+      },1500);
+    },1500);
+  },1500);
+}
 function _reviveBrokenImages(){
   try{
     const imgs=document.images;
@@ -12520,25 +12813,19 @@ function _hasBrokenImages(){
   return false;
 }
 function onAppResume(){
-  try{
-    if(_hasBrokenImages()){
-      _reviveBrokenImages();
-      try{if(typeof currentId!=="undefined"&&currentId&&typeof renderMessages==="function")renderMessages();}catch(e){}
-      try{if(typeof renderMoments==="function")renderMoments();}catch(e){}
-    }
-  }catch(e){}
-  try{replanAllAheadChains();}catch(e){}
+  _scheduleResume("resume");
 }
 document.addEventListener("visibilitychange",function(){
-  if(document.hidden){_appHiddenAt=Date.now();try{replanAllAheadChains();}catch(e){}}
+  if(document.hidden){_appHiddenAt=Date.now();}
   else{
-    const away=Date.now()-_appHiddenAt;
-    if(_appHiddenAt&&away>20000){try{onAppResume();}catch(e){}}
+    const away=Date.now()-(_appHiddenAt||0);
     _appHiddenAt=0;
+    // 返回前台：仅当切走超过阈值才触发恢复重活，统一走恢复协调器（去抖+单飞）
+    if(away>8000){_scheduleResume("visible");}
   }
 });
-window.addEventListener("pagehide",function(){try{replanAllAheadChains();}catch(e){};_appHiddenAt=Date.now();});
-window.addEventListener("pageshow",function(e){try{if(e.persisted)onAppResume();}catch(e){}});
+window.addEventListener("pagehide",function(){_appHiddenAt=Date.now();});
+window.addEventListener("pageshow",function(e){if(e.persisted){_scheduleResume("pageshow");}});
 /* ===== 原生定时通知：提前用系统闹钟调度，解决后台/息屏时通知延迟 ===== */
 const _nativeAheadIds={};
 function _stableHash(str){let h=0;const s=String(str||"");for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return h;}
@@ -12766,76 +13053,100 @@ function clearTaskRecord(chatId,type){
   try{localStorage.setItem("scheduled_tasks",JSON.stringify(scheduledTasks));}catch(e){}
 }
 function compensateMissedTasks(){
-  // 页面从后台恢复时，检查是否有错过的定时器
-  const nowTs=Date.now();
-  Object.entries(scheduledTasks).forEach(([chatId,tasks])=>{
-    const chat=getChat(chatId);if(!chat)return;
-    Object.entries(tasks).forEach(([type,info])=>{
-      if(nowTs>=info.expectedAt){
-        // 错过的任务立即补发
-        if(type==="active"){
-          const s=getSettings(chatId);
-          if(s.activeEnabled){
-            const items=randomItems(chat.replyLibrary,1);
-            if(items.length){
-              let quote=null;
-              if(Math.random()<0.05){
-                const myMsgs=chat.messages.filter(m=>m.from==="mine"&&m.type!=="sticker"&&m.type!=="image");
-                if(myMsgs.length){
-                  const lastMine=myMsgs[myMsgs.length-1];
-                  quote={text:lastMine.text,from:"mine",name:"我"};
+  // 【修复】可重入保护 + 节流：后台返回时可能被多个可见性事件同时触发，
+  // 叠加执行会对超大 state 反复做全量 JSON 序列化与重渲染，直接卡死。
+  const _tNow=Date.now();
+  if(_compensating)return;
+  if(_tNow-_lastCompensateAt<1200)return;
+  _lastCompensateAt=_tNow;
+  _compensating=true;
+  let _dirtyActive=false,_dirtyMoment=false;
+  try{
+    const nowTs=Date.now();
+    Object.entries(scheduledTasks).forEach(([chatId,tasks])=>{
+      const chat=getChat(chatId);if(!chat)return;
+      Object.entries(tasks).forEach(([type,info])=>{
+        if(nowTs>=info.expectedAt){
+          // 错过的任务立即补发
+          if(type==="active"){
+            const s=getSettings(chatId);
+            if(s.activeEnabled){
+              const items=randomItems(chat.replyLibrary,1);
+              if(items.length){
+                let quote=null;
+                if(Math.random()<0.05){
+                  const myMsgs=chat.messages.filter(m=>m.from==="mine"&&m.type!=="sticker"&&m.type!=="image");
+                  if(myMsgs.length){
+                    const lastMine=myMsgs[myMsgs.length-1];
+                    quote={text:lastMine.text,from:"mine",name:"我"};
+                  }
                 }
-              }
-              chat.messages.push({from:"other",text:String(items[0]),time:now(),kind:"active",quote});
-              updateStreak(chat);
-              save();if(currentId===chat.id){renderMessages();renderStreak();}renderChats($("search").value);
-              triggerNotification(chat,String(items[0]));
-            }
-          }
-          scheduleActiveMessage(chat);
-        }else if(type==="moment"){
-          const s=getSettings(chatId);
-          if(s.momentsEnabled){
-            // 错过的朋友圈立即补发1条（防刷屏：距离上一条发布超过10分钟才补发）
-            const lastMoment=state.moments.filter(m=>m.authorId===chatId).sort((a,b)=>b.time-a.time)[0];
-            const canPost=!lastMoment||(Date.now()-lastMoment.time)>600000;
-            if(canPost){
-              const useMl2=s.useMomentLibrary;
-              const includeChat2=s.momentIncludeChatLibrary;
-              let lib2=[];
-              if(useMl2){
-                const ml=Array.isArray(chat.momentLibrary)?chat.momentLibrary:[];
-                const cl=Array.isArray(chat.replyLibrary)?chat.replyLibrary:[];
-                lib2=includeChat2?[...ml,...cl]:ml;
-              }else{
-                lib2=Array.isArray(chat.replyLibrary)?chat.replyLibrary:[];
-              }
-              const lib=libTexts(lib2);
-              if(lib.length){
-                const count=useMl2?randInt(s.momentLibraryCountMin,s.momentLibraryCountMax):randInt(s.momentCountMin,s.momentCountMax);
-                const items=randomItems(lib,count);
-                if(items.length){
-                  let sourceLabel="角色自动发布";
-                  if(useMl2&&includeChat2)sourceLabel="角色自动发布（双字卡库）";
-                  else if(useMl2)sourceLabel="角色自动发布（专属字卡）";
-                  state.moments.push({
-                    id:"m"+Date.now()+Math.random().toString(16).slice(2),
-                    authorId:chat.id,author:chat.name,
-                    letter:chat.letter||chat.name.slice(0,1),
-                    avatar:chat.avatar?structuredClone(chat.avatar):null,
-                    text:items.join("\n"),image:"",time:Date.now(),source:sourceLabel,comments:[]
-                  });
-                  save();renderMoments();
-                }
+                chat.messages.push({from:"other",text:String(items[0]),time:now(),kind:"active",quote});
+                updateStreak(chat);
+                _dirtyActive=true;
+                try{triggerNotification(chat,String(items[0]));}catch(e){}
               }
             }
-            scheduleMomentPost(chat);
+            try{scheduleActiveMessage(chat);}catch(e){}
+          }else if(type==="moment"){
+            const s=getSettings(chatId);
+            if(s.momentsEnabled){
+              // 错过的朋友圈立即补发1条（防刷屏：距离上一条发布超过10分钟才补发）
+              const lastMoment=state.moments.filter(m=>m.authorId===chatId).sort((a,b)=>b.time-a.time)[0];
+              const canPost=!lastMoment||(Date.now()-lastMoment.time)>600000;
+              if(canPost){
+                const useMl2=s.useMomentLibrary;
+                const includeChat2=s.momentIncludeChatLibrary;
+                let lib2=[];
+                if(useMl2){
+                  const ml=Array.isArray(chat.momentLibrary)?chat.momentLibrary:[];
+                  const cl=Array.isArray(chat.replyLibrary)?chat.replyLibrary:[];
+                  lib2=includeChat2?[...ml,...cl]:ml;
+                }else{
+                  lib2=Array.isArray(chat.replyLibrary)?chat.replyLibrary:[];
+                }
+                const lib=libTexts(lib2);
+                if(lib.length){
+                  const count=useMl2?randInt(s.momentLibraryCountMin,s.momentLibraryCountMax):randInt(s.momentCountMin,s.momentCountMax);
+                  const items=randomItems(lib,count);
+                  if(items.length){
+                    let sourceLabel="角色自动发布";
+                    if(useMl2&&includeChat2)sourceLabel="角色自动发布（双字卡库）";
+                    else if(useMl2)sourceLabel="角色自动发布（专属字卡）";
+                    state.moments.push({
+                      id:"m"+Date.now()+Math.random().toString(16).slice(2),
+                      authorId:chat.id,author:chat.name,
+                      letter:chat.letter||chat.name.slice(0,1),
+                      avatar:chat.avatar?structuredClone(chat.avatar):null,
+                      text:items.join("\n"),image:"",time:Date.now(),source:sourceLabel,comments:[]
+                    });
+                    _dirtyMoment=true;
+                  }
+                }
+              }
+              try{scheduleMomentPost(chat);}catch(e){}
+            }
           }
+          delete tasks[type];
         }
-        delete tasks[type];
-      }
+      });
     });
-  });
+  }catch(e){console.warn("[compensate] 补偿任务失败:",e);}
+  finally{
+    _compensating=false;
+    // 统一收尾：只在末尾做一次 save + 一次重渲染，避免每个补发任务都触发全量序列化
+    try{
+      if(_dirtyActive||_dirtyMoment){
+        save();
+        if(_dirtyActive){
+          try{if(typeof currentId!=="undefined"&&currentId&&typeof renderMessages==="function")renderMessages();}catch(e){}
+          try{if(typeof renderStreak==="function")renderStreak();}catch(e){}
+          try{renderChats($("search").value);}catch(e){}
+        }
+        if(_dirtyMoment){try{renderMoments();}catch(e){}}
+      }
+    }catch(e){}
+  }
 }
 async function requestWakeLock(){
   const s=getNotifySettings();
@@ -12920,35 +13231,31 @@ function stopKeepalive(){
 // 页面可见性变化：从后台恢复时补偿错过的任务
 document.addEventListener("visibilitychange",()=>{
   if(!document.hidden){
-    // 无论是否开启保活，都补偿错过的定时任务
-    compensateMissedTasks();
+    // 返回前台：补偿+重排+重渲染统一交由恢复协调器（去抖+单飞+空闲分批）
+    _scheduleResume("visible2");
     const s=getNotifySettings();
     if(s.keepAliveEnabled&&s.wakeLockEnabled)requestWakeLock();
     updateKeepaliveBadge();
-  }else{
-    // 页面隐藏时释放 Wake Lock（系统会自动处理，但主动释放更干净）
   }
 });
 // 页面卸载前保存（双重保险：beforeunload + pagehide）
+let _flushedExit=false;
 function _flushSaveOnExit(){
+  // 【修复】去掉原来的 300ms 主线程忙等（会在切后台/卸载时直接冻结界面），
+  // 改为一次性触发保存，让浏览器/IndexedDB 异步事务自行落盘。
+  if(_flushedExit)return;
+  _flushedExit=true;
   try{
-    // 先刷新表情包防抖保存，确保最新数据被保存
     if(typeof stickerFlushSave==="function")stickerFlushSave();
-    // 同步写入 localStorage（快速缓存）
     save();
-    // 给 IndexedDB 事务留出时间完成写入（页面卸载时浏览器可能来不及完成异步事务）
-    // 这里短暂阻塞主线程，让浏览器有机会将已发起的 IndexedDB 事务刷入磁盘
-    try{
-      const waitUntil=Date.now()+300;
-      while(Date.now()<waitUntil){/* 短暂等待，给 IndexedDB 事务完成时间 */}
-    }catch(e){}
   }catch(e){console.warn("[exit] 保存失败:",e);}
+  setTimeout(function(){_flushedExit=false;},1000);
 }
 window.addEventListener("beforeunload",_flushSaveOnExit);
 window.addEventListener("pagehide",_flushSaveOnExit);
 // 页面可见性变化时也保存（移动端切后台容易被杀死）
 document.addEventListener("visibilitychange",()=>{
-  if(document.hidden){try{if(typeof stickerFlushSave==="function")stickerFlushSave();save();}catch(e){}}
+  if(document.hidden){try{if(typeof stickerFlushSave==="function")stickerFlushSave();saveNow();}catch(e){}}
 });
 /* ===== 通知与保活设置表单 ===== */
 
@@ -13009,6 +13316,7 @@ function loadNotifyForm(){
   $("notifySound").value=s.notifySound||"ding";
   $("keepAliveEnabled").checked=!!s.keepAliveEnabled;
   $("wakeLockEnabled").checked=!!s.wakeLockEnabled;
+  if(typeof _ringtoneUpdateUI==="function"){try{_ringtoneUpdateUI();}catch(e){}}
   updatePermBanner();
   updateKeepaliveBadge();
 }
@@ -13148,6 +13456,8 @@ $("saveNotifySettings").addEventListener("click",()=>{
   s.notifyEnabled=$("notifyEnabled").checked;
   s.sysNotifyEnabled=$("sysNotifyEnabled").checked;
   s.notifySound=$("notifySound").value;
+  if(!s.ringtoneData){const _ru=$("ringtoneUrl");if(_ru)s.ringtoneUrl=(_ru.value||"").trim();}
+  if(typeof _ringtoneUpdateUI==="function"){try{_ringtoneUpdateUI();}catch(e){}}
   s.keepAliveEnabled=$("keepAliveEnabled").checked;
   s.wakeLockEnabled=$("wakeLockEnabled").checked;
   save();
@@ -13173,10 +13483,62 @@ document.addEventListener("click",e=>{
       if(!isOpen){
         panel.classList.add("show");
         item.classList.add("expanded");
+        if(key==="cardStats"&&typeof renderCardStats==="function"){try{renderCardStats();}catch(e){console.error(e);}}
+        if(key==="notify"&&typeof _ringtoneUpdateUI==="function"){try{_ringtoneUpdateUI();}catch(e){console.error(e);}}
       }
     }
   }
 });
+/* ===== 字卡使用统计：渲染 ===== */
+function renderCardStats(){
+  var host=document.getElementById("cardStatsList");
+  if(!host)return;
+  function _es(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
+  function fmtAgo(ts){
+    if(!ts)return "从未使用";
+    var d=Date.now()-ts;if(d<0)d=0;
+    var min=Math.floor(d/60000);
+    if(min<1)return "刚刚";
+    if(min<60)return min+" 分钟前";
+    var hr=Math.floor(min/60);
+    if(hr<24)return hr+" 小时前";
+    var day=Math.floor(hr/24);
+    if(day<30)return day+" 天前";
+    var mon=Math.floor(day/30);
+    if(mon<12)return mon+" 个月前";
+    return Math.floor(mon/12)+" 年前";
+  }
+  var chats=(typeof state!=="undefined"&&state&&Array.isArray(state.chats))?state.chats:[];
+  if(!chats.length){host.innerHTML='<div class="field-help">暂无角色</div>';return;}
+  var html="";
+  chats.forEach(function(chat){
+    var lib=normalizeLib(chat.replyLibrary);
+    if(!lib.length)return;
+    var msgs=Array.isArray(chat.messages)?chat.messages:[];
+    var totalMsgs=msgs.length;
+    var mineMsgs=0,otherMsgs=0;
+    msgs.forEach(function(m){if(!m)return;if(m.from==="mine")mineMsgs++;else if(m.from==="other")otherMsgs++;});
+    var used=lib.map(function(c){return {text:c.text,useCount:Number(c.useCount)||0,lastUsedAt:Number(c.lastUsedAt)||0};});
+    var totalUse=used.reduce(function(a,c){return a+c.useCount;},0);
+    var topByCount=used.filter(function(c){return c.useCount>0;}).sort(function(a,b){return (b.useCount-a.useCount)||(b.lastUsedAt-a.lastUsedAt);}).slice(0,5);
+    var topByIdle=used.slice().sort(function(a,b){return (a.lastUsedAt||0)-(b.lastUsedAt||0);}).slice(0,5);
+    var sec=function(title,items,fmt){
+      var body=items.length?items.map(function(it,i){
+        return '<div class="card-stat-item"><span class="card-stat-rank">'+(i+1)+'</span><span class="card-stat-text">'+_es(it.text)+'</span><span class="card-stat-meta">'+_es(fmt(it))+'</span></div>';
+      }).join(""):'<div class="field-help">暂无数据</div>';
+      return '<div class="card-stat-sec"><div class="card-stat-title">'+title+'</div>'+body+'</div>';
+    };
+    html+='<div class="card-stat-block">'+
+      '<div class="card-stat-head"><span class="card-stat-name">'+_es(chat.name)+'</span><span class="card-stat-badge">'+totalMsgs+' 句 · 字卡使用 '+totalUse+' 次</span></div>'+
+      '<div class="card-stat-sub">双方消息：我 '+mineMsgs+' 句 · '+_es(chat.name)+' '+otherMsgs+' 句（共 '+totalMsgs+' 句）</div>'+
+      '<div class="card-stat-grid">'+
+        sec("使用最多的字卡 TOP5",topByCount,function(it){return "用了 "+it.useCount+" 次";})+
+        sec("最久未使用的字卡 TOP5",topByIdle,function(it){return fmtAgo(it.lastUsedAt);})+
+      '</div>'+
+    '</div>';
+  });
+  host.innerHTML=html||'<div class="field-help">暂无字卡数据</div>';
+}
 
 /* ===== 导出/导入备份（全量版：包含所有 localStorage + IndexedDB 音乐数据） ===== */
 // 将 Blob 转为 base64 dataURL
@@ -13539,6 +13901,74 @@ function _idbMusicBlob(db,key){
   });
 }
 /* 生成器：逐段产出备份 JSON 片段；音乐逐条读取并转码，每 5 条让出主线程 */
+/* 【修复·导出内存】把任意值切成小段 JSON 字符串逐段 yield，避免一次性 JSON.stringify
+   生成几百 MB 的巨型字符串（这是大容量导出直接卡退/OOM 的主因）。
+   关键点：对字符串内部的 \uXXXX 转义按固定长度切分，绝不切断转义序列。 */
+function* _jsonChunks(val){
+  if(val===null){yield "null";return;}
+  const t=typeof val;
+  if(t==="number"){yield isFinite(val)?String(val):"null";return;}
+  if(t==="boolean"){yield val?"true":"false";return;}
+  if(t==="undefined"){yield "null";return;}
+  if(t==="string"){yield* _jsonStrChunks(val);return;}
+  if(Array.isArray(val)){
+    yield "[";
+    for(let i=0;i<val.length;i++){ if(i)yield ","; yield* _jsonChunks(val[i]); }
+    yield "]";
+    return;
+  }
+  if(t==="object"){
+    // 尽力模拟 JSON.stringify 对 Date 的处理（Date 会被转成 ISO 字符串）
+    if(typeof Date!=="undefined" && val instanceof Date){ yield* _jsonStrChunks(val.toJSON?val.toJSON():val.toString()); return; }
+    yield "{";
+    let first=true;
+    for(const k in val){
+      if(!Object.prototype.hasOwnProperty.call(val,k))continue;
+      const v=val[k];
+      const vt=typeof v;
+      if(vt==="undefined"||vt==="function"||vt==="symbol")continue;
+      if(!first)yield ",";
+      first=false;
+      yield* _jsonStrChunks(k);
+      yield ":";
+      yield* _jsonChunks(v);
+    }
+    yield "}";
+    return;
+  }
+  yield "null";
+}
+function* _jsonStrChunks(str){
+  yield '"';
+  const STEP=32768;
+  let buf="";
+  for(let i=0;i<str.length;i++){
+    const c=str[i];
+    const code=str.charCodeAt(i);
+    if(c==='\\'){buf+='\\\\';}
+    else if(c==='"'){buf+='\\"';}
+    else if(c==='\n'){buf+='\\n';}
+    else if(c==='\r'){buf+='\\r';}
+    else if(c==='\t'){buf+='\\t';}
+    else if(c==='\b'){buf+='\\b';}
+    else if(c==='\f'){buf+='\\f';}
+    else if(code<0x20||code===0x2028||code===0x2029){buf+='\\u'+('0000'+code.toString(16)).slice(-4);}
+    else if(code>=0xD800&&code<=0xDBFF){
+      // 高代理：若后随低代理则拼成一对直接输出，否则用转义输出，避免产生非法孤代理
+      const nx=str.charCodeAt(i+1);
+      if(nx>=0xDC00&&nx<=0xDFFF){buf+=c+str[i+1];i++;}
+      else{buf+='\\u'+('0000'+code.toString(16)).slice(-4);}
+    }
+    else if(code>=0xDC00&&code<=0xDFFF){buf+='\\u'+('0000'+code.toString(16)).slice(-4);}
+    else{
+      // 与 _backupChunks 保持一致：中文等 BMP 字符直接输出（不转义为 \u），可显著减小体积
+      buf+=c;
+    }
+    if(buf.length>=STEP){yield buf;buf="";}
+  }
+  yield buf+'"';
+}
+
 async function* _backupChunks(onProgress){
   const mainKey=typeof KEY!=="undefined"?KEY:"sim-chat-v5";
   const lsData={};
@@ -13549,7 +13979,7 @@ async function* _backupChunks(onProgress){
   }
   yield '{"version":2,"exportTime":'+JSON.stringify(new Date().toISOString())+',"app":"溯佳聊天模拟器",';
   yield '"state":';
-  yield JSON.stringify(state);
+  { let _emitted=0; for(const _p of _jsonChunks(state)){ yield _p; if((_emitted++%16)===0)await _yieldUI(); } }
   await _yieldUI();
   yield ',"localStorage":';
   yield JSON.stringify(lsData);
@@ -13592,7 +14022,9 @@ function _streamInto(base,sub,fname,chunksFn){
             let settled=false;
             const ok=()=>{ if(!settled){settled=true;res();} };
             const bad=e=>{ if(!settled){settled=true;rej(e||new Error("write-error"));} };
-            w.onwrite=ok; w.onwriteend=ok; w.onerror=bad; w.onabort=bad;
+            // 【修复】必须以 onwriteend 为准：大文件分块写入时 onwrite 可能在数据真正落盘前就触发，
+            // 旧逻辑据此提前 resolve，导致后续块/收尾写入被跳过，最终文件尾部被截断。
+            w.onwriteend=ok; w.onerror=bad; w.onabort=bad;
             try{ w.write(blob); }catch(e){ bad(e); }
           });
           try{
@@ -13710,14 +14142,25 @@ async function _runExport(){
     if(!savedTo){
       // 2) 仅在原生流式完全不可用（纯网页环境）时回退：拼接完整字符串并下载
       if(st)st.textContent="正在打包数据…";
-      const parts=[]; let c=0;
-      for await(const chunk of _backupChunks(onProg)){ parts.push(chunk); if((c++%20)===0)await _yieldUI(); }
-      const data=parts.join("");
+      // 【修复·导出内存】回退路径同样用流式 + 分块 Blob，避免 parts.join("") / 单个大 Blob 造成内存翻倍
+      if(st)st.textContent="正在打包数据…";
+      await _yieldUI();
+      const _blobParts=[]; let c=0;
+      for await(const chunk of _backupChunks(onProg)){
+        _blobParts.push(chunk); c++;
+        if((c%20)===0){ try{ await _yieldUI(); }catch(e){} }
+        if(_blobParts.length>=64){ /* 该回退最终仍需整体 Blob 下载，这里只控制让出频率 */ }
+      }
       if(st)st.textContent="正在保存…";
       await _yieldUI();
-      try{ savedTo=await saveTextToPhoneStorage(fname,data); }catch(e){ console.warn("[导出] 保存失败:",e); }
+      const blob=new Blob(_blobParts,{type:"application/json"});
+      // 优先尝试用原生桥把 Blob 分块写入手机公共目录
+      try{
+        if(typeof NativeBridge!=="undefined"&&NativeBridge&&typeof NativeBridge.saveStreamBlob==="function"){
+          savedTo=await NativeBridge.saveStreamBlob(fname,blob);
+        }
+      }catch(e){ console.warn("[导出] 原生分块保存失败，改走浏览器下载:",e); }
       if(!savedTo){
-        const blob=new Blob([data],{type:"application/json"});
         const url=URL.createObjectURL(blob);
         const a=document.createElement("a");a.href=url;a.download=fname;
         document.body.appendChild(a);a.click();document.body.removeChild(a);
@@ -13736,13 +14179,106 @@ async function _runExport(){
   }
 }
 async function exportData(){ return _runExport(); }
+/* 【修复】大文件备份在“尾部被截断”时，JSON 无法整体解析（典型报错：
+   Expected ',' or '}' after property value ... at position <接近文件末尾>）。
+   本函数尝试把“已完整写入”的部分恢复出来，尽量不丢数据：
+   1) 备份末段固定为 ..."indexedDB":{"simChatMusicDB_v3":{"media":{ "k":"v", ... }}}}，
+      截断多发生在 media 段或结尾的 }}}} 上。这里在 media 内定位“最后一个完整键值对”的结束位置，
+      丢掉不完整的尾条目后补全剩余括号。
+   2) 若上述不适用，则通用回退：截到最后一个完整的 } / ]，再去掉未闭合字符串并补全括号。
+   成功返回修复后的字符串，失败返回 null。 */
+function _salvageBackupJSON(src){
+  if(typeof src!=="string"||!src.length)return null;
+  // —— 方案 1：在 media 段内定位最后一个完整条目 ——
+  try{
+    const marker="\"indexedDB\":{\"simChatMusicDB_v3\":{\"media\":{";
+    const mi=src.lastIndexOf(marker);
+    if(mi>=0){
+      let i=mi+marker.length;
+      let st="key"; // key -> colon -> value
+      let inStr=false, esc=false, lastGood=i;
+      for(;i<src.length;i++){
+        const c=src[i];
+        if(inStr){
+          if(esc)esc=false;
+          else if(c==="\\")esc=true;
+          else if(c==='"'){
+            inStr=false;
+            if(st==="value"){ lastGood=i+1; st="key"; }
+            else if(st==="key"){ st="colon"; }
+          }
+          continue;
+        }
+        if(c==='"'){ inStr=true; continue; }
+        if(st==="colon"&&c===":"){ st="value"; }
+      }
+      let head=src.slice(0,lastGood).replace(/[\s,]+$/,"");
+      // 重新扫描 head，补全所有未闭合括号
+      let stack=[], inS=false, es=false;
+      for(let q=0;q<head.length;q++){
+        const ch=head[q];
+        if(inS){ if(es)es=false; else if(ch==="\\")es=true; else if(ch==='"')inS=false; continue; }
+        if(ch==='"')inS=true;
+        else if(ch==="{")stack.push("}");
+        else if(ch==="[")stack.push("]");
+        else if(ch==="}"||ch==="]"){ if(stack.length&&stack[stack.length-1]===ch)stack.pop(); }
+      }
+      let out=head;
+      for(let z=stack.length-1;z>=0;z--)out+=stack[z];
+      JSON.parse(out);
+      return out;
+    }
+  }catch(e){}
+  // —— 方案 2：通用回退 ——
+  try{
+    let head=src.replace(/[\s,]+$/,"");
+    let cut=Math.max(head.lastIndexOf("}"),head.lastIndexOf("]"));
+    if(cut>0){
+      let body=head.slice(0,cut+1);
+      let stack=[], inS=false, es=false;
+      for(let q=0;q<body.length;q++){
+        const ch=body[q];
+        if(inS){ if(es)es=false; else if(ch==="\\")es=true; else if(ch==='"')inS=false; continue; }
+        if(ch==='"')inS=true;
+        else if(ch==="{")stack.push("}");
+        else if(ch==="[")stack.push("]");
+        else if(ch==="}"||ch==="]"){ if(stack.length&&stack[stack.length-1]===ch)stack.pop(); }
+      }
+      let out=body;
+      for(let z=stack.length-1;z>=0;z--)out+=stack[z];
+      JSON.parse(out);
+      return out;
+    }
+  }catch(e){}
+  return null;
+}
 async function importData(file){
   const reader=new FileReader();
   reader.onload=async e=>{
     try{
+      let _txt=e.target.result;
+      // 【修复】若用 ArrayBuffer 读取，先解码为 UTF-8 文本
+      if(_txt&&typeof _txt!=="string"){ try{ _txt=new TextDecoder("utf-8").decode(_txt); }catch(er){ _txt=String(_txt); } }
       let raw;
-      try{ raw=JSON.parse(e.target.result); }
-      catch(pe){ console.error("备份JSON解析失败:",pe); const sz=(e.target.result?e.target.result.length:0); toast("备份文件已损坏或不完整（"+((pe&&pe.message)||pe)+"，文件约"+Math.round(sz/1048576)+"MB），请用最新版本重新导出后再导入"); return; }
+      try{ raw=JSON.parse(_txt); }
+      catch(pe){
+        console.error("备份JSON解析失败:",pe);
+        // 【修复】大文件尾部被截断时，尝试自动修复后再导入
+        let fixed=null;
+        try{ fixed=_salvageBackupJSON(_txt); }catch(e2){ fixed=null; }
+        if(fixed!=null){
+          try{
+            raw=JSON.parse(fixed);
+            console.warn("备份文件尾部不完整，已自动修复后导入");
+            toast("检测到备份文件尾部不完整，已自动修复并导入（尽可能保留数据）");
+          }catch(pe2){ fixed=null; }
+        }
+        if(fixed==null){
+          const sz=(_txt?_txt.length:0);
+          toast("备份文件已损坏或不完整（"+((pe&&pe.message)||pe)+"，文件约"+Math.round(sz/1048576)+"MB），请用最新版本重新导出后再导入");
+          return;
+        }
+      }
       // 判断格式：新版 {version:2,state:{...},localStorage:{...},indexedDB:{...}} 或旧版（直接是state）
       let isNewFormat=raw&&raw.version===2&&raw.state&&typeof raw.state==="object";
       let data=isNewFormat?raw.state:raw;
@@ -13855,6 +14391,8 @@ async function importData(file){
       toast("导入失败："+err.message);
     }
   };
+  // 【修复】大文件优先用 ArrayBuffer + TextDecoder 读取，规避部分 WebView 的 readAsText 大文件截断
+  try{ if(typeof reader.readAsArrayBuffer==="function"){ reader.readAsArrayBuffer(file); return; } }catch(e){}
   reader.readAsText(file);
 }
 $("exportDataBtn").addEventListener("click",exportData);
@@ -13971,6 +14509,7 @@ function sendLetter(){
   if(!text||!currentLetterChatId){toast("请输入信件内容");return;}
   const chat=getChat(currentLetterChatId);if(!chat)return;
   chat.letters.push({from:"mine",text,time:now(),read:true,kind:"sent"});
+  try{ if(window.inspirationMaybePick) window.inspirationMaybePick(chat,text,"信件"); }catch(_ie){}
   if(!save()){console.warn("[信件] localStorage 缓存已满，完整数据已存入 IndexedDB");}
   $("letterComposeInput").value="";
   renderLetterList();
@@ -14177,6 +14716,7 @@ $("letterReplySendBtn").addEventListener("click",()=>{
   if(!text||!currentLetterChatId){toast("请输入回信内容");return;}
   const chat=getChat(currentLetterChatId);if(!chat)return;
   chat.letters.push({from:"mine",text,time:now(),read:true,kind:"sent"});
+  try{ if(window.inspirationMaybePick) window.inspirationMaybePick(chat,text,"信件"); }catch(_ie){}
   if(!save()){console.warn("[信件] localStorage 缓存已满，完整数据已存入 IndexedDB");}
   $("letterReplyInput").value="";
   toast("回信已发送");
@@ -14478,14 +15018,34 @@ function rejectIncomingCall(isMissed){
   if(typeof toast==="function")toast(isMissed?("未接来电："+chat.name):"已拒接");
 }
 
-// 简单铃声（Web Audio API生成双音铃声）
-function playRingTone(){
+// ===== 自定义来电铃声（内置合成 + 本地文件 + 自定义URL） =====
+const RINGTONE_PRESETS={
+  classic:{name:"经典双音",freq:[620,520],beat:500,type:"sine",vol:0.15},
+  cheerful:{name:"轻快",freq:[880,1046],beat:340,type:"triangle",vol:0.13},
+  deep:{name:"低沉",freq:[300,240],beat:700,type:"sine",vol:0.16},
+  chime:{name:"风铃",freq:[1046,1318],beat:420,type:"sine",vol:0.12}
+};
+function ringtoneState(){
+  const s=getNotifySettings();
+  if(!s.ringtoneMode)s.ringtoneMode="builtin";
+  if(s.ringtonePreset===undefined)s.ringtonePreset="classic";
+  if(typeof s.ringtoneData!=="string")s.ringtoneData="";
+  if(typeof s.ringtoneUrl!=="string")s.ringtoneUrl="";
+  if(typeof s.ringtoneName!=="string")s.ringtoneName="";
+  return s;
+}
+function _ringtoneCustomSrc(){
+  const s=ringtoneState();
+  return s.ringtoneData||s.ringtoneUrl||"";
+}
+function playRingToneBuiltin(presetKey){
   try{
     const AudioCtx=window.AudioContext||window.webkitAudioContext;
     if(!AudioCtx)return;
     if(!incomingCallState.ringAudio)incomingCallState.ringAudio=new AudioCtx();
     const ctx=incomingCallState.ringAudio;
     if(ctx.state==="suspended")ctx.resume();
+    const preset=RINGTONE_PRESETS[presetKey]||RINGTONE_PRESETS.classic;
     let beat=0;
     const playBeat=()=>{
       if(!incomingCallState.active)return;
@@ -14493,18 +15053,39 @@ function playRingTone(){
       const gain=ctx.createGain();
       osc.connect(gain);
       gain.connect(ctx.destination);
-      osc.type="sine";
-      // 交替两个音高模拟铃声
-      osc.frequency.value=beat%2===0?620:520;
+      osc.type=preset.type||"sine";
+      osc.frequency.value=preset.freq[beat%preset.freq.length];
       gain.gain.setValueAtTime(0,ctx.currentTime);
-      gain.gain.linearRampToValueAtTime(0.15,ctx.currentTime+0.02);
+      gain.gain.linearRampToValueAtTime(preset.vol||0.15,ctx.currentTime+0.02);
       gain.gain.linearRampToValueAtTime(0,ctx.currentTime+0.3);
       osc.start(ctx.currentTime);
       osc.stop(ctx.currentTime+0.35);
       beat++;
     };
     playBeat();
-    incomingCallState.ringInterval=setInterval(playBeat,500);
+    incomingCallState.ringInterval=setInterval(playBeat,preset.beat||500);
+  }catch(e){console.warn("铃声播放失败:",e);}
+}
+function playRingTone(){
+  try{
+    stopRingtonePreview();
+    const custom=_ringtoneCustomSrc();
+    if(custom){
+      try{
+        if(!incomingCallState.customRing||incomingCallState.customRingSrc!==custom){
+          const au=new Audio(custom);
+          au.loop=true;
+          incomingCallState.customRing=au;
+          incomingCallState.customRingSrc=custom;
+        }
+        const au=incomingCallState.customRing;
+        au.currentTime=0;
+        const p=au.play();
+        if(p&&p.catch)p.catch(function(){try{playRingToneBuiltin(ringtoneState().ringtonePreset);}catch(e){}});
+        return;
+      }catch(e){/* 自定义失败则落回内置 */}
+    }
+    playRingToneBuiltin(ringtoneState().ringtonePreset);
   }catch(e){console.warn("铃声播放失败:",e);}
 }
 
@@ -14513,7 +15094,132 @@ function stopRingTone(){
     clearInterval(incomingCallState.ringInterval);
     incomingCallState.ringInterval=null;
   }
+  try{
+    if(incomingCallState.customRing){
+      incomingCallState.customRing.pause();
+      try{incomingCallState.customRing.currentTime=0;}catch(e){}
+    }
+  }catch(e){}
 }
+// 试听（独立通道，不进入来电状态）
+let _rtPreviewAudio=null,_rtPreviewInterval=null,_rtPreviewTimer=null;
+function stopRingtonePreview(){
+  try{
+    if(_rtPreviewInterval){clearInterval(_rtPreviewInterval);_rtPreviewInterval=null;}
+    if(_rtPreviewTimer){clearTimeout(_rtPreviewTimer);_rtPreviewTimer=null;}
+    if(_rtPreviewAudio){try{_rtPreviewAudio.pause();_rtPreviewAudio.currentTime=0;}catch(e){}_rtPreviewAudio=null;}
+  }catch(e){}
+}
+function previewRingtone(){
+  stopRingtonePreview();
+  const custom=_ringtoneCustomSrc();
+  if(custom){
+    try{
+      _rtPreviewAudio=new Audio(custom);
+      _rtPreviewAudio.loop=true;
+      const p=_rtPreviewAudio.play();
+      if(p&&p.catch)p.catch(function(){toast("试听失败，请检查文件或URL");stopRingtonePreview();});
+      _rtPreviewTimer=setTimeout(stopRingtonePreview,5000);
+      toast("试听中…（5秒）");
+      return;
+    }catch(e){toast("试听失败");return;}
+  }
+  try{
+    const AudioCtx=window.AudioContext||window.webkitAudioContext;
+    if(!AudioCtx){toast("当前环境不支持试听");return;}
+    if(!incomingCallState.ringAudio)incomingCallState.ringAudio=new AudioCtx();
+    const ctx=incomingCallState.ringAudio;
+    if(ctx.state==="suspended")ctx.resume();
+    const preset=RINGTONE_PRESETS[ringtoneState().ringtonePreset]||RINGTONE_PRESETS.classic;
+    let beat=0;
+    const playBeat=()=>{
+      const osc=ctx.createOscillator();
+      const gain=ctx.createGain();
+      osc.connect(gain);gain.connect(ctx.destination);
+      osc.type=preset.type||"sine";
+      osc.frequency.value=preset.freq[beat%preset.freq.length];
+      gain.gain.setValueAtTime(0,ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(preset.vol||0.15,ctx.currentTime+0.02);
+      gain.gain.linearRampToValueAtTime(0,ctx.currentTime+0.3);
+      osc.start(ctx.currentTime);osc.stop(ctx.currentTime+0.35);beat++;
+    };
+    playBeat();
+    _rtPreviewInterval=setInterval(playBeat,preset.beat||500);
+    _rtPreviewTimer=setTimeout(stopRingtonePreview,5000);
+    toast("试听中…（5秒）");
+  }catch(e){console.warn("试听失败:",e);}
+}
+function _ringtoneUpdateUI(){
+  try{
+    const s=ringtoneState();
+    const statusEl=document.getElementById("ringtoneStatus");
+    if(statusEl){
+      const custom=_ringtoneCustomSrc();
+      if(custom){statusEl.textContent=s.ringtoneName||s.ringtoneUrl||"已选本地文件";}
+      else{
+        const p=s.ringtonePreset||"classic";
+        statusEl.textContent=(p==="classic")?"未设置（用内置铃声）":("内置 · "+((RINGTONE_PRESETS[p]||{}).name||p));
+      }
+    }
+    const urlEl=document.getElementById("ringtoneUrl");
+    if(urlEl&&document.activeElement!==urlEl)urlEl.value=s.ringtoneUrl||"";
+    const list=document.getElementById("ringtonePresetList");
+    if(list)list.querySelectorAll(".ringtone-preset-item").forEach(function(b){b.classList.toggle("active",(s.ringtonePreset||"classic")===b.dataset.preset);});
+  }catch(e){}
+}
+(function(){
+  const chooseBtn=document.getElementById("ringtoneChooseBtn");
+  if(chooseBtn)chooseBtn.addEventListener("click",function(){
+    const list=document.getElementById("ringtonePresetList");
+    if(list)list.classList.toggle("show");
+  });
+  document.querySelectorAll("#ringtonePresetList .ringtone-preset-item").forEach(function(btn){
+    btn.addEventListener("click",function(){
+      const s=ringtoneState();
+      s.ringtonePreset=btn.dataset.preset||"classic";
+      s.ringtoneData="";s.ringtoneUrl="";s.ringtoneName="";
+      save();_ringtoneUpdateUI();
+      toast("已选择内置铃声："+btn.textContent);
+    });
+  });
+  const fileBtn=document.getElementById("ringtoneFileBtn");
+  const fileInput=document.getElementById("ringtoneFile");
+  if(fileBtn&&fileInput)fileBtn.addEventListener("click",function(){fileInput.click();});
+  if(fileInput)fileInput.addEventListener("change",function(e){
+    const f=e.target.files&&e.target.files[0];if(!f)return;
+    if(f.size>8*1024*1024)toast("音频较大（建议8MB以内），可能影响保存");
+    const reader=new FileReader();
+    reader.onload=function(ev){
+      try{
+        const s=ringtoneState();
+        s.ringtoneData=ev.target.result||"";s.ringtoneUrl="";s.ringtoneName=f.name;
+        save();_ringtoneUpdateUI();
+        toast("已选择铃声："+f.name);
+      }catch(err){toast("读取音频失败");}
+    };
+    reader.onerror=function(){toast("读取音频失败");};
+    reader.readAsDataURL(f);
+    try{e.target.value="";}catch(err){}
+  });
+  const urlApply=document.getElementById("ringtoneUrlApply");
+  if(urlApply)urlApply.addEventListener("click",function(){
+    const urlEl=document.getElementById("ringtoneUrl");
+    const v=urlEl?(urlEl.value||"").trim():"";
+    const s=ringtoneState();
+    if(!v){s.ringtoneUrl="";s.ringtoneName="";save();_ringtoneUpdateUI();toast("已清空自定义URL");return;}
+    s.ringtoneUrl=v;s.ringtoneData="";s.ringtoneName="自定义URL";
+    save();_ringtoneUpdateUI();toast("已应用自定义URL");
+  });
+  const previewBtn=document.getElementById("ringtonePreviewBtn");
+  if(previewBtn)previewBtn.addEventListener("click",previewRingtone);
+  const resetBtn=document.getElementById("ringtoneResetBtn");
+  if(resetBtn)resetBtn.addEventListener("click",function(){
+    const s=ringtoneState();
+    s.ringtoneData="";s.ringtoneUrl="";s.ringtoneName="";s.ringtonePreset="classic";
+    stopRingtonePreview();
+    save();_ringtoneUpdateUI();toast("已恢复默认铃声");
+  });
+})();
 
 
 function openCallHub(){
@@ -14610,7 +15316,7 @@ function roleSpeak(){
   if(!chat)return;
   const library=libTexts(chat.replyLibrary);
   if(!library.length)return;
-  const text=library[Math.floor(Math.random()*library.length)];
+  const text=library[Math.floor(Math.random()*library.length)];recordCardUse(library.__srcLib,text);
   addCallBubble(text,"role");
 }
 function addCallBubble(text,type){
@@ -16441,7 +17147,7 @@ async function runSlim(){
       }
     }catch(e){console.error("Music bg slim error:",e);}
     // 首次保存
-    let saveOk=save();
+    let saveOk=saveNow();
     saveCustomMoodEmojis();
     // 如果首次保存失败（空间仍不足），自动执行二次深度压缩
     if(!saveOk){
@@ -16471,7 +17177,7 @@ async function runSlim(){
       if(Array.isArray(moodCustomEmojis))
         for(const e of moodCustomEmojis)
           {if(e&&e.dataUrl)e.dataUrl=await compressDataUrl(e.dataUrl,100,0.55);}
-      saveOk=save();
+      saveOk=saveNow();
       saveCustomMoodEmojis();
     }
     // 计算压缩后大小与真实释放量（基于真实字节，而非布尔值）
@@ -17238,7 +17944,7 @@ function startBubbleTimer(){
       if(role && role.replyLibrary && role.replyLibrary.length > 0 && Math.random() < 0.3){
           const allCards = role.replyLibrary.map(c=>typeof c==="string"?c:(c&&c.text)?c.text:"").filter(Boolean);
           if(allCards.length > 0){
-             try{showRoleBubble(allCards[Math.floor(Math.random()*allCards.length)]);}catch(e){console.error(e);}
+             try{const _ct=allCards[Math.floor(Math.random()*allCards.length)];recordCardUse(role.replyLibrary,_ct);showRoleBubble(_ct);}catch(e){console.error(e);}
              return;
           }
       }
@@ -17451,7 +18157,7 @@ function sendMusicComment(){
       if(role&&role.replyLibrary){
         const allCards=role.replyLibrary.map(c=>typeof c==="string"?c:(c&&c.text)?c.text:"").filter(Boolean);
         if(allCards.length>0&&Math.random()<0.5){
-          const reply=allCards[Math.floor(Math.random()*allCards.length)];
+          const reply=allCards[Math.floor(Math.random()*allCards.length)];recordCardUse(role.replyLibrary,reply);
           musicState.comments[songId].push({
             from:"role",
             name:role.name,
@@ -19562,7 +20268,7 @@ window.initHomeScreen=initHomeScreen;
     window.__musicBubbleFixed=setInterval(()=>{
       if(!musicState.isPlaying||!musicState.invitedRole)return;
       const settings=musicState.settings||{}, role=state.chats.find(c=>c.id===musicState.invitedRole.id);let shown=false;
-      if(settings.cardReply&&role?.replyLibrary?.length&&Math.random()<.3){const a=role.replyLibrary.map(x=>typeof x==='string'?x:x?.text||'').filter(Boolean);if(a.length){showRoleBubble(a[Math.floor(Math.random()*a.length)]);shown=true;}}
+      if(settings.cardReply&&role?.replyLibrary?.length&&Math.random()<.3){const a=role.replyLibrary.map(x=>typeof x==='string'?x:x?.text||'').filter(Boolean);if(a.length){const _ct=a[Math.floor(Math.random()*a.length)];recordCardUse(role.replyLibrary,_ct);showRoleBubble(_ct);shown=true;}}
       if(settings.randomComment&&settings.randomCards?.length&&Math.random()<.25){const t=settings.randomCards[Math.floor(Math.random()*settings.randomCards.length)];setTimeout(()=>showRoleBubble(t),shown?1600:0);}
       if(settings.allowControl&&Math.random()<.12)setTimeout(()=>{const a=['next','pause','mode'][Math.floor(Math.random()*3)];if(a==='next'){showRoleBubble('我来换一首');nextFixed();}else if(a==='mode'){modeFixed();showRoleBubble('我换了播放模式');}else if(musicState.isPlaying){musicAudio?.pause();musicState.isPlaying=false;showRoleBubble('先暂停一下');window.updateMusicPlayerUI?.();}else{const p=musicAudio?.play();if(p?.catch)p.catch(()=>{});musicState.isPlaying=true;showRoleBubble('继续听吧');window.updateMusicPlayerUI?.();}},900);
     },8000);
@@ -22781,5 +23487,179 @@ window.addRoleBalance=addRoleBalance;
   </div>
 </div>
 
+
+<style>
+.inspire-toggle-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:2px}
+.inspire-toggle-label{display:flex;flex-direction:column}
+.inspire-toggle-name{font-size:15px;font-weight:600}
+.inspire-toggle-state{font-size:12px;color:var(--muted,#8a8f99);margin-top:2px}
+.inspire-switch{width:48px;height:28px;border-radius:999px;border:0;background:#c7c7cc;position:relative;cursor:pointer;transition:background .2s;flex:0 0 auto}
+.inspire-switch::after{content:"";position:absolute;top:2px;left:2px;width:24px;height:24px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.inspire-switch[aria-checked="true"]::after{left:22px}
+.inspire-list{margin-top:8px}
+.inspire-char{background:#fafbfc;border:1px solid var(--border,#eceef1);border-radius:12px;padding:10px 12px;margin-bottom:10px}
+.inspire-char-head{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.inspire-char-name{font-size:14px;font-weight:600;flex:1;min-width:0}
+.inspire-char-count{font-size:12px;color:var(--muted,#8a8f99)}
+.inspire-del-all{border:0;background:transparent;color:#ff3b30;font-size:12px;cursor:pointer;padding:2px 6px}
+.inspire-empty{font-size:12px;color:var(--muted,#8a8f99);padding:2px}
+.inspire-items{display:flex;flex-direction:column;gap:6px}
+.inspire-item{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--border,#eceef1);border-radius:9px;padding:7px 9px}
+.inspire-item-text{flex:1;min-width:0;font-size:13px;line-height:1.4;word-break:break-word}
+.inspire-del{border:0;background:transparent;color:#ff3b30;font-size:12px;cursor:pointer;flex:0 0 auto;padding:2px 6px}
+.inspire-confirm-mask{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;z-index:99999;padding:24px}
+.inspire-confirm-card{background:#fff;border-radius:16px;max-width:340px;width:100%;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+.inspire-confirm-title{font-size:17px;font-weight:700;text-align:center;padding:20px 18px 8px}
+.inspire-confirm-text{font-size:14px;line-height:1.6;color:#555;text-align:center;padding:0 18px 18px}
+.inspire-confirm-actions{display:flex;border-top:1px solid #eceef1}
+.inspire-btn-cancel,.inspire-btn-ok{flex:1;border:0;background:transparent;padding:14px 0;font-size:16px;cursor:pointer}
+.inspire-btn-cancel{color:#8a8f99;border-right:1px solid #eceef1}
+.inspire-btn-ok{color:#0a84ff;font-weight:600}
+body.dark .inspire-char{background:#1c1c1e!important}
+body.dark .inspire-item{background:#2c2c2e!important;border-color:#333!important}
+body.dark .inspire-confirm-card{background:#1c1c1e!important}
+body.dark .inspire-confirm-text{color:#c7c7cc!important}
+body.dark .inspire-confirm-actions{border-top-color:#333!important}
+body.dark .inspire-btn-cancel{border-right-color:#333!important}
+</style>
+<script>
+/* ================= 灵感拾取 ================= */
+(function(){
+  var INSPIRE_CAT="灵感拾取";
+
+  function _ie(){ try{ return (typeof state!=="undefined"&&state)||null; }catch(e){ return null; } }
+
+  function getChatById(id){
+    try{ if(typeof getChat==="function"){ var c=getChat(id); if(c) return c; } }catch(e){}
+    var st=_ie(); if(!st||!Array.isArray(st.chats)) return null;
+    for(var i=0;i<st.chats.length;i++){ if(st.chats[i]&&st.chats[i].id===id) return st.chats[i]; }
+    return null;
+  }
+
+  function inspirationMaybePick(chat, rawText, source){
+    try{
+      var st=_ie(); if(!st||!chat) return;
+      if(!st.inspirationEnabled) return;
+      var text=(rawText==null?"":String(rawText)).trim();
+      if(!text) return;
+      if(/^data:/i.test(text)) return;
+      if(/^\[(图片|语音|视频|表情|文件|位置|链接)\]/.test(text)) return;
+      if(text.length<2||text.length>80) return;
+      var prob=5;
+      prob=Math.max(0,Math.min(100,prob));
+      if(Math.random()*100>=prob) return;
+      if(!Array.isArray(chat.replyLibrary)) chat.replyLibrary=[];
+      var exist=chat.replyLibrary.some(function(it){return it&&it.text===text&&it.category===INSPIRE_CAT;});
+      if(exist) return;
+      chat.replyLibrary.push({text:text,category:INSPIRE_CAT,source:source||"",ts:Date.now()});
+      try{ if(typeof save==="function") save(); }catch(e){}
+      try{ renderInspirationPanel(); }catch(e){}
+    }catch(e){ try{console.warn("灵感拾取异常",e);}catch(_){} }
+  }
+  window.inspirationMaybePick=inspirationMaybePick;
+
+  function esc_(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];}); }
+
+  function renderInspirationPanel(){
+    var host=document.getElementById("inspireList"); if(!host) return;
+    var st=_ie(); if(!st){ host.innerHTML=""; return; }
+    var sw=document.getElementById("inspireSwitch");
+    if(sw){ sw.setAttribute("aria-checked", st.inspirationEnabled?"true":"false"); sw.style.background=st.inspirationEnabled?"#34c759":"#c7c7cc"; }
+    var stt=document.getElementById("inspireStateText");
+    if(stt) stt.textContent=st.inspirationEnabled?"已开启":"已关闭";
+    var chats=Array.isArray(st.chats)?st.chats:[];
+    var html="", total=0;
+    chats.forEach(function(c){
+      var picks=(Array.isArray(c.replyLibrary)?c.replyLibrary:[]).filter(function(it){return it&&it.category===INSPIRE_CAT;});
+      total+=picks.length;
+      html+='<div class="inspire-char"><div class="inspire-char-head"><span class="inspire-char-name">'+esc_(c.name||"未命名")+'</span><span class="inspire-char-count">'+picks.length+' 条</span>'+(picks.length?('<button class="inspire-del-all" data-clear="'+esc_(c.id)+'">清空</button>'):"")+'</div>';
+      if(!picks.length){ html+='<div class="inspire-empty">暂无拾取</div>'; }
+      else{
+        html+='<div class="inspire-items">';
+        picks.slice().reverse().forEach(function(it){
+          var idx=c.replyLibrary.indexOf(it);
+          html+='<div class="inspire-item"><div class="inspire-item-text">'+esc_(it.text)+'</div><button class="inspire-del" data-cid="'+esc_(c.id)+'" data-idx="'+idx+'">删除</button></div>';
+        });
+        html+='</div>';
+      }
+      html+='</div>';
+    });
+    if(!total){ html='<div class="inspire-empty" style="padding:14px 2px">还没有拾取到任何内容。开启后，人物会在你说过的话中随机拾取，并归入对应人物的字卡库。</div>'+html; }
+    host.innerHTML=html;
+  }
+  window.renderInspirationPanel=renderInspirationPanel;
+
+  function openInspireConfirm(onOk){
+    var ov=document.createElement("div");
+    ov.className="inspire-confirm-mask";
+    ov.innerHTML='<div class="inspire-confirm-card">'
+      +'<div class="inspire-confirm-title">开启灵感拾取？</div>'
+      +'<div class="inspire-confirm-text">开启后，人物可能会拾取你在聊天、信件和朋友圈中说过的话，并在之后的互动中使用。拾取内容会按人物保存，你可以随时查看和删除。</div>'
+      +'<div class="inspire-confirm-actions"><button class="inspire-btn-cancel">取消</button><button class="inspire-btn-ok">确认开启</button></div>'
+      +'</div>';
+    document.body.appendChild(ov);
+    function close(){ try{ document.body.removeChild(ov); }catch(e){} }
+    ov.querySelector(".inspire-btn-cancel").addEventListener("click",close);
+    ov.querySelector(".inspire-btn-ok").addEventListener("click",function(){ close(); try{ onOk(); }catch(e){} });
+    ov.addEventListener("click",function(e){ if(e.target===ov) close(); });
+  }
+
+  function setInspire(on){
+    var st=_ie(); if(!st) return;
+    st.inspirationEnabled=!!on;
+    try{ if(typeof save==="function") save(); }catch(e){}
+    renderInspirationPanel();
+    try{ if(typeof toast==="function") toast(on?"灵感拾取已开启":"灵感拾取已关闭"); }catch(e){}
+  }
+
+  function initInspiration(){
+    var st=_ie(); if(!st) return;
+    if(typeof st.inspirationEnabled!=="boolean") st.inspirationEnabled=false;
+    if(typeof st.inspirationProb!=="number"||!isFinite(st.inspirationProb)) st.inspirationProb=5;
+    var sw=document.getElementById("inspireSwitch");
+    if(sw&&!sw._bound){
+      sw._bound=true;
+      sw.addEventListener("click",function(){
+        var cur=_ie()?_ie().inspirationEnabled:false;
+        if(cur){ setInspire(false); }
+        else{ openInspireConfirm(function(){ setInspire(true); }); }
+      });
+    }
+    var list=document.getElementById("inspireList");
+    if(list&&!list._bound){
+      list._bound=true;
+      list.addEventListener("click",function(e){
+        var t=e.target;
+        if(t&&t.classList&&t.classList.contains("inspire-del")){
+          e.stopPropagation();
+          var cid=t.getAttribute("data-cid"), idx=parseInt(t.getAttribute("data-idx"),10);
+          var c=getChatById(cid);
+          if(c&&Array.isArray(c.replyLibrary)&&idx>=0&&idx<c.replyLibrary.length){
+            c.replyLibrary.splice(idx,1);
+            try{ if(typeof save==="function") save(); }catch(_){}
+            renderInspirationPanel();
+            try{ if(typeof toast==="function") toast("已删除该条拾取"); }catch(_){}
+          }
+        } else if(t&&t.classList&&t.classList.contains("inspire-del-all")){
+          e.stopPropagation();
+          var cid2=t.getAttribute("data-clear");
+          var c2=getChatById(cid2);
+          if(c2&&Array.isArray(c2.replyLibrary)){
+            c2.replyLibrary=c2.replyLibrary.filter(function(it){return !(it&&it.category===INSPIRE_CAT);});
+            try{ if(typeof save==="function") save(); }catch(_){}
+            renderInspirationPanel();
+            try{ if(typeof toast==="function") toast("已清空该人物的拾取"); }catch(_){}
+          }
+        }
+      });
+    }
+    renderInspirationPanel();
+  }
+  window.initInspiration=initInspiration;
+
+  if(document.readyState==="loading"){ document.addEventListener("DOMContentLoaded",initInspiration); }
+  else{ initInspiration(); }
+})();
+</script>
 </body>
 </html>
