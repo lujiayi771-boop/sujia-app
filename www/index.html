@@ -7008,24 +7008,60 @@ function idbOpen(){
 }
 let _idbWriteQueue=Promise.resolve();
 function idbSaveState(data){
-  const snapshot=JSON.stringify(data);
-  const job=()=>new Promise(async(resolve)=>{try{const db=await idbOpen();const tx=db.transaction(IDB_STORE,"readwrite");tx.objectStore(IDB_STORE).put(snapshot,"main");tx.oncomplete=()=>resolve(true);tx.onerror=()=>resolve(false);tx.onabort=()=>resolve(false);}catch(e){console.warn("IDB save failed:",e);resolve(false);}});
+  // 【修复·防数据丢失】写出前先留一份快照，写入成功后轮换到 "backup" 槽，
+  // 这样即使主槽写入中途失败/损坏，导入或恢复时仍能从 backup 槽读回上一份完整数据。
+  const cur=JSON.stringify(data);
+  const job=()=>new Promise(async(resolve)=>{
+    try{
+      const db=await idbOpen();
+      // 1) 读取旧的主数据，作为备份（旧数据可能是 Blob，也可能是历史字符串）
+      let prev=null;
+      try{ prev=await new Promise((res)=>{const t=db.transaction(IDB_STORE,"readonly");const rq=t.objectStore(IDB_STORE).get("main");rq.onsuccess=()=>res(rq.result||null);rq.onerror=()=>res(null);}); }catch(e){}
+      // 2) 写入新数据（优先 Blob，减小 IDB 内部字符串开销；失败再退回字符串）
+      const write=(val)=>new Promise((res)=>{try{const t=db.transaction(IDB_STORE,"readwrite");t.objectStore(IDB_STORE).put(val,"main");t.oncomplete=()=>res(true);t.onerror=()=>res(false);t.onabort=()=>res(false);}catch(e){res(false);}});
+      let ok=false;
+      try{ const blob=new Blob([cur],{type:"application/json"}); ok=await write(blob); }catch(e){ ok=false; }
+      if(!ok){ ok=await write(cur); }
+      // 3) 写入成功后，把上一份完整数据轮换到备份槽
+      if(ok&&prev!=null){ try{await write2(db,prev);}catch(e){} }
+      resolve(ok);
+    }catch(e){ console.warn("IDB save failed:",e); resolve(false); }
+  });
+  const write2=(db,val)=>new Promise((res)=>{try{const t=db.transaction(IDB_STORE,"readwrite");t.objectStore(IDB_STORE).put(val,"backup");t.oncomplete=()=>res(true);t.onerror=()=>res(false);t.onabort=()=>res(false);}catch(e){res(false);}});
   _idbWriteQueue=_idbWriteQueue.then(job,job); return _idbWriteQueue;
 }
 function idbWaitForWrites(){return _idbWriteQueue.catch(()=>false);}
 function idbLoadState(){
   return new Promise(async(resolve)=>{
+    const readVal=(key)=>new Promise((res)=>{
+      try{
+        idbOpen().then(db=>{
+          const tx=db.transaction(IDB_STORE,"readonly");
+          const r=tx.objectStore(IDB_STORE).get(key);
+          r.onsuccess=()=>res(r.result!=null?r.result:null);
+          r.onerror=()=>res(null);
+        }).catch(()=>res(null));
+      }catch(e){res(null);}
+    });
+    const toText=(val)=>new Promise((res)=>{
+      if(val==null){res(null);return;}
+      if(typeof val==="string"){res(val);return;}
+      // 新版本以 Blob 存储，需要异步读成文本
+      try{
+        if(typeof Blob!=="undefined"&&val instanceof Blob){ const fr=new FileReader(); fr.onload=()=>res(typeof fr.result==="string"?fr.result:""); fr.onerror=()=>res(null); fr.readAsText(val); return; }
+        if(typeof val.text==="function"){ val.text().then(res).catch(()=>res(null)); return; }
+      }catch(e){}
+      res(null);
+    });
     try{
-      const db=await idbOpen();
-      const tx=db.transaction(IDB_STORE,"readonly");
-      const r=tx.objectStore(IDB_STORE).get("main");
-      r.onsuccess=()=>{
-        try{
-          if(r.result){resolve(JSON.parse(r.result));}
-          else resolve(null);
-        }catch(e){resolve(null);}
-      };
-      r.onerror=()=>resolve(null);
+      // 1) 先读主槽；解析失败或为空，则回退到 backup 槽
+      let main=await readVal("main");
+      let mainTxt=await toText(main);
+      if(mainTxt){ try{ resolve(JSON.parse(mainTxt)); return; }catch(e){ console.warn("主数据解析失败，尝试备份槽",e); } }
+      let bak=await readVal("backup");
+      let bakTxt=await toText(bak);
+      if(bakTxt){ try{ resolve(JSON.parse(bakTxt)); return; }catch(e){} }
+      resolve(null);
     }catch(e){resolve(null);}
   });
 }
@@ -7207,10 +7243,14 @@ function stripStateForCache(obj){
 let _saveTimer=null;
 let _savePending=false;
 let _lsNeedsStrip=false;
+let _dataDirty=false;          // 是否有未落盘的改动
+let _lastPersistAt=0;          // 上次成功落盘时间
+let _persistTimer=null;
 // 【性能优化】save() 合并写入：短时间内多次调用只触发一次真正的全量序列化+落盘，
 // 避免每次点击都同步 JSON.stringify(270MB) 造成界面卡顿。
 function save(){
   _savePending=true;
+  _dataDirty=true;
   if(_saveTimer)return true;
   _saveTimer=setTimeout(()=>{_saveTimer=null;_savePending=false;try{_saveNow();}catch(e){}},150);
   return true;
@@ -7270,6 +7310,8 @@ function _saveNow(){
      try{sessionStorage.setItem("_idb_force_restore","1");}catch(e){}
      console.warn("[save] localStorage 轻量快照写入失败（完整数据仍在 IndexedDB）:",lsErr.name);
    }
+   _dataDirty=false;
+   _lastPersistAt=Date.now();
    _saveErrThrottle=0;
    return !_lsFull;
  }catch(e){
@@ -7282,6 +7324,14 @@ function _saveNow(){
    return false;
  }
 }
+// 【修复·防数据丢失】周期性自动落盘：只要有未保存改动就写入 IndexedDB，
+// 即使长时间不手动导出备份，数据也不会因未保存而丢失。
+try{
+  if(_persistTimer)clearInterval(_persistTimer);
+  _persistTimer=setInterval(()=>{ try{ if(_dataDirty && _stateHydrated){ saveNow(); } }catch(e){} },20000);
+}catch(e){}
+// 请求持久化存储配额，降低系统在存储紧张时清理本应用数据的概率
+try{ if(navigator&&navigator.storage&&navigator.storage.persist){ navigator.storage.persist().then(p=>{ try{ if(!p&&navigator.storage.persisted) navigator.storage.persisted().then(q=>console.warn("[storage] 持久化未授予:",q)); }catch(e){} }).catch(()=>{}); } }catch(e){}
 window.addEventListener("pagehide",()=>{try{if(typeof stickerFlushSave==="function")stickerFlushSave();saveNow();}catch(e){}});
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden"){try{if(typeof stickerFlushSave==="function")stickerFlushSave();saveNow();}catch(e){}}});
 function esc(s){
@@ -13851,6 +13901,74 @@ function _idbMusicBlob(db,key){
   });
 }
 /* 生成器：逐段产出备份 JSON 片段；音乐逐条读取并转码，每 5 条让出主线程 */
+/* 【修复·导出内存】把任意值切成小段 JSON 字符串逐段 yield，避免一次性 JSON.stringify
+   生成几百 MB 的巨型字符串（这是大容量导出直接卡退/OOM 的主因）。
+   关键点：对字符串内部的 \uXXXX 转义按固定长度切分，绝不切断转义序列。 */
+function* _jsonChunks(val){
+  if(val===null){yield "null";return;}
+  const t=typeof val;
+  if(t==="number"){yield isFinite(val)?String(val):"null";return;}
+  if(t==="boolean"){yield val?"true":"false";return;}
+  if(t==="undefined"){yield "null";return;}
+  if(t==="string"){yield* _jsonStrChunks(val);return;}
+  if(Array.isArray(val)){
+    yield "[";
+    for(let i=0;i<val.length;i++){ if(i)yield ","; yield* _jsonChunks(val[i]); }
+    yield "]";
+    return;
+  }
+  if(t==="object"){
+    // 尽力模拟 JSON.stringify 对 Date 的处理（Date 会被转成 ISO 字符串）
+    if(typeof Date!=="undefined" && val instanceof Date){ yield* _jsonStrChunks(val.toJSON?val.toJSON():val.toString()); return; }
+    yield "{";
+    let first=true;
+    for(const k in val){
+      if(!Object.prototype.hasOwnProperty.call(val,k))continue;
+      const v=val[k];
+      const vt=typeof v;
+      if(vt==="undefined"||vt==="function"||vt==="symbol")continue;
+      if(!first)yield ",";
+      first=false;
+      yield* _jsonStrChunks(k);
+      yield ":";
+      yield* _jsonChunks(v);
+    }
+    yield "}";
+    return;
+  }
+  yield "null";
+}
+function* _jsonStrChunks(str){
+  yield '"';
+  const STEP=32768;
+  let buf="";
+  for(let i=0;i<str.length;i++){
+    const c=str[i];
+    const code=str.charCodeAt(i);
+    if(c==='\\'){buf+='\\\\';}
+    else if(c==='"'){buf+='\\"';}
+    else if(c==='\n'){buf+='\\n';}
+    else if(c==='\r'){buf+='\\r';}
+    else if(c==='\t'){buf+='\\t';}
+    else if(c==='\b'){buf+='\\b';}
+    else if(c==='\f'){buf+='\\f';}
+    else if(code<0x20||code===0x2028||code===0x2029){buf+='\\u'+('0000'+code.toString(16)).slice(-4);}
+    else if(code>=0xD800&&code<=0xDBFF){
+      // 高代理：若后随低代理则拼成一对直接输出，否则用转义输出，避免产生非法孤代理
+      const nx=str.charCodeAt(i+1);
+      if(nx>=0xDC00&&nx<=0xDFFF){buf+=c+str[i+1];i++;}
+      else{buf+='\\u'+('0000'+code.toString(16)).slice(-4);}
+    }
+    else if(code>=0xDC00&&code<=0xDFFF){buf+='\\u'+('0000'+code.toString(16)).slice(-4);}
+    else{
+      // 与 _backupChunks 保持一致：中文等 BMP 字符直接输出（不转义为 \u），可显著减小体积
+      buf+=c;
+    }
+    if(buf.length>=STEP){yield buf;buf="";}
+  }
+  yield buf+'"';
+}
+
 async function* _backupChunks(onProgress){
   const mainKey=typeof KEY!=="undefined"?KEY:"sim-chat-v5";
   const lsData={};
@@ -13861,7 +13979,7 @@ async function* _backupChunks(onProgress){
   }
   yield '{"version":2,"exportTime":'+JSON.stringify(new Date().toISOString())+',"app":"溯佳聊天模拟器",';
   yield '"state":';
-  yield JSON.stringify(state);
+  { let _emitted=0; for(const _p of _jsonChunks(state)){ yield _p; if((_emitted++%16)===0)await _yieldUI(); } }
   await _yieldUI();
   yield ',"localStorage":';
   yield JSON.stringify(lsData);
@@ -14024,14 +14142,25 @@ async function _runExport(){
     if(!savedTo){
       // 2) 仅在原生流式完全不可用（纯网页环境）时回退：拼接完整字符串并下载
       if(st)st.textContent="正在打包数据…";
-      const parts=[]; let c=0;
-      for await(const chunk of _backupChunks(onProg)){ parts.push(chunk); if((c++%20)===0)await _yieldUI(); }
-      const data=parts.join("");
+      // 【修复·导出内存】回退路径同样用流式 + 分块 Blob，避免 parts.join("") / 单个大 Blob 造成内存翻倍
+      if(st)st.textContent="正在打包数据…";
+      await _yieldUI();
+      const _blobParts=[]; let c=0;
+      for await(const chunk of _backupChunks(onProg)){
+        _blobParts.push(chunk); c++;
+        if((c%20)===0){ try{ await _yieldUI(); }catch(e){} }
+        if(_blobParts.length>=64){ /* 该回退最终仍需整体 Blob 下载，这里只控制让出频率 */ }
+      }
       if(st)st.textContent="正在保存…";
       await _yieldUI();
-      try{ savedTo=await saveTextToPhoneStorage(fname,data); }catch(e){ console.warn("[导出] 保存失败:",e); }
+      const blob=new Blob(_blobParts,{type:"application/json"});
+      // 优先尝试用原生桥把 Blob 分块写入手机公共目录
+      try{
+        if(typeof NativeBridge!=="undefined"&&NativeBridge&&typeof NativeBridge.saveStreamBlob==="function"){
+          savedTo=await NativeBridge.saveStreamBlob(fname,blob);
+        }
+      }catch(e){ console.warn("[导出] 原生分块保存失败，改走浏览器下载:",e); }
       if(!savedTo){
-        const blob=new Blob([data],{type:"application/json"});
         const url=URL.createObjectURL(blob);
         const a=document.createElement("a");a.href=url;a.download=fname;
         document.body.appendChild(a);a.click();document.body.removeChild(a);
