@@ -1,75 +1,45 @@
-// 溯佳APP Service Worker - 独立文件版
-// 部署时必须与 index.html 放在同一目录
-// 此文件使 GitHub Pages / Vercel 等HTTPS平台能正常注册SW，支持后台通知
+// 溯佳APP Service Worker（独立文件版）
+// 部署时与 index.html 放在同一目录（www/ 下）。
 //
-// 【重要】每次发布新版 index.html，请把下面的 CACHE_NAME 版本号 +1（例如 v25 -> v26）。
-// 本文件对“应用外壳”(index.html 页面) 采用“网络优先”策略，
-// 否则手机/PWA 会一直显示缓存的旧版本，导致新功能（如“拼字卡模式”开关）看不到。
+// 策略说明（重要）：
+//   同源请求一律「网络优先，失败再回退缓存」。
+//   这样你以后无论怎么改 index.html，手机/浏览器每次都会优先拿最新的页面，
+//   不会再出现「改了却不生效、开关看不到」的问题。
+//   ——不需要再手动修改任何版本号。
+const CACHE_NAME='suijia-app-shell';
 
-const CACHE_NAME='suijia-app-v25';
+self.addEventListener('install',e=>{ self.skipWaiting(); });
 
-self.addEventListener('install',e=>{
-  self.skipWaiting();
-});
 self.addEventListener('activate',e=>{
   e.waitUntil(
-    caches.keys().then(keys=>{
-      return Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)));
-    }).then(()=>self.clients.claim())
+    caches.keys()
+      .then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k))))
+      .then(()=>self.clients.claim())
   );
 });
-
-// 是否“应用外壳”(HTML 页面) 请求：这类请求必须网络优先，保证更新立即生效
-function isAppShell(request){
-  try{
-    if(request.mode==='navigate')return true;
-    const url=new URL(request.url);
-    if(url.origin!==self.location.origin)return false;
-    const p=url.pathname;
-    return p.endsWith('/')||p.endsWith('/index.html');
-  }catch(err){
-    return false;
-  }
-}
-
-function putCache(req,response){
-  try{
-    if(response&&response.status===200&&(response.type==='basic'||response.type==='default')){
-      const clone=response.clone();
-      caches.open(CACHE_NAME).then(cache=>cache.put(req,clone)).catch(()=>{});
-    }
-  }catch(err){}
-}
 
 self.addEventListener('fetch',e=>{
   const req=e.request;
   if(req.method!=='GET')return;
 
-  // 1) 应用外壳：网络优先，离线再回退缓存
-  if(isAppShell(req)){
-    e.respondWith(
-      fetch(req).then(response=>{
-        putCache(req,response);
-        return response;
-      }).catch(()=>{
-        return caches.match(req).then(cached=>cached||caches.match('./index.html'));
-      })
-    );
-    return;
-  }
+  let sameOrigin=false;
+  try{ sameOrigin=new URL(req.url).origin===self.location.origin; }catch(err){}
+  if(!sameOrigin)return; // 跨域资源交回浏览器默认处理
 
-  // 2) 其它静态资源：缓存优先 + 后台更新
   e.respondWith(
-    caches.match(req).then(cached=>{
-      const fetchPromise=fetch(req).then(response=>{
-        putCache(req,response);
-        return response;
-      }).catch(()=>cached);
-      return cached||fetchPromise;
-    })
+    fetch(req).then(res=>{
+      try{
+        if(res&&res.status===200&&(res.type==='basic'||res.type==='default')){
+          const clone=res.clone();
+          caches.open(CACHE_NAME).then(c=>c.put(req,clone)).catch(()=>{});
+        }
+      }catch(err){}
+      return res;
+    }).catch(()=>caches.match(req))
   );
 });
 
+// ===== 以下为后台通知功能，保持原有能力 =====
 self.addEventListener('message',e=>{
   var d=e.data;
   if(!d)return;
@@ -85,12 +55,10 @@ self.addEventListener('message',e=>{
       silent:false
     };
     self.registration.showNotification(d.title||'新消息',opts).catch(function(){
-      // 图标不支持时重试无图标
       delete opts.icon;delete opts.badge;
       self.registration.showNotification(d.title||'新消息',opts).catch(function(){});
     });
   }else if(d.type==='PING'){
-    // 心跳保活，保持SW活跃
     e.waitUntil(Promise.resolve());
   }else if(d.type==='CLOSE_NOTIF'){
     self.registration.getNotifications({tag:d.tag}).then(notifs=>{
@@ -105,17 +73,13 @@ self.addEventListener('notificationclick',e=>{
   const targetUrl=data.url||'./';
   e.waitUntil(
     self.clients.matchAll({type:'window',includeUncontrolled:true}).then(function(list){
-      // 优先聚焦已打开的窗口并传递chatId
       for(var i=0;i<list.length;i++){
         var client=list[i];
         if('focus'in client){
-          if(chatId){
-            try{client.postMessage({type:'OPEN_CHAT',chatId:chatId});}catch(err){}
-          }
+          if(chatId){ try{client.postMessage({type:'OPEN_CHAT',chatId:chatId});}catch(err){} }
           return client.focus();
         }
       }
-      // 没有已打开窗口，新开
       if(self.clients.openWindow){
         var openUrl=targetUrl;
         if(chatId)openUrl += (openUrl.indexOf('?')>-1?'&':'?')+'openChat='+encodeURIComponent(chatId);
@@ -124,6 +88,4 @@ self.addEventListener('notificationclick',e=>{
     })
   );
 });
-self.addEventListener('notificationclose',e=>{
-  // 通知关闭时无需特殊处理
-});
+self.addEventListener('notificationclose',e=>{});
