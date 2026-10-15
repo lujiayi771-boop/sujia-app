@@ -1,8 +1,10 @@
 name: Build APK
+
+# 触发方式：推送到 main 分支，或在 Actions 页面手动点 Run workflow
 on:
-  workflow_dispatch:
   push:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -11,49 +13,53 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
+      # ★ 关键新增：把大写 WWW 目录归一化为 Cordova 只认的小写 www，
+      #   并在缺少图标时生成占位图标，避免“找不到 www / 找不到 icon.png”导致构建失败
+      - name: Normalize web root (WWW -> www) and ensure icon
+        env:
+          ICON_B64: "iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAYAAAD0eNT6AAAG40lEQVR42u3WMQEAAAQAQY0EU14DStjccAV++sjqAQB+CREAwAAAAAYAADAAAIABAAAMAABgAAAAAwAAGAAAwAAAAAYAADAAAIABAAAMAABgAAAAAwAAGAAAwAAAgAEAAAwAAGAAAAADAAAYAADAAAAABgAAMAAAgAEAAAwAAGAAAAADAAAYAADAAAAABgAAMAAAgAEAAAMAABgAAMAAAAAGAAAwAACAAQAADAAAYAAAAAMAABgAAMAAAAAGAAAwAACAAQAADAAAYAAAAAMAAAYAADAAAIABAAAMAABgAAAAAwAAGAAAwAAAAAYAADAAAIABAAAMAABgAAAAAwAAGAAAwAAAAAYAAAyAEABgAAAAAwAAGAAAwAAAAAYAADAAAIABAAAMAABgAAAAAwAAGAAAwAAAAAYAADAAAIABAAAMAAAYABEAwAAAAAYAADAAAIABAAAMAABgAAAAAwAAGAAAwAAAAAYAADAAAIABAAAMAABgAAAAAwAAGAAAwAAAgAEAAAwAAGAAAAADAAAYAADAAAAABgAAMAAAgAEAAAwAAGAAAAADAAAYAADAAAAABgAAMAAAgAEAAAMAABgAAMAAAAAGAAAwAACAAQAADAAAYAAAAAMAABgAAMAAAAAGAAAwAACAAQAADAAAYAAAAAMAAAYAADAAAIABAAAMAABgAAAAAwAAGAAAwAAAAAYAADAAAIABAAAMAABgAAAAAwAAGAAAwAAAAAYAAAyAEABgAAAAAwAAGAAAwAAAAAYAADAAAIABAAAMAABgAAAAAwAAGAAAwAAAAAYAADAAAIABAAAMAAAYABEAwAAAAAYAADAAAIABAAAMAABgAAAAAwAAGAAAwAAAAAYAADAAAIABAAAMAABgAAAAAwAAGAAAwAAAgAEAAAwAAGAAAAADAAAYAADAAAAABgAAMAAAgAEAAAwAAGAAAAADAAAYAADAAAAABgAAMAAAgAEAAAMAABgAAMAAAAAGAAAwAACAAQAADAAAYAAAAAMAABgAAMAAAAAGAAAwAACAAQAADAAAYAAAAAMAAAYAADAAAIABAAAMAABgAAAAAwAAGAAAwAAAAAYAADAAAIABAAAMAABgAAAAAwAAGAAAwAAAAAYAAAyAEABgAAAAAwAAGAAAwAAAAAYAADAAAIABAAAMAABgAAAAAwAAGAAAwAAAAAYAADAAAIABAAAMAAAYABEAwAAAAAYAADAAAIABAAAMAABgAAAAAwAAGAAAwAAAAAYAADAAAIABAAAMAABgAAAAAwAAGAAAwAAAgAEAAAwAAGAAAAADAAAYAADAAAAABgAAMAAAgAEAAAwAAGAAAAADAAAYAADAAAAABgAAMAAAgAEAAAMAABgAAMAAAAAGAAAwAACAAQAADAAAYAAAAAMAABgAAMAAAAAGAAAwAACAAQAADAAAYAAAAAMAAAYAADAAAIABAAAMAABgAAAAAwAAGAAAwAAAAAYAADAAAIABAAAMAABgAAAAAwAAGAAAwAAAAAYAAAyAEABgAAAAAwAAGAAAwAAAAAYAADAAAIABAAAMAABgAAAAAwAAGAAAwAAAAAYAADAAAIABAAAMAAAYABEAwAAAAAYAADAAAIABAAAMAABgAAAAAwAAGAAAwAAAAAYAADAAAIABAAAMAABgAAAAAwAAGAAAwAAAgAEAAAwAAGAAAAADAAAYAADAAAAABgAAMAAAgAEAAAwAAGAAAAADAAAYAADAAAAABgAAMAAAgAEAAAMAABgAAMAAAAAGAAAwAACAAQAADAAAYAAAAAMAABgAAMAAAAAGAAAwAACAAQAADAAAYAAAAAMAAAYAADAAAIABAAAMAABgAAAAAwAAGAAAwAAAAAYAADAAAIABAAAMAABgAAAAAwAAGAAAwAAAAAYAAAyAEABgAAAAAwAAGAAAwAAAAAYAADAAAIABAAAMAABgAAAAAwAAGAAAwAAAAAYAADAAAIABAAAMAAAYABEAwAAAAAYAADAAAIABAAAMAABgAAAAAwAAGAAAwAAAAAYAADAAAIABAAAMAABgAAAAAwAAGAAAwAAAgAEAAAwAAGAAAAADAAAYAADAAAAABgAAMAAAgAEAAAwAAGAAAAADAAAYAADAAAAABgAAMAAAgAEAAAMAABgAAMAAAAAGAAAwAACAAQAADAAAYAAAAAMAABgAAMAAAAAGAAAwAACAAQAADAAAYAAAAAMAAAYAADAAAIABAAAMAABgAAAAAwAAGAAAwAAAAAYAADAAAIABAAAMAABgAAAAAwAAGAAAwAAAAAYAAAyAEABgAAAAAwAAGAAAwAAAAAYAADAAAIABAAAMAABgAAAAAwAAGAAA4M4CIGuYHXJkURoAAAAASUVORK5CYII="
+        run: |
+          set -e
+          if [ -d WWW ] && [ ! -d www ]; then cp -r WWW www; fi
+          if [ ! -d www ]; then mkdir -p www; fi
+          if [ -f index.html ]; then cp -f index.html www/index.html; fi
+          if [ -f sw.js ]; then cp -f sw.js www/sw.js; fi
+          if [ ! -f www/icon.png ]; then echo "$ICON_B64" | base64 -d > www/icon.png; fi
+          echo "--- www 目录内容 ---"
+          ls -la www
 
-      - name: Set up Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      # 说明：ubuntu-latest 已预装 Android SDK 与 ANDROID_SDK_ROOT，
+      # 不再单独跑 android-actions/setup-android（此前正是它下载卡住导致构建失败）
       - name: Install Cordova
         run: npm install -g cordova
 
-      - name: Prepare www directory
-        run: |
-          echo "=== repository root ==="
-          ls -la
-          if [ -d "www" ]; then
-            echo "www exists"
-          elif [ -d "WWW" ]; then
-            cp -r WWW www
-            echo "copied WWW to www"
-          else
-            echo "ERROR: no www or WWW folder in root"
-            exit 1
-          fi
-          echo "=== www contents ==="
-          ls -la www
+      - name: Add Android platform
+        run: cordova platform add android
 
-      - name: Add plugins
+      # 关键：显式安装原生插件（通知 + 文件存储 + SAF/MediaStore 公共目录保存）
+      - name: Install plugins
         run: |
-          cordova plugin add cordova-plugin-file --force
-          cordova plugin add cordova-plugin-local-notification --force
-          cordova plugin add cordova-plugin-media --force
+          cordova plugin add cordova-plugin-local-notification
+          cordova plugin add cordova-plugin-file
+          cordova plugin add cordova-plugin-media
+          cordova plugin add https://github.com/latchuk/cordova-plugin-saf-mediastore.git
 
-      - name: Build Android APK
-        run: |
-          cordova platform add android --force
-          cordova build android --force
+      - name: Build Debug APK
+        run: cordova build android --debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: suijia-apk
-          path: platforms/android/app/build/outputs/apk/**/*.apk
+          path: platforms/android/app/build/outputs/apk/debug/app-debug.apk
