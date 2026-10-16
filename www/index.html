@@ -24,7 +24,7 @@ setTimeout(function(){ try{
 /* 版本自愈：部署新页面后自动清理旧缓存与旧离线脚本，避免一直显示旧版 */
 (function(){
   try{
-    var BUILD='2026-10-16-v5-random';
+    var BUILD='2026-10-16-v8-ime-freq';
     if(localStorage.getItem('suijia_ui_build')!==BUILD){
       localStorage.setItem('suijia_ui_build',BUILD);
       var flag='suijia_reset_done_'+BUILD;
@@ -3157,6 +3157,11 @@ body.dark .music-disc-cover{box-shadow:0 8px 32px rgba(0,0,0,.4)}
 .pinyin-preview-typed{color:#7fdcff;font-style:italic;}
 .pinyin-preview-caret{display:inline-block;width:2px;height:15px;background:#7fdcff;margin-left:1px;vertical-align:-2px;animation:pyblink 1s steps(1) infinite;}
 @keyframes pyblink{0%,50%{opacity:1;}50.01%,100%{opacity:0;}}
+.pinyin-preview-cands{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px;padding-top:6px;border-top:1px solid rgba(255,255,255,.12);max-height:104px;overflow:hidden;}
+.py-cand{padding:1px 8px;border-radius:7px;background:rgba(255,255,255,.10);color:#e8e8ee;font-size:13px;line-height:1.7;transition:background .08s,color .08s;}
+.py-cand.active{background:#7fdcff;color:#08222e;font-weight:700;}
+.pinyin-preview-cands .py-cand:first-child{background:rgba(127,220,255,.16);}
+.pinyin-range{width:130px;accent-color:#ff8a3d;}
 body.dark .pinyin-preview{background:rgba(18,18,20,.97);}
 </style>
 
@@ -5128,12 +5133,16 @@ body.dark .rp-history-title{color:#f0f0f2;}
             <div class="unit">张</div>
           </div>
           <div class="toggle-row" style="margin-top:15px">
-            <div><div class="toggle-name">拼字卡模式</div><div class="field-help">开启后，角色有 5% 概率改用「拼音打字」方式回复：内容完全由随机汉字字符临时组成——不预设任何词语或句子，也不调用任何 AI 接口、不使用任何预设类别；角色逐字母打出拼音并转换成汉字，同时弹出预览小框实时展示打字过程。</div></div>
+            <div><div class="toggle-name">拼字卡模式</div><div class="field-help">开启后，角色有 5% 概率改用「仿键盘输入法」方式回复：逐字母打出拼音，候选栏随输入实时刷新，候选【只出高频常用字和真实词】（打 ni 首选「你」、打 nihao 首选「你好」），不再出现生僻字；成句按【主谓宾等句型模板】组织，读得懂、像真人打字。候选数量由下方滑块控制。</div></div>
             <label class="toggle"><input id="pinyinCardEnabled" type="checkbox"><span class="toggle-track"></span></label>
+          </div>
+          <div class="toggle-row" style="margin-top:12px">
+            <div><div class="toggle-name">候选显示数量</div><div class="field-help">候选栏最多显示多少个候选（按常用度排序）。最低 5 个；拉到最右为「无上限」。当前：<span id="pinyinCandMaxLabel">9 个</span></div></div>
+            <input id="pinyinCandMax" class="pinyin-range" type="range" min="5" max="20" step="1" value="9" oninput="(function(el){var l=document.getElementById('pinyinCandMaxLabel');if(l)l.textContent=(Number(el.value)>=20?'无上限':(el.value+' 个'));})(this)">
           </div>
           <div class="concat-note">拼接字卡与连发消息互斥：开启拼接后，每次回复只发1条由多张字卡组成的长消息，不再连发多条。</div>
           <div class="inline-note">被动回复、主动消息、已读回执、连发和拼接功能都可以按联系人分别设置，不会互相覆盖。</div>
-          <div class="inline-note" style="margin-top:8px;color:#ff8a3d;">版本标识：v5-完全随机字符 · 若本行未出现，说明当前 APK 仍是旧版，请重新上传 index.html 后再构建。</div>
+          <div class="inline-note" style="margin-top:8px;color:#ff8a3d;">版本标识：v8-常用字词句型 · 若本行未出现，说明当前 APK 仍是旧版，请重新上传 index.html 后再构建。</div>
           <button class="save-wide" id="saveFrequency">保存回复频率设置</button>
         </div>
 
@@ -6768,7 +6777,7 @@ const DEFAULT_REPLY_SETTINGS={
  momentsEnabled:true,momentMin:60,momentMax:60,momentCountMin:1,momentCountMax:1,
  momentReplyEnabled:true,momentReplyMin:5,momentReplyMax:15,
  burstEnabled:false,burstMax:3,
- concatEnabled:false,concatMin:2,concatMax:4,pinyinCardEnabled:false,
+ concatEnabled:false,concatMin:2,concatMax:4,pinyinCardEnabled:false,pinyinCandMax:9,
  readIgnoreEnabled:false,
  letterEnabled:false,letterMin:30,letterMax:120,letterConcatMin:3,letterConcatMax:8,
  letterReplyEnabled:true,letterReplyMin:10,letterReplyMax:60,
@@ -8107,6 +8116,7 @@ function loadFrequencyForm(){
  $("concatMin").value=s.concatMin||2;
  $("concatMax").value=s.concatMax||4;
  $("pinyinCardEnabled").checked=!!s.pinyinCardEnabled;
+ var _pcm=$("pinyinCandMax");if(_pcm){_pcm.value=s.pinyinCandMax||9;var _pcml=$("pinyinCandMaxLabel");if(_pcml)_pcml.textContent=(Number(_pcm.value)>=20?"无上限":(_pcm.value+" 个"));}
 }
 
 /* ===== 朋友圈设置表单 ===== */
@@ -11374,6 +11384,7 @@ $("saveFrequency").addEventListener("click",()=>{
  s.concatMin=Math.max(2,Math.min(20,Number($("concatMin").value)||2));
  s.concatMax=Math.max(s.concatMin,Math.min(20,Number($("concatMax").value)||s.concatMin));
  s.pinyinCardEnabled=$("pinyinCardEnabled").checked;
+ s.pinyinCandMax=Math.max(5,Math.min(20,Number($("pinyinCandMax").value)||9));
  save();scheduleActiveMessage(c);toast(c.name+"的回复频率已保存");
 });
 
@@ -14474,72 +14485,252 @@ function textToPinyinTokens(text){
   return out;
 }
 var _pyPrevGen=0;
-function _showPinyinPreview(text,done){
+/* ===== 拼字卡模式 v8：仿键盘输入法候选（真实常用字词 · 词频排序 · 句型模板成句）===== */
+var _PY_CAND_INDEX=null,_PY_CC=null,_PY_WORDS=null,_PY_WORD_BY=null,_PY_RANK=null;
+/* 常用字（《现代汉语常用字表》词频序，取前 1500）——单字候选池只取常用字，杜绝生僻字 */
+var COMMON_CHARS="的一是了我不人在他有这个上们来到时大地为子中你说生国年着就那和要她出也得里后自以会家可下而过天去能对小多然于心学么之都好看起发当没成只如事把还用第样道想作种开美总从无情己面最女但现前些所同日手又行意动方期它头经长儿回位分爱老因很给名法间斯知世什两次使身者被高已亲其进此话常与活正感见明问力理尔点文几定本公特做外孩相西果走将月十实向声车全信重三机工物气每并别真打太新比才便夫再书部水像眼等体却加电主界门利海受听表德少克代员许先口由死安写性马光白或住难望教命花结乐色更拉东神记处让母父应直字场平报友关放至张认接告入笑内英军候民岁往何度山觉路带万男边风解叫任金快原吃妈变通师立象数四失满战远格士音轻目条呢病始达深完今提求清王化空业思切怎非找片罗钱吗语元喜曾离飞科言干流欢约各即指合反题必该论交终林请医晚制球决传画保读运及则房早院量苦火布品近坐产答星精视五连司巴奇管类未朋且婚台夜青北队久乎越观落尽形影红爸百令周吧识步希亚术留市半热送兴造谈容极随演收首根讲整式取照办强石古华拿计您装似足双妻尼转诉米称丽客南领节衣站黑刻统断福城故历惊脸选包紧争另建维绝树系伤示愿持千史谁准联妇纪基买志静阿诗独复痛消社算义竟确酒需单治卡幸兰念举仅钟怕共毛句息功官待究跟穿室易游程号居考突皮哪费倒价图具刚脑永歌响商礼细专黄块脚味灵改据般破引食仍存众注笔甚某沉血备习校默务土微娘须试怀料调广苏显赛查密议底列富梦错座参八除跑亮假印设线温虽掉京初养香停际致阳纸李纳验助激够严证帝饭忘趣支春集丈木研班普导顿睡展跳获艺六波察群皇段急庭创区奥器谢弟店否害草排背止组州朝封睛板角况曲馆育忙质河续哥呼若推境遇雨标姐充围案伦护冷警贝著雪索剧啊船险烟依斗值帮汉慢佛肯闻唱沙局伯族低玩资屋击速顾泪洲团圣旁堂兵七露园牛哭旅街劳型烈姑陈莫鱼异抱宝权鲁简态级票怪寻杀律胜份汽右洋范床舞秘午登楼贵吸责例追较职属渐左录丝牙党继托赶章智冲叶胡吉卖坚喝肉遗救修松临藏担戏善卫药悲敢靠伊村戴词森耳差短祖云规窗散迷油旧适乡架恩投弹铁博雷府压超负勒杂醒洗采毫嘴毕九冰既状乱景席珍童顶派素脱农疑练野按犯拍征坏骨余承置彩灯巨琴免环姆暗换技翻束增忍餐洛塞缺忆判欧层付阵玛批岛项狗休懂武革良恶恋委拥娜妙探呀营退摇弄桌熟诺宣银势奖宫忽套康供优课鸟喊降夏困刘罪亡鞋健模败伴守挥鲜财孤枪禁恐伙杰迹妹遍盖副坦牌江顺秋萨菜划授归浪凡预奶雄升编典袋莱含盛济蒙棋端腿招释介烧误";
+/* 真实常用词表（词|拼音），只出真实词，杜绝乱组合 */
+var LEX_RAW=[
+"我|wo","你|ni","他|ta","她|ta","我们|women","你们|nimen","大家|dajia",
+"今天|jintian","明天|mingtian","昨天|zuotian","现在|xianzai","晚上|wanshang","早上|zaoshang","刚才|gangcai","周末|zhoumo","以后|yihou","最近|zuijin",
+"饭|fan","觉|jiao","书|shu","电影|dianying","歌|ge","游戏|youxi","咖啡|kafei","奶茶|naicha","天气|tianqi","心情|xinqing","事情|shiqing","东西|dongxi","问题|wenti","作业|zuoye","工作|gongzuo","手机|shouji","照片|zhaopian","音乐|yinyue","花|hua","猫|mao","狗|gou","水|shui","世界|shijie","生活|shenghuo","水果|shuiguo","面|mian","茶|cha","电视|dianshi","信|xin","话|hua","菜|cai","汉语|hanyu","画画|huahua","牛奶|niunai",
+"吃|chi","喝|he","看|kan","听|ting","玩|wan","写|xie","买|mai","学|xue","找|zhao","说|shuo",
+"笑|xiao","哭|ku","睡|shui","走|zou","想|xiang","懂|dong",
+"好|hao","坏|huai","开心|kaixin","难过|nanguo","累|lei","忙|mang","冷|leng","热|re","饿|e","困|kun","可爱|keai","漂亮|piaoliang","聪明|congming","厉害|lihai","有趣|youqu","好吃|haochi","无聊|wuliao","温柔|wenrou",
+"很|hen","太|tai","真的|zhende","有点|youdian","特别|tebie","非常|feichang","已经|yijing","还|hai","也|ye","都|dou","不|bu",
+"吗|ma","了|le","啊|a","呢|ne","吧|ba",
+"你好|nihao","谢谢|xiexie","晚安|wanan","加油|jiayou","好的|haode","没问题|meiwenti","我懂了|wodongle","对不起|duibuqi","没关系|meiguanxi","辛苦啦|xinkula"
+];
+/* 句型模板用到的词类 */
+var LEX={
+ pro:["我","你","他","她","我们","你们","大家"],
+ time:["今天","明天","昨天","现在","晚上","早上","刚才","周末","以后","最近"],
+ n:["饭","书","电影","歌","游戏","咖啡","奶茶","天气","心情","事情","东西","问题","作业","工作","手机","照片","音乐","花","猫","狗","水","世界","生活","水果","面","茶","电视","信","话","菜","汉语","画画","牛奶"],
+ vt:["吃","喝","看","听","玩","写","买","学","找","说"],
+ vi:["笑","哭","睡","走","想","懂"],
+ adj:["好","开心","难过","累","忙","冷","热","饿","困","可爱","漂亮","聪明","厉害","有趣","无聊","温柔"],
+ adv:["很","太","真的","有点","特别","非常","已经","还","也","都"],
+ social:["你好","谢谢","晚安","加油","好的","没问题","我懂了","对不起","没关系","辛苦啦"]
+};
+/* 动词↔合理宾语配对：杜绝「吃世界/买天气」这类语义不通的组合 */
+var VO={
+ "吃":["饭","水果","面","东西"],
+ "喝":["水","咖啡","奶茶","茶","牛奶"],
+ "看":["电影","书","照片","电视"],
+ "听":["歌","音乐"],
+ "玩":["游戏","手机"],
+ "写":["作业","信"],
+ "买":["东西","花","菜","饭"],
+ "学":["汉语","画画","英语"],
+ "找":["东西","手机","问题"],
+ "说":["话","事情"]
+};
+function _pickObj(vt){var a=VO[vt]||LEX.n;return _pick(a);}
+function _buildPinyinCandIndex(){
+  if(_PY_CAND_INDEX)return _PY_CAND_INDEX;
+  var idx={},parts=PINYIN_DATA.split("|");
+  for(var i=0;i<parts.length;i++){
+    var seg=parts[i];if(!seg)continue;
+    var code=seg.charCodeAt(0);
+    if(code<0x4E00||code>0x9FFF)continue;
+    var hz=seg.charAt(0),py=seg.slice(1);
+    if(!py||!/^[a-z]+$/.test(py))continue;
+    var arr=idx[py];if(!arr){arr=idx[py]=[];}
+    if(arr.indexOf(hz)<0)arr.push(hz);
+  }
+  _PY_CAND_INDEX=idx;return idx;
+}
+function _pyRank(ch){
+  if(!_PY_RANK){_PY_RANK={};for(var i=0;i<COMMON_CHARS.length;i++)_PY_RANK[COMMON_CHARS[i]]=i;}
+  var r=_PY_RANK[ch];return r==null?99999:r;
+}
+function _byRank(a,b){return _pyRank(a)-_pyRank(b);}
+function _normCandMax(v){v=Number(v);if(!v||v<5)v=9;if(v>=20)return 50;return Math.floor(v);}
+function _ri(n){return Math.floor(Math.random()*n);}
+/* 常用单字候选池：[{ch,py}] 仅取常用字 */
+function _pyCCharPool(){
+  if(_PY_CC)return _PY_CC;
+  var idx=_buildPinyinCandIndex(),out=[];
+  for(var py in idx){
+    var arr=idx[py].slice().sort(_byRank);
+    for(var i=0;i<arr.length;i++){
+      if(_pyRank(arr[i])<99999)out.push({ch:arr[i],py:py});
+    }
+  }
+  out.sort(function(a,b){return _pyRank(a.ch)-_pyRank(b.ch);});
+  _PY_CC=out;return out;
+}
+/* 真实词表：[{word,py,rank}] 按首字常用度排序 */
+function _pyWordList(){
+  if(_PY_WORDS)return _PY_WORDS;
+  var seen={},out=[];
+  for(var i=0;i<LEX_RAW.length;i++){
+    var s=LEX_RAW[i],k=s.indexOf("|"),w=s.slice(0,k),py=s.slice(k+1);
+    if(seen[w])continue;seen[w]=1;
+    out.push({word:w,py:py,rank:_pyRank(w.charAt(0))});
+  }
+  out.sort(function(a,b){return a.rank-b.rank;});
+  _PY_WORDS=out;return out;
+}
+function _pyWordPy(word){
+  if(!_PY_WORD_BY){
+    _PY_WORD_BY={};var l=_pyWordList();
+    for(var i=0;i<l.length;i++)_PY_WORD_BY[l[i].word]=l[i].py;
+  }
+  return _PY_WORD_BY[word]||"";
+}
+/* 仿输入法即时候选：目标词优先，其次真实同音词，再其次常用单字；全部常用，无生僻字 */
+function _pyCandsFor(prefix,targetWord,candMax){
+  var out=[],seen={};
+  function push(x){if(x&&!seen[x]){seen[x]=1;out.push(x);}}
+  prefix=String(prefix==null?"":prefix).toLowerCase();
+  if(!prefix)return out;
+  var lim=Math.max(5,candMax|0);
+  var tpy=targetWord?_pyWordPy(targetWord):"";
+  if(targetWord&&tpy===prefix)push(targetWord);
+  var wl=_pyWordList();
+  for(var i=0;i<wl.length;i++){
+    if(wl[i].py.indexOf(prefix)===0&&wl[i].word!==targetWord)push(wl[i].word);
+  }
+  if(out.length<lim){
+    var cp=_pyCCharPool();
+    for(var j=0;j<cp.length&&out.length<lim+8;j++){
+      if(cp[j].py.indexOf(prefix)===0)push(cp[j].ch);
+    }
+  }
+  return out.slice(0,lim);
+}
+function _mkWord(w){return {t:"w",word:w};}
+function _mkPunct(ch){return {t:"p",ch:ch};}
+function _pick(a){return a[_ri(a.length)];}
+/* 单句：句型模板（主谓宾 / 主谓 / 时间+主谓宾 / 否定 / 疑问 / 感叹 / 社交小句 等） */
+function _makeClause(allowEnd){
+  var r=Math.random();
+  function SVO(){var v=_pick(LEX.vt);return [_mkWord(_pick(LEX.pro)),_mkWord(v),_mkWord(_pickObj(v))];}
+  function TSVO(){var v=_pick(LEX.vt);return [_mkWord(_pick(LEX.time)),_mkWord(_pick(LEX.pro)),_mkWord(v),_mkWord(_pickObj(v))];}
+  function YSVO(){var v=_pick(LEX.vt);return [_mkWord(_pick(LEX.pro)),_mkWord("也"),_mkWord(v),_mkWord(_pickObj(v))];}
+  function SVOQ(){var v=_pick(LEX.vt);return [_mkWord(_pick(LEX.pro)),_mkWord(v),_mkWord(_pickObj(v)),_mkWord("吗"),_mkPunct("？")];}
+  function SAdj(a){return [_mkWord(_pick(LEX.pro)),a,_mkWord(_pick(LEX.adj))];}
+  function TAdj(){return [_mkWord(_pick(LEX.time)),_mkWord(_pick(LEX.pro)),_mkWord("很"),_mkWord(_pick(LEX.adj))];}
+  if(!allowEnd){
+    if(r<0.26)return SVO();
+    if(r<0.42)return SAdj("很");
+    if(r<0.54)return [_mkWord(_pick(LEX.pro)),_mkWord(_pick(LEX.adj))];
+    if(r<0.68)return TSVO();
+    if(r<0.80)return SAdj("不");
+    if(r<0.92)return YSVO();
+    return TAdj();
+  }
+  if(r<0.24)return SVO();
+  if(r<0.38)return SAdj("很");
+  if(r<0.48)return [_mkWord(_pick(LEX.pro)),_mkWord(_pick(LEX.adj))];
+  if(r<0.60)return TSVO();
+  if(r<0.68)return SAdj("不");
+  if(r<0.78)return SVOQ();
+  if(r<0.87)return [_mkWord("太"),_mkWord(_pick(LEX.adj)),_mkWord("了"),_mkPunct("！")];
+  if(r<0.94)return [_mkWord("好"),_mkWord(_pick(LEX.adj)),_mkWord("啊"),_mkPunct("！")];
+  return [_mkWord(_pick(LEX.social))];
+}
+function _pyPlanRandom(cfg){
+  var candMax=_normCandMax(cfg&&cfg.pinyinCandMax);
+  var clauses=1;
+  if(cfg&&cfg.concatEnabled){
+    var mn=Math.max(1,Number(cfg.concatMin)||2),mx=Math.max(mn,Number(cfg.concatMax)||4);
+    clauses=mn+_ri(mx-mn+1);
+  }
+  var plan=[];
+  if(clauses<=1){
+    plan=_makeClause(true);
+    var last=plan[plan.length-1];
+    if(!(last&&last.t==="p"))plan.push(_mkPunct(_pick(["。","。","！"])));
+    return plan;
+  }
+  for(var c=0;c<clauses;c++){
+    if(c>0)plan.push(_mkPunct("，"));
+    plan=plan.concat(_makeClause(false));
+  }
+  plan.push(_mkPunct("。"));
+  return plan;
+}
+function _pyPlanFromText(text){
+  var plan=[],s=String(text==null?"":text);
+  for(var i=0;i<s.length;i++){
+    var ch=s.charAt(i),py=hanziToPinyin(ch);
+    if(py)plan.push({t:"w",word:ch,py:py,fixed:ch});
+    else plan.push(_mkPunct(ch));
+  }
+  return plan;
+}
+function _showPinyinTyping(cfg,targetText,done){
   var gen=++_pyPrevGen;
   var box=document.getElementById("pinyinPreview");
   if(!box){
     box=document.createElement("div");
-    box.id="pinyinPreview";
-    box.className="pinyin-preview";
-    box.innerHTML='<div class="pinyin-preview-head">对方正在输入…</div><div class="pinyin-preview-body"><span class="pinyin-preview-out"></span><span class="pinyin-preview-typed"></span><span class="pinyin-preview-caret"></span></div>';
+    box.id="pinyinPreview";box.className="pinyin-preview";
     document.body.appendChild(box);
   }
+  box.innerHTML='<div class="pinyin-preview-head">对方正在输入…</div><div class="pinyin-preview-body"><span class="pinyin-preview-out"></span><span class="pinyin-preview-typed"></span><span class="pinyin-preview-caret"></span></div><div class="pinyin-preview-cands"></div>';
   var outEl=box.querySelector(".pinyin-preview-out");
   var typedEl=box.querySelector(".pinyin-preview-typed");
-  outEl.textContent="";typedEl.textContent="";
+  var candsEl=box.querySelector(".pinyin-preview-cands");
+  outEl.textContent="";typedEl.textContent="";candsEl.innerHTML="";
   box.classList.add("show");
-  var tokens=textToPinyinTokens(text);
-  var fast=tokens.length>40;
-  var ti=0,ci=0;
-  function step(){
+  var candMax=_normCandMax(cfg&&cfg.pinyinCandMax);
+  var s=targetText==null?"":String(targetText);
+  var plan=s?_pyPlanFromText(s):_pyPlanRandom(cfg);
+  var fast=plan.length>16,pi=0;
+  function renderCands(list){
+    candsEl.innerHTML="";var spans=[];
+    for(var i=0;i<list.length;i++){var sp=document.createElement("span");sp.className="py-cand";sp.textContent=list[i];candsEl.appendChild(sp);spans.push(sp);}
+    return spans;
+  }
+  function finishBox(){
+    typedEl.textContent="";candsEl.innerHTML="";
+    setTimeout(function(){if(gen===_pyPrevGen){box.classList.remove("show");if(typeof done==="function")done(outEl.textContent);}},420);
+  }
+  function nextItem(){
     if(gen!==_pyPrevGen)return;
-    if(ti>=tokens.length){
-      typedEl.textContent="";
-      setTimeout(function(){ if(gen===_pyPrevGen){box.classList.remove("show"); if(typeof done==="function")done();} },420);
-      return;
+    if(pi>=plan.length){finishBox();return;}
+    var it=plan[pi++];
+    if(it.t==="p"){outEl.textContent+=it.ch;typedEl.textContent="";candsEl.innerHTML="";setTimeout(nextItem,fast?60:140);return;}
+    typeWord(it);
+  }
+  function typeWord(it){
+    var full=it.py||_pyWordPy(it.word);if(!full)full="";
+    var ci=0,live=[],spans=[];
+    function typeNext(){
+      if(gen!==_pyPrevGen)return;
+      if(ci<=full.length){
+        typedEl.textContent=full.slice(0,ci);
+        if(ci>0){live=_pyCandsFor(full.slice(0,ci),it.word,candMax);spans=renderCands(live);}
+        ci++;setTimeout(typeNext,fast?45:95);
+      }else choose();
     }
-    var t=tokens[ti];
-    if(t.han){
-      if(ci<=t.py.length){
-        typedEl.textContent=t.py.slice(0,ci);
-        ci++;
-        setTimeout(step,fast?45:95);
-      }else{
-        outEl.textContent+=t.ch;
-        typedEl.textContent="";
-        ti++;ci=0;
-        setTimeout(step,fast?80:170);
+    function choose(){
+      if(gen!==_pyPrevGen)return;
+      if(it.fixed){live=_pyCandsFor(full,it.fixed,candMax);if(live.indexOf(it.fixed)<0)live=[it.fixed].concat(live);spans=renderCands(live);}
+      var n=live.length,idx=0,r=Math.random();
+      if(it.fixed){idx=Math.max(0,live.indexOf(it.fixed));}
+      else if(n>1){if(r<0.80)idx=0;else if(r<0.90)idx=1;else if(r<0.96)idx=Math.min(2,n-1);else idx=_ri(n);}
+      var cur=-1;
+      function step(){
+        if(gen!==_pyPrevGen)return;
+        for(var a=0;a<spans.length;a++)spans[a].classList.remove("active");
+        cur++;
+        if(cur<spans.length)spans[cur].classList.add("active");
+        if(cur<idx){setTimeout(step,fast?55:120);return;}
+        setTimeout(function(){
+          if(gen!==_pyPrevGen)return;
+          outEl.textContent+=(live[idx]!=null?live[idx]:it.word);
+          typedEl.textContent="";candsEl.innerHTML="";
+          nextItem();
+        },fast?90:210);
       }
-    }else{
-      outEl.textContent+=t.ch;
-      typedEl.textContent="";
-      ti++;ci=0;
-      setTimeout(step,fast?40:70);
+      step();
     }
+    typeNext();
   }
-  step();
-}
-/* ===== 拼字卡模式：完全随机字符（不调 AI、不内置任何词语/句子）===== */
-function _pysRandomHan(){
-  return String.fromCharCode(0x4E00+Math.floor(Math.random()*(0x9FA5-0x4E00+1)));
-}
-function _pysRandomClause(){
-  var len=3+Math.floor(Math.random()*8);
-  var s="";
-  for(var i=0;i<len;i++)s+=_pysRandomHan();
-  return s;
-}
-function generatePinyinSentence(cfg,chat){
-  cfg=cfg||{};
-  var n=1;
-  if(cfg.concatEnabled){
-    var mn=Math.max(1,Number(cfg.concatMin)||2);
-    var mx=Math.max(mn,Number(cfg.concatMax)||4);
-    n=mn+Math.floor(Math.random()*(mx-mn+1));
-  }
-  var parts=[];
-  for(var i=0;i<n;i++)parts.push(_pysRandomClause());
-  return parts.join("，");
+  nextItem();
 }
 function _maybePinyinReply(chat,kind,opts){
   opts=opts||{};
@@ -14552,22 +14743,22 @@ function _maybePinyinReply(chat,kind,opts){
     var mine=chat.messages.filter(function(m){return m.from==="mine";});
     if(mine.length){var last=mine[mine.length-1];quote=buildQuote(last,chat,chat.messages.lastIndexOf(last));}
   }
-  var finish=function(text){
-    if(!text)return;
-    _showPinyinPreview(text,function(){
+  var finish=function(targetText){
+    _showPinyinTyping(cfg,targetText,function(fullText){
+      if(!fullText)return;
       var cur=getChat(chat.id);if(!cur)return;
-      var _ri=cur.messages.length;
-      cur.messages.push({from:"other",text:text,time:now(),kind:kind,quote:quote});
+      var _ri2=cur.messages.length;
+      cur.messages.push({from:"other",text:fullText,time:now(),kind:kind,quote:quote});
       updateStreak(cur);
       save();
       if(currentId===cur.id){renderMessages();renderStreak();}
       renderChats($("search").value);
-      triggerNotification(cur,text);
-      if(typeof scheduleRoleRecall==="function")scheduleRoleRecall(cur.id,_ri);
+      triggerNotification(cur,fullText);
+      if(typeof scheduleRoleRecall==="function")scheduleRoleRecall(cur.id,_ri2);
     });
   };
   if(opts.text){finish(String(opts.text));return true;}
-  finish(generatePinyinSentence(cfg,chat));
+  finish("");
   return true;
 }
 
