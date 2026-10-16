@@ -9,7 +9,6 @@
 
     <content src="index.html" />
 
-    <!-- 允许加载任意来源（本地文件 + 网络图片） -->
     <allow-navigation href="*" />
     <access origin="*" />
     <allow-intent href="http://*/*" />
@@ -22,11 +21,9 @@
     <preference name="DisallowOverscroll" value="true" />
     <preference name="BackgroundColor" value="0xffffffff" />
 
-    <!-- 原生通知 + 手机文件存储插件（关键） -->
     <plugin name="cordova-plugin-local-notification" spec="^1.1.0" />
     <plugin name="cordova-plugin-file" spec="^8.0.0" />
     <plugin name="cordova-plugin-media" spec="^7.0.0" />
-    <!-- 关键：用 SAF/MediaStore 把备份 json 写入系统“下载”公共目录，卸载后仍保留、可重新导入 -->
     <plugin name="cordova-plugin-saf-mediastore" spec="https://github.com/latchuk/cordova-plugin-saf-mediastore.git" />
 
     <platform name="android">
@@ -35,7 +32,6 @@
         <preference name="android-minSdkVersion" value="24" />
         <preference name="android-targetSdkVersion" value="34" />
 
-        <!-- 图标：统一指向 www/icon.png（CI 会自动把大写 WWW 归一化为小写 www，并在缺图时生成占位图） -->
         <icon density="ldpi" src="www/icon.png" />
         <icon density="mdpi" src="www/icon.png" />
         <icon density="hdpi" src="www/icon.png" />
@@ -43,7 +39,6 @@
         <icon density="xxhdpi" src="www/icon.png" />
         <icon density="xxxhdpi" src="www/icon.png" />
 
-        <!-- Android 13+ 系统通知权限（存储权限已移除，由 cordova-plugin-file 自带，避免清单重复声明） -->
         <config-file target="AndroidManifest.xml" parent="/manifest">
             <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
             <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
