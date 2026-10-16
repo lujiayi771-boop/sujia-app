@@ -24,7 +24,7 @@ setTimeout(function(){ try{
 /* 版本自愈：部署新页面后自动清理旧缓存与旧离线脚本，避免一直显示旧版 */
 (function(){
   try{
-    var BUILD='2026-10-16-v8-ime-freq';
+    var BUILD='2026-10-17-v81-dataguard';
     if(localStorage.getItem('suijia_ui_build')!==BUILD){
       localStorage.setItem('suijia_ui_build',BUILD);
       var flag='suijia_reset_done_'+BUILD;
@@ -5142,7 +5142,7 @@ body.dark .rp-history-title{color:#f0f0f2;}
           </div>
           <div class="concat-note">拼接字卡与连发消息互斥：开启拼接后，每次回复只发1条由多张字卡组成的长消息，不再连发多条。</div>
           <div class="inline-note">被动回复、主动消息、已读回执、连发和拼接功能都可以按联系人分别设置，不会互相覆盖。</div>
-          <div class="inline-note" style="margin-top:8px;color:#ff8a3d;">版本标识：v8-常用字词句型 · 若本行未出现，说明当前 APK 仍是旧版，请重新上传 index.html 后再构建。</div>
+          <div class="inline-note" style="margin-top:8px;color:#ff8a3d;">版本标识：v8.1-数据保护版 · 若本行未出现，说明当前 APK 仍是旧版，请重新上传 index.html 后再构建。</div>
           <button class="save-wide" id="saveFrequency">保存回复频率设置</button>
         </div>
 
@@ -6881,7 +6881,7 @@ if(typeof idbSyncOnLoad==="function"){
   }
 }
 // 【修复】兜底：即使 IndexedDB 恢复流程异常，也无法让保存被永久阻塞，4 秒后放行正常保存
-setTimeout(()=>{try{_stateHydrated=true;}catch(e){}},4000);
+setTimeout(()=>{try{if(!_stateHydrated){_stateHydrated=true;if(_dataDirty){try{saveNow();}catch(e){}}}}catch(e){}},8000);
 let currentId=null;let lastChatId=null;let renameTargetId=null;
 
 /* ===== 夜间模式：立即应用（避免闪烁，不依赖 $ 函数） ===== */
@@ -6971,9 +6971,12 @@ $("darkModeToggle")?.addEventListener("change",e=>{
 
 function load(){
  try{
-  let x=localStorage.getItem(KEY);
-  if(!x||x==="null"||x==="undefined"){try{x=localStorage.getItem(KEY+"_backup");}catch(e){}}
-  const data=x?JSON.parse(x):structuredClone(initial);
+  // 【修复·防数据丢失】主缓存缺失/损坏时回退到上一份备份缓存，绝不直接丢数据
+  const __parseSafe=s=>{try{return s?JSON.parse(s):null;}catch(e){return null;}};
+  let x=null;try{x=localStorage.getItem(KEY);}catch(e){}
+  let data=__parseSafe(x);
+  if(!data){try{const __bak=__parseSafe(localStorage.getItem(KEY+"_backup"));if(__bak&&Array.isArray(__bak.chats)){data=__bak;console.warn("[load] 主缓存不可用，已从备份缓存恢复");}}catch(e){}}
+  if(!data){if(x){try{sessionStorage.setItem("_load_failed","1");}catch(e){}}data=structuredClone(initial);}
   if(!data.userAvatar || typeof data.userAvatar!=="object") data.userAvatar=structuredClone(DEFAULT_USER_AVATAR);
   if(typeof data.userName!=="string") data.userName=DEFAULT_USER_NAME;
   if(typeof data.userSignature!=="string") data.userSignature=DEFAULT_USER_SIGNATURE;
@@ -7175,7 +7178,14 @@ async function idbSyncOnLoad(){
     const libScore=(obj)=>{let n=0;try{obj?.chats?.forEach(c=>{n+=(c?.replyLibrary||[]).length;n+=(c?.momentLibrary||[]).length;n+=(c?.nudgeLibrary||[]).length;n+=(c?.statusLibrary||[]).length;n+=(c?.stickerLibrary||[]).length;n+=(c?.voiceLibrary||[]).length;});}catch(e){}return n;};
     const idbLibs=libScore(idbData),lsLibs=libScore(state);
     const idbHasMoreLibs=idbLibs>lsLibs;
-    const needSync=lsEmpty||(idbChats>lsChats)||(idbMsgs>lsMsgs)||(isInitialState&&idbChats>0)||idbNewer||forceRestore||idbHasMoreImages||idbHasMoreLibs||(looksLikeInitialData&&idbMsgs>0);
+    // 【修复·防数据丢失·关键】先判断“谁更新”，而不是“谁内容更多”，避免删除后旧数据回灌
+    const stateNewer=(stateLastSaved>idbLastSaved&&stateLastSaved>0);
+    const stateRicher=(lsMsgs>idbMsgs)||(lsChats>idbChats)||(lsLibs>idbLibs);
+    let needSync=false;
+    if(forceRestore||lsEmpty||isInitialState||looksLikeInitialData){needSync=(idbChats>0)||(idbMsgs>0);}
+    else if(idbNewer){needSync=true;}
+    else if(!stateNewer&&!stateRicher){needSync=(idbChats>lsChats)||(idbMsgs>lsMsgs)||idbHasMoreImages||idbHasMoreLibs;}
+    if(!needSync&&stateNewer){try{idbSaveState(state).catch(()=>{});}catch(e){}}
     if(forceRestore){try{sessionStorage.removeItem("_idb_force_restore");}catch(e){}}
     if(needSync){
       console.log("[IDB] 从 IndexedDB 恢复数据，原因:",{lsEmpty,idbChats,lsChats,idbMsgs,lsMsgs,isInitialState});
@@ -7263,6 +7273,7 @@ async function idbSyncOnLoad(){
       try{toast("已从云端存储恢复完整数据");}catch(e){}
     }
     _stateHydrated=true;
+    try{if(_dataDirty)saveNow();}catch(e){}
   }catch(e){console.warn("[IDB] 同步失败:",e);_stateHydrated=true;}
   try{_hideBusy();}catch(e){}
 }
@@ -7314,6 +7325,9 @@ function saveNow(){
 }
 function _saveNow(){
  try{
+   // 【修复·防数据丢失·关键】IndexedDB 恢复完成前，state 可能仍是“初始/空”数据，
+   // 此时绝不写入任何持久化存储，也不推进 _lastSaved，避免把真实数据覆盖为默认。
+   if(!_stateHydrated){_dataDirty=true;return false;}
    // 给没有timestamp的消息添加时间戳（用于删除旧消息）
    const nowTs=Date.now();
    state.chats.forEach(c=>{
@@ -7339,20 +7353,20 @@ function _saveNow(){
      // 优先保存“完整快照”（含图片），确保任何情况下重进APP图片都在；
      // 只有当完整快照超出 localStorage 配额时，才退化为去图片的轻量快照。
      let light;
+     // 【修复·防数据丢失】把上一份主缓存轮换进备份槽（真正的历史版本），
+     // 主缓存一旦损坏/被清仍可回滚，而不是把当前内容重复写两遍。
+     const _lsCommit=(txt)=>{try{const prev=localStorage.getItem(KEY);if(prev&&prev!==txt)localStorage.setItem(KEY+"_backup",prev);}catch(e){}localStorage.setItem(KEY,txt);};
      if(_lsNeedsStrip){
        light=JSON.stringify(stripStateForCache(state));
-       localStorage.setItem(KEY,light);
-       try{localStorage.setItem(KEY+"_backup",light);}catch(e){}
+       _lsCommit(light);
      }else{
        try{
          light=JSON.stringify(state);
-         localStorage.setItem(KEY,light);
-         try{localStorage.setItem(KEY+"_backup",light);}catch(e){}
+         _lsCommit(light);
        }catch(_big){
          _lsNeedsStrip=true;
          light=JSON.stringify(stripStateForCache(state));
-         localStorage.setItem(KEY,light);
-         try{localStorage.setItem(KEY+"_backup",light);}catch(e){}
+         _lsCommit(light);
        }
      }
    }catch(lsErr){
