@@ -1,0 +1,77 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare www and icon
+        env:
+          ICON_B64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+        run: |
+          mkdir -p www
+          if [ -d WWW ]; then cp -rf WWW www; fi
+          if [ -f index.html ]; then cp -f index.html www/index.html; fi
+          if [ -f sw.js ]; then cp -f sw.js www/sw.js; fi
+          if [ ! -f www/icon.png ]; then echo "$ICON_B64" | base64 -d > www/icon.png; fi
+
+      - name: Clean previous build state
+        run: |
+          rm -rf platforms plugins
+          rm -f package-lock.json
+          ls -la
+
+      - name: Fix config.xml
+        run: |
+          sed -i '/<plugin name=/d' config.xml
+          sed -i 's/0xffffffff/#FFFFFFFF/g' config.xml
+          grep -c '<plugin name=' config.xml || true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install Cordova
+        run: npm install -g cordova
+
+      - name: Add Android platform
+        run: cordova platform add android@13.0.0
+
+      - name: Install plugins
+        run: |
+          cordova plugin add cordova-plugin-local-notification || true
+          cordova plugin add cordova-plugin-file@^8.0.0 || true
+          cordova plugin add cordova-plugin-media@^7.0.0 --force || true
+          cordova plugin add https://github.com/latchuk/cordova-plugin-saf-mediastore.git || true
+
+      - name: Patch saf-mediastore dependency
+        run: |
+          mkdir -p platforms/android/app
+          echo "dependencies {" > platforms/android/app/build-extras.gradle
+          echo "    implementation 'androidx.documentfile:documentfile:1.0.1'" >> platforms/android/app/build-extras.gradle
+          echo "    implementation 'androidx.annotation:annotation:1.7.1'" >> platforms/android/app/build-extras.gradle
+          echo "}" >> platforms/android/app/build-extras.gradle
+          cat platforms/android/app/build-extras.gradle
+
+      - name: Build Debug APK
+        run: cordova build android --debug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: suijia-apk
+          path: platforms/android/app/build/outputs/apk/debug/app-debug.apk
