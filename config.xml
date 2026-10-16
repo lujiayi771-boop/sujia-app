@@ -25,7 +25,7 @@
     <!-- 原生通知 + 手机文件存储插件（关键） -->
     <plugin name="cordova-plugin-local-notification" spec="^1.1.0" />
     <plugin name="cordova-plugin-file" spec="^8.0.0" />
-    <plugin name="cordova-plugin-media" spec="^7.0.0" />
+    <plugin name="cordova-plugin-media" spec="^6.0.0" />
     <!-- 关键：用 SAF/MediaStore 把备份 json 写入系统“下载”公共目录，卸载后仍保留、可重新导入 -->
     <plugin name="cordova-plugin-saf-mediastore" spec="https://github.com/latchuk/cordova-plugin-saf-mediastore.git" />
 
@@ -52,8 +52,8 @@
             <uses-permission android:name="android.permission.VIBRATE" />
             <uses-permission android:name="android.permission.RECORD_AUDIO" />
             <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
-            <!-- 注意：READ/WRITE_EXTERNAL_STORAGE 由 cordova-plugin-file 插件声明，
-                 此处不再重复声明，避免 AndroidManifest 合并时报“重复权限”错误 -->
+            <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+            <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
         </config-file>
     </platform>
 </widget>
