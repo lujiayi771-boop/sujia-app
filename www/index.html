@@ -24,7 +24,7 @@ setTimeout(function(){ try{
 /* 版本自愈：部署新页面后自动清理旧缓存与旧离线脚本，避免一直显示旧版 */
 (function(){
   try{
-    var BUILD='2026-10-16-v3-pinyin';
+    var BUILD='2026-10-16-v5-random';
     if(localStorage.getItem('suijia_ui_build')!==BUILD){
       localStorage.setItem('suijia_ui_build',BUILD);
       var flag='suijia_reset_done_'+BUILD;
@@ -5128,12 +5128,12 @@ body.dark .rp-history-title{color:#f0f0f2;}
             <div class="unit">张</div>
           </div>
           <div class="toggle-row" style="margin-top:15px">
-            <div><div class="toggle-name">拼字卡模式</div><div class="field-help">开启后，角色有 5% 概率改用「拼音打字」方式回复：由内置词库随机拼出一句话（不读取字卡库），再逐字母打出拼音并转换成汉字，同时弹出预览小框实时展示打字过程。</div></div>
+            <div><div class="toggle-name">拼字卡模式</div><div class="field-help">开启后，角色有 5% 概率改用「拼音打字」方式回复：内容完全由随机汉字字符临时组成——不预设任何词语或句子，也不调用任何 AI 接口、不使用任何预设类别；角色逐字母打出拼音并转换成汉字，同时弹出预览小框实时展示打字过程。</div></div>
             <label class="toggle"><input id="pinyinCardEnabled" type="checkbox"><span class="toggle-track"></span></label>
           </div>
           <div class="concat-note">拼接字卡与连发消息互斥：开启拼接后，每次回复只发1条由多张字卡组成的长消息，不再连发多条。</div>
           <div class="inline-note">被动回复、主动消息、已读回执、连发和拼接功能都可以按联系人分别设置，不会互相覆盖。</div>
-          <div class="inline-note" style="margin-top:8px;color:#ff8a3d;">版本标识：v3-随机拼句 · 若本行未出现，说明当前 APK 仍是旧版，请重新上传 index.html 后再构建。</div>
+          <div class="inline-note" style="margin-top:8px;color:#ff8a3d;">版本标识：v5-完全随机字符 · 若本行未出现，说明当前 APK 仍是旧版，请重新上传 index.html 后再构建。</div>
           <button class="save-wide" id="saveFrequency">保存回复频率设置</button>
         </div>
 
@@ -14519,21 +14519,17 @@ function _showPinyinPreview(text,done){
   }
   step();
 }
-/* ===== 拼字卡模式：内置词库随机拼句（不依赖字卡库）===== */
-var _PYS_SUBJ=["我","你","他","她","我们","你们","大家","咱们","咱"];
-var _PYS_TIME=["今天","明天","现在","刚才","待会儿","周末","晚点","马上","等会儿","最近","这两天","一会儿"];
-var _PYS_VERB=["想","要","去","来","吃","喝","看","玩","聊","睡","走","买","做","听","学","逛","试试"];
-var _PYS_OBJ=["饭","奶茶","咖啡","火锅","电影","游戏","书","歌","球","觉","班","公园","音乐","照片","东西","零食","烧烤","月亮","星星","水果"];
-var _PYS_TAIL=["呀","呢","吧","哦","啦","嘛","哈","咯","啊","了","的",""];
-var _PYS_LEAD=["","","","那个","话说","对了","其实","所以","然后","诶"];
-function _pysPick(a){return a[Math.floor(Math.random()*a.length)];}
-function _pysClause(){
-  var s=_pysPick(_PYS_LEAD)+_pysPick(_PYS_SUBJ);
-  if(Math.random()<0.6)s+=_pysPick(_PYS_TIME);
-  s+=_pysPick(_PYS_VERB)+_pysPick(_PYS_OBJ)+_pysPick(_PYS_TAIL);
+/* ===== 拼字卡模式：完全随机字符（不调 AI、不内置任何词语/句子）===== */
+function _pysRandomHan(){
+  return String.fromCharCode(0x4E00+Math.floor(Math.random()*(0x9FA5-0x4E00+1)));
+}
+function _pysRandomClause(){
+  var len=3+Math.floor(Math.random()*8);
+  var s="";
+  for(var i=0;i<len;i++)s+=_pysRandomHan();
   return s;
 }
-function generatePinyinSentence(cfg){
+function generatePinyinSentence(cfg,chat){
   cfg=cfg||{};
   var n=1;
   if(cfg.concatEnabled){
@@ -14541,9 +14537,9 @@ function generatePinyinSentence(cfg){
     var mx=Math.max(mn,Number(cfg.concatMax)||4);
     n=mn+Math.floor(Math.random()*(mx-mn+1));
   }
-  var out=[];
-  for(var i=0;i<n;i++)out.push(_pysClause());
-  return out.join("，");
+  var parts=[];
+  for(var i=0;i<n;i++)parts.push(_pysRandomClause());
+  return parts.join("，");
 }
 function _maybePinyinReply(chat,kind,opts){
   opts=opts||{};
@@ -14551,26 +14547,27 @@ function _maybePinyinReply(chat,kind,opts){
   var cfg=getSettings(chat.id);
   if(!cfg||!cfg.pinyinCardEnabled)return false;
   if(Math.random()>=0.05)return false;
-  var text="";
-  if(opts.text)text=String(opts.text);
-  else text=generatePinyinSentence(cfg);
-  if(!text)return false;
   var quote=opts.quote||null;
   if(!quote&&Math.random()<0.05){
     var mine=chat.messages.filter(function(m){return m.from==="mine";});
     if(mine.length){var last=mine[mine.length-1];quote=buildQuote(last,chat,chat.messages.lastIndexOf(last));}
   }
-  _showPinyinPreview(text,function(){
-    var cur=getChat(chat.id);if(!cur)return;
-    var _ri=cur.messages.length;
-    cur.messages.push({from:"other",text:text,time:now(),kind:kind,quote:quote});
-    updateStreak(cur);
-    save();
-    if(currentId===cur.id){renderMessages();renderStreak();}
-    renderChats($("search").value);
-    triggerNotification(cur,text);
-    if(typeof scheduleRoleRecall==="function")scheduleRoleRecall(cur.id,_ri);
-  });
+  var finish=function(text){
+    if(!text)return;
+    _showPinyinPreview(text,function(){
+      var cur=getChat(chat.id);if(!cur)return;
+      var _ri=cur.messages.length;
+      cur.messages.push({from:"other",text:text,time:now(),kind:kind,quote:quote});
+      updateStreak(cur);
+      save();
+      if(currentId===cur.id){renderMessages();renderStreak();}
+      renderChats($("search").value);
+      triggerNotification(cur,text);
+      if(typeof scheduleRoleRecall==="function")scheduleRoleRecall(cur.id,_ri);
+    });
+  };
+  if(opts.text){finish(String(opts.text));return true;}
+  finish(generatePinyinSentence(cfg,chat));
   return true;
 }
 
