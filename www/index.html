@@ -24,7 +24,7 @@ setTimeout(function(){ try{
 /* 版本自愈：部署新页面后自动清理旧缓存与旧离线脚本，避免一直显示旧版 */
 (function(){
   try{
-    var BUILD='2026-10-17-v82-forever';
+    var BUILD='2026-10-17-v83-silent';
     if(localStorage.getItem('suijia_ui_build')!==BUILD){
       localStorage.setItem('suijia_ui_build',BUILD);
       var flag='suijia_reset_done_'+BUILD;
@@ -5142,7 +5142,7 @@ body.dark .rp-history-title{color:#f0f0f2;}
           </div>
           <div class="concat-note">拼接字卡与连发消息互斥：开启拼接后，每次回复只发1条由多张字卡组成的长消息，不再连发多条。</div>
           <div class="inline-note">被动回复、主动消息、已读回执、连发和拼接功能都可以按联系人分别设置，不会互相覆盖。</div>
-          <div class="inline-note" style="margin-top:8px;color:#ff8a3d;">版本标识：v8.2-数据永生版 · 若本行未出现，说明当前 APK 仍是旧版，请重新上传 index.html 后再构建。</div>
+          <div class="inline-note" style="margin-top:8px;color:#ff8a3d;">版本标识：v8.3-静默永生版 · 若本行未出现，说明当前 APK 仍是旧版，请重新上传 index.html 后再构建。</div>
           <button class="save-wide" id="saveFrequency">保存回复频率设置</button>
         </div>
 
@@ -6969,19 +6969,27 @@ $("darkModeToggle")?.addEventListener("change",e=>{
   toast(state.darkMode?"已开启夜间模式":"已关闭夜间模式");
 });
 
-/* ================= 数据永生 · 灾备备份（独立存储，不受“恢复到初始数据”清除） ================= */
+/* ================= 数据永生 · 灾备备份 v8.3（独立存储 · 静默 · 零深拷贝） ================= */
 (function(){
-  var VAULT_DB='suijia_vault_db_v1';
-  var VAULT_STORE='snapshots';
-  var MAX_SNAP=30;
-  var MIN_INTERVAL=180000;
+  var VAULT_DB='suijia_vault_db_v2';
+  var META='snapshots_meta';
+  var DATA='snapshots_data';
+  var MAX_SNAP=12;
+  var DEFAULT_INTERVAL=2700000; // 45 分钟
   var _dbP=null,_last=0,_busy=false;
+  var _lastLen=0,_lastHead='';
+  // 清理旧版被污染的灾备库（v8.2 曾把初始数据也备份进去）
+  try{ if(indexedDB&&indexedDB.deleteDatabase)indexedDB.deleteDatabase('suijia_vault_db_v1'); }catch(e){}
+  function intervalMs(){
+    try{ var v=window.SUIJIA_VAULT_INTERVAL; if(typeof v==='number'&&v>=300000)return v; }catch(e){}
+    return DEFAULT_INTERVAL;
+  }
   function openDB(){
     if(_dbP)return _dbP;
     _dbP=new Promise(function(res,rej){
       try{
         var req=indexedDB.open(VAULT_DB,1);
-        req.onupgradeneeded=function(e){try{var db=e.target.result;if(!db.objectStoreNames.contains(VAULT_STORE))db.createObjectStore(VAULT_STORE,{keyPath:'id'});}catch(err){}};
+        req.onupgradeneeded=function(e){try{var db=e.target.result;if(!db.objectStoreNames.contains(META))db.createObjectStore(META,{keyPath:'id'});if(!db.objectStoreNames.contains(DATA))db.createObjectStore(DATA,{keyPath:'id'});}catch(err){}};
         req.onsuccess=function(e){res(e.target.result);};
         req.onerror=function(e){rej(e.target.error||new Error('vault open'));};
         req.onblocked=function(){rej(new Error('vault blocked'));};
@@ -6989,12 +6997,12 @@ $("darkModeToggle")?.addEventListener("change",e=>{
     });
     return _dbP;
   }
-  function tx(mode,fn){
+  function tx(store,mode,fn){
     return openDB().then(function(db){
       return new Promise(function(res,rej){
         try{
-          var t=db.transaction(VAULT_STORE,mode);
-          var s=t.objectStore(VAULT_STORE);
+          var t=db.transaction(store,mode);
+          var s=t.objectStore(store);
           var r=fn(s);
           t.oncomplete=function(){try{res(r&&typeof r.result!=='undefined'?r.result:undefined);}catch(e){res(undefined);}};
           t.onerror=function(){rej(t.error);};
@@ -7003,43 +7011,97 @@ $("darkModeToggle")?.addEventListener("change",e=>{
       });
     });
   }
-  function put(x){return tx('readwrite',function(s){return s.put(x);});}
-  function all(){return tx('readonly',function(s){return s.getAll();});}
-  function get(id){return tx('readonly',function(s){return s.get(id);});}
-  function del(id){return tx('readwrite',function(s){return s.delete(id);});}
+  function putMeta(x){return tx(META,'readwrite',function(s){return s.put(x);});}
+  function putData(x){return tx(DATA,'readwrite',function(s){return s.put(x);});}
+  function getMeta(id){return tx(META,'readonly',function(s){return s.get(id);});}
+  function getData(id){return tx(DATA,'readonly',function(s){return s.get(id);});}
+  function allMeta(){return tx(META,'readonly',function(s){return s.getAll();});}
+  function delPair(id){return Promise.all([tx(META,'readwrite',function(s){return s.delete(id);}),tx(DATA,'readwrite',function(s){return s.delete(id);})]);}
+  function isEpoch(x){return x&&x.id==='__epoch';}
   function trim(){
-    return all().then(function(list){
+    return allMeta().then(function(list){
+      list=(list||[]).filter(function(x){return !isEpoch(x);});
+      if(list.length<=MAX_SNAP)return;
       list.sort(function(a,b){return b.ts-a.ts;});
-      if(list.length>MAX_SNAP){return Promise.all(list.slice(MAX_SNAP).map(function(x){return del(x.id);}));}
+      return Promise.all(list.slice(MAX_SNAP).map(function(x){return delPair(x.id);}));
     });
   }
   function score(obj){
     try{if(!obj||!Array.isArray(obj.chats))return{n:0,m:0};var m=0;obj.chats.forEach(function(c){m+=((c.messages||[]).length);});return{n:obj.chats.length,m:m};}catch(e){return{n:0,m:0};}
   }
+  // 内容判定：只有当"完全没有真实数据与自定义"时才算初始默认数据（绝不依赖 _lastSaved）
   function looksInitial(obj){
     try{
       if(!obj||!Array.isArray(obj.chats))return true;
-      var ids=obj.chats.map(function(c){return c.id;}).sort().join(',');
       var m=0;obj.chats.forEach(function(c){m+=((c.messages||[]).length);});
-      return (obj.chats.length===3&&ids==='1,2,3'&&m===0&&!obj._lastSaved);
+      if(m>0)return false;
+      var real=false;
+      try{
+        if(obj.userName&&obj.userName!=='我')real=true;
+        if(obj.userAvatar&&obj.userAvatar.image)real=true;
+        if(obj.momentCover&&obj.momentCover.image)real=true;
+        (obj.moments||[]).forEach(function(x){if(x&&x.image)real=true;});
+        obj.chats.forEach(function(c){
+          if(c&&c.avatar&&c.avatar.image)real=true;
+          if(c&&c.chatBg&&c.chatBg.image)real=true;
+        });
+      }catch(e){}
+      return !real;
     }catch(e){return true;}
   }
-  function autoBackup(st,force){
+  // 复用已序列化字符串，零额外深拷贝
+  function getFullString(st){
+    try{ var s=window.__suijiaLastFullStr; if(s&&typeof s==='string'&&s.length>64)return s; }catch(e){}
+    try{ var ls=localStorage.getItem(KEY); if(ls&&ls.length>64)return ls; }catch(e){}
+    try{ return JSON.stringify(st); }catch(e){ return null; }
+  }
+  function looksIdentical(str){
+    if(!str)return true;
+    return (str.length===_lastLen && str.slice(0,256)===_lastHead);
+  }
+  function doBackup(st,force){
     try{
-      if(_busy)return Promise.resolve();
+      if(_busy)return Promise.resolve(false);
       var now=Date.now();
-      if(!force&&now-_last<MIN_INTERVAL)return Promise.resolve();
-      if(!st||!Array.isArray(st.chats))return Promise.resolve();
-      if(looksInitial(st))return Promise.resolve();
+      if(!force&&now-_last<intervalMs())return Promise.resolve(false);
+      if(!st||!Array.isArray(st.chats))return Promise.resolve(false);
+      if(looksInitial(st))return Promise.resolve(false);
+      var dataStr=getFullString(st);
+      if(!dataStr)return Promise.resolve(false);
+      if(looksIdentical(dataStr)){_last=now;return Promise.resolve(false);}
       _busy=true;_last=now;
       var sc=score(st);
-      var payload;
-      try{payload=JSON.parse(JSON.stringify(st));}catch(e){payload=st;}
-      var snap={id:'s'+now+'_'+Math.random().toString(36).slice(2,7),ts:now,chats:sc.n,msgs:sc.m,data:payload};
-      return put(snap).then(trim).then(function(){_busy=false;}).catch(function(){_busy=false;});
-    }catch(e){_busy=false;return Promise.resolve();}
+      var head=dataStr.slice(0,256);
+      _lastLen=dataStr.length;_lastHead=head;
+      var id='s'+now+'_'+Math.random().toString(36).slice(2,7);
+      var meta={id:id,ts:now,chats:sc.n,msgs:sc.m,len:dataStr.length,head:head};
+      var data={id:id,dataStr:dataStr};
+      return putData(data).then(function(){return putMeta(meta);}).then(trim).then(function(){_busy=false;return true;}).catch(function(){_busy=false;return false;});
+    }catch(e){_busy=false;return Promise.resolve(false);}
   }
+  function scheduleIdle(st){
+    try{
+      var run=function(){try{doBackup(st,false);}catch(e){}};
+      if('requestIdleCallback' in window){ try{ requestIdleCallback(run,{timeout:10000}); return; }catch(e){} }
+      setTimeout(run,4000);
+    }catch(e){ try{setTimeout(function(){try{doBackup(st,false);}catch(_e){}},6000);}catch(_e2){} }
+  }
+  // force=true 立即写（返回 Promise，供"立即备份"按钮）；否则闲置静默调度
+  function autoBackup(st,force){
+    if(force)return doBackup(st,true);
+    scheduleIdle(st);
+    return Promise.resolve(false);
+  }
+  function backupNow(st){return doBackup(st,true);}
   function getState(){try{return state;}catch(e){return window.state;}}
+  function parseSnapStr(d){try{var obj=JSON.parse(d.dataStr);return (obj&&Array.isArray(obj.chats))?obj:null;}catch(e){return null;}}
+  function applyAndReload(obj,dataStr,msg){
+    try{sessionStorage.setItem('suijia_vault_recovered','1');}catch(e){}
+    try{localStorage.setItem(KEY,dataStr);}catch(e){}
+    try{idbSaveState(obj);}catch(e){}
+    try{toast(msg);}catch(e){}
+    setTimeout(function(){try{location.reload();}catch(e){}},900);
+  }
   function tryAutoRecover(){
     try{
       if(sessionStorage.getItem('suijia_vault_recovered')==='1')return;
@@ -7049,38 +7111,39 @@ $("darkModeToggle")?.addEventListener("change",e=>{
       try{if(cur&&Array.isArray(cur.chats))cur.chats.forEach(function(c){curMsgs+=((c.messages||[]).length);});curSaved=(cur&&typeof cur._lastSaved==='number')?cur._lastSaved:0;}catch(e){}
       var degraded=looksInitial(cur)||(curMsgs===0);
       if(!degraded)return;
-      all().then(function(list){
-        if(!list||!list.length)return;
+      Promise.all([allMeta(),getMeta('__epoch')]).then(function(r){
+        var list=(r[0]||[]).filter(function(x){return !isEpoch(x);});
+        var epoch=r[1];
+        if(!list.length)return;
         list.sort(function(a,b){return b.ts-a.ts;});
         var best=list[0];
-        if(!best||!best.data||!Array.isArray(best.data.chats))return;
-        if(looksInitial(best.data))return;
+        if(!best||best.msgs<=0)return;                    // 只恢复"确有内容"的备份
+        if(epoch&&typeof epoch.ts==='number'&&epoch.ts>=best.ts)return; // 用户主动重置过，尊重之
         if(best.ts<=curSaved)return;
-        try{sessionStorage.setItem('suijia_vault_recovered','1');}catch(e){}
-        try{localStorage.setItem(KEY,JSON.stringify(best.data));}catch(e){}
-        try{idbSaveState(best.data);}catch(e){}
-        try{toast('检测到数据异常，已自动从灾备备份恢复');}catch(e){}
-        setTimeout(function(){try{location.reload();}catch(e){}},900);
+        return getData(best.id).then(function(d){
+          if(!d||!d.dataStr)return;
+          var obj=parseSnapStr(d);
+          if(!obj||looksInitial(obj))return;
+          applyAndReload(obj,d.dataStr,'检测到数据异常，已自动从灾备备份恢复');
+        });
       }).catch(function(){});
     }catch(e){}
   }
   function restore(id){
-    get(id).then(function(snap){
-      if(!snap||!snap.data){try{toast('备份不存在');}catch(e){}return;}
-      try{sessionStorage.setItem('suijia_vault_recovered','1');}catch(e){}
-      try{localStorage.setItem(KEY,JSON.stringify(snap.data));}catch(e){}
-      try{idbSaveState(snap.data);}catch(e){}
-      try{toast('已恢复该备份，正在重启…');}catch(e){}
-      setTimeout(function(){try{location.reload();}catch(e){}},700);
+    getData(id).then(function(d){
+      if(!d||!d.dataStr){try{toast('备份不存在');}catch(e){}return;}
+      var obj=parseSnapStr(d);
+      if(!obj){try{toast('备份已损坏');}catch(e){}return;}
+      applyAndReload(obj,d.dataStr,'已恢复该备份，正在重启…');
     }).catch(function(){try{toast('恢复失败');}catch(e){}});
   }
-  function delSnap(id){del(id).then(function(){renderPanel();}).catch(function(){});}
-  function fmt(ts){try{return new Date(ts).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});}catch(e){return '';} }
+  function delSnap(id){delPair(id).then(function(){renderPanel();}).catch(function(){});}
+  function fmt(ts){try{return new Date(ts).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});}catch(e){return '';}}
   function exportSnap(id){
-    get(id).then(function(snap){
-      if(!snap||!snap.data)return;
+    getData(id).then(function(d){
+      if(!d||!d.dataStr)return;
       try{
-        var blob=new Blob([JSON.stringify(snap.data)],{type:'application/json'});
+        var blob=new Blob([d.dataStr],{type:'application/json'});
         var a=document.createElement('a');
         a.href=URL.createObjectURL(blob);
         a.download='suijia-vault-'+id+'.json';
@@ -7097,17 +7160,18 @@ $("darkModeToggle")?.addEventListener("change",e=>{
       var box=document.createElement('div');
       box.className='storage-clean-section';box.id='vaultPanel';
       box.innerHTML='<div class="storage-clean-title">🛡️ 数据永生 · 灾备备份记录</div>'
-        +'<div class="field-help" style="margin:4px 0 10px;color:var(--muted)">系统每隔几分钟会把完整数据静默备份到独立存储（不受“恢复到初始数据”影响）。若数据异常消失，打开应用会自动从此处恢复到最近的备份；你也可以手动保存到手机永久留存。</div>'
+        +'<div class="field-help" style="margin:4px 0 10px;color:var(--muted)">系统每 45 分钟在后台<strong>静默</strong>备份一次（空闲时才执行，绝不影响操作），最多保留最近 12 份。灾备库独立存储，<strong>不受「恢复到初始数据」影响</strong>。若数据异常消失，打开应用会自动恢复到最近一份有内容的备份；也可手动保存到手机永久留存。</div>'
         +'<div id="vaultList" class="field-help" style="color:var(--muted)">正在读取…</div>'
         +'<div class="storage-clean-buttons" style="margin-top:8px">'
         +'<button class="storage-clean-btn" id="vaultBackupNowBtn"><span class="storage-clean-icon">🛡️</span><span class="storage-clean-text">立即备份一次</span></button>'
         +'</div>';
       host.appendChild(box);
       var bb=document.getElementById('vaultBackupNowBtn');
-      if(bb)bb.addEventListener('click',function(){autoBackup(getState(),true).then(function(){try{toast('已备份到灾备库');}catch(e){}renderPanel();});});
-      all().then(function(list){
+      if(bb)bb.addEventListener('click',function(){backupNow(getState()).then(function(ok){try{toast(ok?'已备份到灾备库':'当前无需备份');}catch(e){}renderPanel();});});
+      allMeta().then(function(list){
         var el=document.getElementById('vaultList');if(!el)return;
-        if(!list||!list.length){el.innerHTML='暂无灾备备份（数据有变化后会自动生成）';return;}
+        list=(list||[]).filter(function(x){return !isEpoch(x);});
+        if(!list.length){el.innerHTML='暂无灾备备份（产生聊天内容后会自动生成）';return;}
         list.sort(function(a,b){return b.ts-a.ts;});
         el.innerHTML='';
         list.forEach(function(x){
@@ -7129,7 +7193,11 @@ $("darkModeToggle")?.addEventListener("change",e=>{
       }).catch(function(){var el=document.getElementById('vaultList');if(el)el.textContent='读取备份失败';});
     }catch(e){}
   }
-  window.SuijiaVault={autoBackup:autoBackup,tryAutoRecover:tryAutoRecover,renderPanel:renderPanel,restore:restore,list:all,del:delSnap,exportSnap:exportSnap,markUserReset:function(){try{sessionStorage.setItem('suijia_vault_no_autorestore','1');}catch(e){}}};
+  function markUserReset(){
+    try{sessionStorage.setItem('suijia_vault_no_autorestore','1');}catch(e){}
+    return putMeta({id:'__epoch',ts:Date.now()}).catch(function(){});
+  }
+  window.SuijiaVault={autoBackup:autoBackup,backupNow:backupNow,tryAutoRecover:tryAutoRecover,renderPanel:renderPanel,restore:restore,list:allMeta,del:delSnap,exportSnap:exportSnap,markUserReset:markUserReset,looksInitial:looksInitial};
 })();
 
 function load(){
@@ -7228,6 +7296,7 @@ function idbSaveState(data){
   // 【修复·防数据丢失】写出前先留一份快照，写入成功后轮换到 "backup" 槽，
   // 这样即使主槽写入中途失败/损坏，导入或恢复时仍能从 backup 槽读回上一份完整数据。
   const cur=JSON.stringify(data);
+  try{ window.__suijiaLastFullStr=cur; }catch(_e){}
   const job=()=>new Promise(async(resolve)=>{
     try{
       const db=await idbOpen();
@@ -7559,10 +7628,10 @@ function _saveNow(){
 try{
   if(_persistTimer)clearInterval(_persistTimer);
   _persistTimer=setInterval(()=>{ try{ if(_dataDirty && _stateHydrated){ saveNow(); } }catch(e){} },20000);
-// 【数据永生】后台静默滚动备份：每 3 分钟 + 启动 12 秒后 + 每次回到前台
-try{ setInterval(()=>{ try{ if(_stateHydrated&&window.SuijiaVault)SuijiaVault.autoBackup(state); }catch(e){} },180000); }catch(e){}
-try{ setTimeout(()=>{ try{ if(_stateHydrated&&window.SuijiaVault)SuijiaVault.autoBackup(state,true); }catch(e){} },12000); }catch(e){}
-try{ document.addEventListener("visibilitychange",function(){ try{ if(document.visibilityState==="visible"&&_stateHydrated&&window.SuijiaVault)SuijiaVault.autoBackup(state); }catch(e){} }); }catch(e){}
+// 【数据永生 v8.3】静默滚动备份：45 分钟一次 + 启动后 + 切后台时；全部闲置调度，绝不阻塞操作
+try{ setInterval(()=>{ try{ if(_stateHydrated&&window.SuijiaVault)SuijiaVault.autoBackup(state); }catch(e){} },2700000); }catch(e){}
+try{ setTimeout(()=>{ try{ if(_stateHydrated&&window.SuijiaVault)SuijiaVault.autoBackup(state); }catch(e){} },20000); }catch(e){}
+try{ document.addEventListener("visibilitychange",function(){ try{ if(document.visibilityState==="hidden"&&_stateHydrated&&window.SuijiaVault)SuijiaVault.autoBackup(state,true); }catch(e){} }); }catch(e){}
 }catch(e){}
 // 请求持久化存储配额，降低系统在存储紧张时清理本应用数据的概率
 try{ if(navigator&&navigator.storage&&navigator.storage.persist){ navigator.storage.persist().then(p=>{ try{ if(!p&&navigator.storage.persisted) navigator.storage.persisted().then(q=>console.warn("[storage] 持久化未授予:",q)); }catch(e){} }).catch(()=>{}); } }catch(e){}
@@ -18028,7 +18097,7 @@ function resetAllData(){
     toast("正在恢复初始数据...");
     setTimeout(()=>{
       location.reload();
-    },500);
+    },900);
   }catch(e){
     console.error("resetAllData error:",e);
     toast("恢复失败:"+e.message);
