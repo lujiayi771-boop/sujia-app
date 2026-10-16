@@ -24,7 +24,7 @@ setTimeout(function(){ try{
 /* 版本自愈：部署新页面后自动清理旧缓存与旧离线脚本，避免一直显示旧版 */
 (function(){
   try{
-    var BUILD='2026-10-17-v83-silent';
+    var BUILD='2026-10-17-v84-hydrate-guard';
     if(localStorage.getItem('suijia_ui_build')!==BUILD){
       localStorage.setItem('suijia_ui_build',BUILD);
       var flag='suijia_reset_done_'+BUILD;
@@ -5142,7 +5142,7 @@ body.dark .rp-history-title{color:#f0f0f2;}
           </div>
           <div class="concat-note">拼接字卡与连发消息互斥：开启拼接后，每次回复只发1条由多张字卡组成的长消息，不再连发多条。</div>
           <div class="inline-note">被动回复、主动消息、已读回执、连发和拼接功能都可以按联系人分别设置，不会互相覆盖。</div>
-          <div class="inline-note" style="margin-top:8px;color:#ff8a3d;">版本标识：v8.3-静默永生版 · 若本行未出现，说明当前 APK 仍是旧版，请重新上传 index.html 后再构建。</div>
+          <div class="inline-note" style="margin-top:8px;color:#ff8a3d;">版本标识：v8.4-静默永生版（修复数据回退） · 若本行未出现，说明当前 APK 仍是旧版，请重新上传 index.html 后再构建。</div>
           <button class="save-wide" id="saveFrequency">保存回复频率设置</button>
         </div>
 
@@ -6881,7 +6881,38 @@ if(typeof idbSyncOnLoad==="function"){
   }
 }
 // 【修复】兜底：即使 IndexedDB 恢复流程异常，也无法让保存被永久阻塞，4 秒后放行正常保存
-setTimeout(()=>{try{if(!_stateHydrated){_stateHydrated=true;if(_dataDirty){try{saveNow();}catch(e){}}}}catch(e){}},8000);
+// 【修复·防数据丢失 v8.4】原 8 秒兜底在“大数据量从 IndexedDB 恢复超过 8 秒”时，会强行把 _stateHydrated 置真
+// 并用“初始/空数据”覆盖真实数据（主存储与备份槽会被一起污染），这正是“打开后数据回退成初始”的根因。
+// 新逻辑：恢复尚未开始才放行保存；恢复进行中则持续等待；仅当等待极久(>=90s)且内存里确有真实内容时才允许落盘，
+// 从而既不丢用户新数据，也绝不用初始数据覆盖已有存储。
+let _hydrateStarted=false;
+(function(){
+  var waited=0;
+  function _stateLooksInitial(){
+    try{
+      if(!state||!Array.isArray(state.chats))return true;
+      var m=0;state.chats.forEach(function(c){m+=((c.messages||[]).length);});
+      if(m>0)return false;
+      if(state.userName&&state.userName!=="我")return false;
+      if(state.userAvatar&&state.userAvatar.image)return false;
+      if(state.momentCover&&state.momentCover.image)return false;
+      var real=false;
+      (state.moments||[]).forEach(function(x){if(x&&x.image)real=true;});
+      state.chats.forEach(function(c){if(c&&c.avatar&&c.avatar.image)real=true;if(c&&c.chatBg&&c.chatBg.image)real=true;});
+      return !real;
+    }catch(e){return true;}
+  }
+  function _tick(){
+    try{
+      if(_stateHydrated)return;
+      if(!_hydrateStarted){_stateHydrated=true;if(_dataDirty){try{saveNow();}catch(e){}}return;}
+      waited+=8000;
+      if(waited>=90000&&!_stateLooksInitial()){_stateHydrated=true;try{if(_dataDirty)saveNow();}catch(e){}console.warn("[IDB] 恢复等待超时，但内存含真实数据，已放行保存");return;}
+      setTimeout(_tick,8000);
+    }catch(e){}
+  }
+  setTimeout(_tick,8000);
+})();
 let currentId=null;let lastChatId=null;let renameTargetId=null;
 
 /* ===== 夜间模式：立即应用（避免闪烁，不依赖 $ 函数） ===== */
@@ -6969,7 +7000,7 @@ $("darkModeToggle")?.addEventListener("change",e=>{
   toast(state.darkMode?"已开启夜间模式":"已关闭夜间模式");
 });
 
-/* ================= 数据永生 · 灾备备份 v8.3（独立存储 · 静默 · 零深拷贝） ================= */
+/* ================= 数据永生 · 灾备备份 v8.4（独立存储 · 静默 · 零深拷贝 · 回退修复） ================= */
 (function(){
   var VAULT_DB='suijia_vault_db_v2';
   var META='snapshots_meta';
@@ -7119,7 +7150,7 @@ $("darkModeToggle")?.addEventListener("change",e=>{
         var best=list[0];
         if(!best||best.msgs<=0)return;                    // 只恢复"确有内容"的备份
         if(epoch&&typeof epoch.ts==='number'&&epoch.ts>=best.ts)return; // 用户主动重置过，尊重之
-        if(best.ts<=curSaved)return;
+        if(!looksInitial(cur)&&best.ts<=curSaved)return; // 【v8.4】当前已是初始/空数据时，不再用时间戳阻止从灾备库找回真实数据
         return getData(best.id).then(function(d){
           if(!d||!d.dataStr)return;
           var obj=parseSnapStr(d);
@@ -7367,6 +7398,7 @@ function idbUpdateQuotaCache(){
 }
 // 页面加载后从 IndexedDB 同步数据（如果 localStorage 缓存不完整）
 async function idbSyncOnLoad(){
+  try{_hydrateStarted=true;}catch(e){}  // 【v8.4】标记恢复已开始：禁止兜底逻辑用初始数据覆盖存储
   try{_showBusy("正在加载数据…");}catch(e){}
   try{
     const idbData=await idbLoadState();
