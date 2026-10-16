@@ -16,12 +16,11 @@ jobs:
         env:
           ICON_B64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
         run: |
-          set -e
-          if [ -d WWW ] && [ ! -d www ]; then cp -r WWW www; fi
-          if [ ! -d www ]; then mkdir -p www; fi
-          if [ -f index.html ]; then cp -f index.html www/index.html; fi
-          if [ -f sw.js ]; then cp -f sw.js www/sw.js; fi
-          if [ ! -f www/icon.png ]; then echo "$ICON_B64" | base64 -d > www/icon.png; fi
+          [ -d WWW ] && [ ! -d www ] && cp -r WWW www || true
+          mkdir -p www
+          [ -f index.html ] && cp -f index.html www/index.html || true
+          [ -f sw.js ] && cp -f sw.js www/sw.js || true
+          [ ! -f www/icon.png ] && echo "$ICON_B64" | base64 -d > www/icon.png || true
           ls -la www
 
       - name: Setup Node.js
@@ -39,9 +38,7 @@ jobs:
         run: npm install -g cordova
 
       - name: Strip plugin declarations
-        run: |
-          sed -i '/<plugin name=/d' config.xml
-          echo "剩余插件声明: $(grep -c '<plugin name=' config.xml || true)"
+        run: sed -i '/<plugin name=/d' config.xml
 
       - name: Add Android platform
         run: cordova platform add android
@@ -54,24 +51,7 @@ jobs:
           cordova plugin add https://github.com/latchuk/cordova-plugin-saf-mediastore.git
 
       - name: Dedupe duplicate permissions
-        run: |
-          MANIFEST="platforms/android/app/src/main/AndroidManifest.xml"
-          if [ -f "$MANIFEST" ]; then
-            python3 - "$MANIFEST" <<'EOF'
-import sys, re
-path = sys.argv[1]
-text = open(path, encoding='utf-8').read()
-seen = set()
-def repl(m):
-    name = m.group(1)
-    if name in seen:
-        return ''
-    seen.add(name)
-    return m.group(0)
-open(path, 'w', encoding='utf-8').write(re.sub(r'<uses-permission android:name="([^"]+)"[^>]*/>', repl, text))
-print("权限去重完成")
-EOF
-          fi
+        run: f="platforms/android/app/src/main/AndroidManifest.xml"; if [ -f "$f" ]; then python3 -c "import re; p='platforms/android/app/src/main/AndroidManifest.xml'; t=open(p,encoding='utf-8').read(); s=set(); t=re.sub(r'<uses-permission android:name=\"([^\"]+)\"[^>]*/>', lambda m: '' if m.group(1) in s else (s.add(m.group(1)) or m.group(0)), t); open(p,'w',encoding='utf-8').write(t)"; fi
 
       - name: Build Debug APK
         run: cordova build android --debug
