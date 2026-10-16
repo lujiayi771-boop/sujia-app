@@ -1,6 +1,5 @@
 name: Build APK
 
-# 触发方式：推送到 main 分支，或在 Actions 页面手动点 Run workflow
 on:
   push:
     branches: [ main ]
@@ -13,11 +12,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ★ 关键新增：把大写 WWW 目录归一化为 Cordova 只认的小写 www，
-      #   并在缺少图标时生成占位图标，避免“找不到 www / 找不到 icon.png”导致构建失败
-      - name: Normalize web root (WWW -> www) and ensure icon
+      - name: Prepare www and icon
         env:
-          ICON_B64: "<保持你现有的那串 base64 不变>"
+          ICON_B64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
         run: |
           set -e
           if [ -d WWW ] && [ ! -d www ]; then cp -r WWW www; fi
@@ -25,7 +22,6 @@ jobs:
           if [ -f index.html ]; then cp -f index.html www/index.html; fi
           if [ -f sw.js ]; then cp -f sw.js www/sw.js; fi
           if [ ! -f www/icon.png ]; then echo "$ICON_B64" | base64 -d > www/icon.png; fi
-          echo "--- www 目录内容 ---"
           ls -la www
 
       - name: Setup Node.js
@@ -39,25 +35,17 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      # 说明：ubuntu-latest 已预装 Android SDK 与 ANDROID_SDK_ROOT，
-      # 不再单独跑 android-actions/setup-android（此前正是它下载卡住导致构建失败）
       - name: Install Cordova
         run: npm install -g cordova
 
-      # ★ 关键新增：Strip plugin declarations
-      # platform add 会先按 config.xml 恢复插件声明，先把它们清掉，
-      # 插件统一由下面 Install plugins 显式安装，避免 media/file 版本冲突
       - name: Strip plugin declarations
         run: |
           sed -i '/<plugin name=/d' config.xml
-          echo "--- 剩余插件声明数量 ---"
-          grep -c "<plugin name=" config.xml || true
+          echo "剩余插件声明: $(grep -c '<plugin name=' config.xml || true)"
 
       - name: Add Android platform
         run: cordova platform add android
 
-      # 关键：显式安装原生插件（通知 + 文件存储 + SAF/MediaStore 公共目录保存）
-      # media@^7.0.0 要求 file@^8.0.0，版本已对齐并加 --force 兜底
       - name: Install plugins
         run: |
           cordova plugin add cordova-plugin-local-notification
@@ -65,9 +53,6 @@ jobs:
           cordova plugin add cordova-plugin-media@^7.0.0 --force
           cordova plugin add https://github.com/latchuk/cordova-plugin-saf-mediastore.git
 
-      # ★ 关键新增：Dedupe duplicate permissions
-      # 构建前对 AndroidManifest.xml 去重，避免 WRITE_EXTERNAL_STORAGE 重复声明
-      # 导致 processDebugMainManifest 失败
       - name: Dedupe duplicate permissions
         run: |
           MANIFEST="platforms/android/app/src/main/AndroidManifest.xml"
@@ -76,19 +61,16 @@ jobs:
 import sys, re
 path = sys.argv[1]
 text = open(path, encoding='utf-8').read()
-seen = {}
+seen = set()
 def repl(m):
-    perm = m.group(1)
-    if perm in seen:
+    name = m.group(1)
+    if name in seen:
         return ''
-    seen[perm] = True
+    seen.add(name)
     return m.group(0)
-text = re.sub(r'<uses-permission android:name="([^"]+)"[^>]*/>', repl, text)
-open(path, 'w', encoding='utf-8').write(text)
-print("Manifest 权限去重完成")
+open(path, 'w', encoding='utf-8').write(re.sub(r'<uses-permission android:name="([^"]+)"[^>]*/>', repl, text))
+print("权限去重完成")
 EOF
-          else
-            echo "Manifest not found, skip"
           fi
 
       - name: Build Debug APK
