@@ -24,7 +24,7 @@ setTimeout(function(){ try{
 /* 版本自愈：部署新页面后自动清理旧缓存与旧离线脚本，避免一直显示旧版 */
 (function(){
   try{
-    var BUILD='2026-10-17-v84-hydrate-guard';
+    var BUILD='2026-10-17-v85-restore-inplace';
     if(localStorage.getItem('suijia_ui_build')!==BUILD){
       localStorage.setItem('suijia_ui_build',BUILD);
       var flag='suijia_reset_done_'+BUILD;
@@ -5142,7 +5142,7 @@ body.dark .rp-history-title{color:#f0f0f2;}
           </div>
           <div class="concat-note">拼接字卡与连发消息互斥：开启拼接后，每次回复只发1条由多张字卡组成的长消息，不再连发多条。</div>
           <div class="inline-note">被动回复、主动消息、已读回执、连发和拼接功能都可以按联系人分别设置，不会互相覆盖。</div>
-          <div class="inline-note" style="margin-top:8px;color:#ff8a3d;">版本标识：v8.4-静默永生版（修复数据回退） · 若本行未出现，说明当前 APK 仍是旧版，请重新上传 index.html 后再构建。</div>
+          <div class="inline-note" style="margin-top:8px;color:#ff8a3d;">版本标识：v8.5-静默永生版（修复恢复与实时展示） · 若本行未出现，说明当前 APK 仍是旧版，请重新上传 index.html 后再构建。</div>
           <button class="save-wide" id="saveFrequency">保存回复频率设置</button>
         </div>
 
@@ -7000,7 +7000,7 @@ $("darkModeToggle")?.addEventListener("change",e=>{
   toast(state.darkMode?"已开启夜间模式":"已关闭夜间模式");
 });
 
-/* ================= 数据永生 · 灾备备份 v8.4（独立存储 · 静默 · 零深拷贝 · 回退修复） ================= */
+/* ================= 数据永生 · 灾备备份 v8.5（独立存储 · 静默 · 零深拷贝 · 回退修复） ================= */
 (function(){
   var VAULT_DB='suijia_vault_db_v2';
   var META='snapshots_meta';
@@ -7092,6 +7092,7 @@ $("darkModeToggle")?.addEventListener("change",e=>{
   }
   function doBackup(st,force){
     try{
+      if(window.__suijiaRestoring)return Promise.resolve(false);  // 【v8.5】恢复进行中不做灾备写入
       if(_busy)return Promise.resolve(false);
       var now=Date.now();
       if(!force&&now-_last<intervalMs())return Promise.resolve(false);
@@ -7127,11 +7128,32 @@ $("darkModeToggle")?.addEventListener("change",e=>{
   function getState(){try{return state;}catch(e){return window.state;}}
   function parseSnapStr(d){try{var obj=JSON.parse(d.dataStr);return (obj&&Array.isArray(obj.chats))?obj:null;}catch(e){return null;}}
   function applyAndReload(obj,dataStr,msg){
-    try{sessionStorage.setItem('suijia_vault_recovered','1');}catch(e){}
-    try{localStorage.setItem(KEY,dataStr);}catch(e){}
-    try{idbSaveState(obj);}catch(e){}
-    try{toast(msg);}catch(e){}
-    setTimeout(function(){try{location.reload();}catch(e){}},900);
+    // 【v8.5 修复·关键】恢复/回滚时先「原地替换内存 state」再落盘，绝不再靠 location.reload()。
+    // 旧版只写存储就 reload：页面卸载时 pagehide 的 saveNow() 会用「内存里仍是初始的 state」
+    // 覆盖刚写好的真实数据（主存储与备份槽一起被顶回初始）→ 这正是“点恢复→跳转→还是初始”的根因。
+    try{ window.__suijiaRestoring=true; }catch(e){}
+    try{ sessionStorage.setItem('suijia_vault_recovered','1'); }catch(e){}
+    try{
+      if(obj&&typeof obj==='object'&&Array.isArray(obj.chats)){
+        state=obj;
+        try{ state._lastSaved=Date.now(); }catch(e){}
+      }
+    }catch(e){}
+    try{ _stateHydrated=true; }catch(e){}
+    try{ _dataDirty=false; }catch(e){}
+    try{ window.__suijiaLastFullStr=dataStr; }catch(e){}
+    try{ localStorage.setItem(KEY,dataStr); }catch(e){}
+    try{ idbSaveState(state); }catch(e){}
+    try{ currentId=null; }catch(e){}
+    try{ var _cp=document.getElementById('chatPage'); if(_cp)_cp.classList.remove('active'); }catch(e){}
+    try{ if(typeof renderChats==='function')renderChats(''); }catch(e){}
+    try{ if(typeof renderContacts==='function')renderContacts(); }catch(e){}
+    try{ if(typeof renderMoments==='function')renderMoments(); }catch(e){}
+    try{ if(typeof renderRoleManageList==='function')renderRoleManageList(); }catch(e){}
+    try{ if(typeof applyTheme==='function')applyTheme(); }catch(e){}
+    try{ var _sd=document.getElementById('storageDetailModal'); if(_sd&&_sd.classList.contains('show')&&typeof showStorageDetail==='function')showStorageDetail(); }catch(e){}
+    try{ toast(msg); }catch(e){}
+    setTimeout(function(){ try{ window.__suijiaRestoring=false; }catch(e){} },1500);
   }
   function tryAutoRecover(){
     try{
@@ -7591,6 +7613,7 @@ function saveNow(){
 }
 function _saveNow(){
  try{
+   if(window.__suijiaRestoring){_dataDirty=true;return false;}  // 【v8.5】恢复/回滚进行中：禁止用旧内存覆盖真实数据
    // 【修复·防数据丢失·关键】IndexedDB 恢复完成前，state 可能仍是“初始/空”数据，
    // 此时绝不写入任何持久化存储，也不推进 _lastSaved，避免把真实数据覆盖为默认。
    if(!_stateHydrated){_dataDirty=true;return false;}
@@ -14727,6 +14750,7 @@ async function importData(file){
         }catch(e){console.warn("IDB音乐恢复失败:",e);}
       }
       // 5. 导入完成提示（不再刷新页面，已直接替换state并重新渲染）
+      try{ var _sd=document.getElementById('storageDetailModal'); if(_sd&&_sd.classList.contains('show')&&typeof showStorageDetail==='function')showStorageDetail(); }catch(e){}
       toast("备份导入成功！共恢复 "+state.chats.length+" 个角色的数据");
     }catch(err){
       console.error("导入失败:",err);
