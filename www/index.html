@@ -5142,7 +5142,7 @@ body.dark .rp-history-title{color:#f0f0f2;}
           </div>
           <div class="concat-note">拼接字卡与连发消息互斥：开启拼接后，每次回复只发1条由多张字卡组成的长消息，不再连发多条。</div>
           <div class="inline-note">被动回复、主动消息、已读回执、连发和拼接功能都可以按联系人分别设置，不会互相覆盖。</div>
-          <div class="inline-note" style="margin-top:8px;color:#ff8a3d;">版本标识：v8.6-真·永生版（根治恢复 + 实时统计 + 大文件保护） · 若本行未出现，说明当前 APK 仍是旧版，请重新上传 index.html 后再构建。</div>
+          <div class="inline-note" style="margin-top:8px;color:#ff8a3d;">版本标识：v8.7.1-真·永生版（演示数据免疫 + 大数据加载不卡 + 导入后自动灾备） · 若本行未出现，说明当前 APK 仍是旧版，请重新上传 index.html 后再构建。</div>
           <button class="save-wide" id="saveFrequency">保存回复频率设置</button>
         </div>
 
@@ -7009,6 +7009,7 @@ $("darkModeToggle")?.addEventListener("change",e=>{
   var DEFAULT_INTERVAL=2700000; // 45 分钟
   var _dbP=null,_last=0,_busy=false;
   var _lastLen=0,_lastHead='';
+  var _lastGoodMsgs=0;  // 【v8.7】上一次成功备份的消息数，用于防回退
   // 清理旧版被污染的灾备库（v8.2 曾把初始数据也备份进去）
   try{ if(indexedDB&&indexedDB.deleteDatabase)indexedDB.deleteDatabase('suijia_vault_db_v1'); }catch(e){}
   function intervalMs(){
@@ -7060,24 +7061,55 @@ $("darkModeToggle")?.addEventListener("change",e=>{
   function score(obj){
     try{if(!obj||!Array.isArray(obj.chats))return{n:0,m:0};var m=0;obj.chats.forEach(function(c){m+=((c.messages||[]).length);});return{n:obj.chats.length,m:m};}catch(e){return{n:0,m:0};}
   }
-  // 内容判定：只有当"完全没有真实数据与自定义"时才算初始默认数据（绝不依赖 _lastSaved）
+  // 【v8.7 真·永生】初始/演示数据指纹：初始自带 3 个角色 + 5 条演示消息
+  // 旧版只要"消息数>0"就当成真实数据，结果把初始演示数据备份进灾备库，
+  // 之后又被自动恢复回来覆盖真实数据——这正是"数据莫名回滚到初始"的根因。
+  var INITIAL_DEMO_MSGS=5;
+  var INITIAL_DEMO_NAMES=['林然','周野','小组讨论'];
+  function _countMsgs(obj){
+    try{var m=0;(obj.chats||[]).forEach(function(c){m+=((c.messages||[]).length);});return m;}catch(e){return 0;}
+  }
+  function _hasCustomTrace(obj){
+    try{
+      if(obj.userName&&obj.userName!=='我'&&obj.userName!=='我')return true;
+      if(obj.userAvatar&&obj.userAvatar.image)return true;
+      if(obj.userSignature&&obj.userSignature!=='记录梦里发生的每一刻')return true;
+      if(obj.momentCover&&obj.momentCover.image)return true;
+      if((obj.moments||[]).length>0)return true;
+      if((obj.userStickerLibrary||[]).length>0)return true;
+      if(obj.pets&&Object.keys(obj.pets).length>0)return true;
+      var custom=false;
+      (obj.chats||[]).forEach(function(c){
+        if(c&&c.avatar&&c.avatar.image)custom=true;
+        if(c&&c.chatBg&&c.chatBg.image)custom=true;
+        if(c&&(c.stickerLibrary||[]).length>0)custom=true;
+        if(c&&(c.voiceLibrary||[]).length>0)custom=true;
+        if(c&&(c.nudgeLibrary||[]).length>0)custom=true;
+        if(c&&(c.statusLibrary||[]).length>0)custom=true;
+        if(c&&(c.moments||[]).length>0)custom=true;
+        if(c&&c.replyLibrary&&c.replyLibrary.length>20)custom=true;
+      });
+      return custom;
+    }catch(e){return false;}
+  }
+  function _isDemoByNames(obj){
+    try{
+      if(!obj||!Array.isArray(obj.chats))return false;
+      var names=(obj.chats||[]).map(function(c){return c&&c.name;});
+      if(names.length!==INITIAL_DEMO_NAMES.length)return false;
+      return INITIAL_DEMO_NAMES.every(function(n){return names.indexOf(n)>=0;});
+    }catch(e){return false;}
+  }
+  // 内容判定：只有"完全没有真实数据与自定义"时才算初始默认数据。
+  // 关键：消息数 <= INITIAL_DEMO_MSGS 且无任何自定义痕迹 = 演示数据，绝不备份/绝不恢复。
   function looksInitial(obj){
     try{
       if(!obj||!Array.isArray(obj.chats))return true;
-      var m=0;obj.chats.forEach(function(c){m+=((c.messages||[]).length);});
-      if(m>0)return false;
-      var real=false;
-      try{
-        if(obj.userName&&obj.userName!=='我')real=true;
-        if(obj.userAvatar&&obj.userAvatar.image)real=true;
-        if(obj.momentCover&&obj.momentCover.image)real=true;
-        (obj.moments||[]).forEach(function(x){if(x&&x.image)real=true;});
-        obj.chats.forEach(function(c){
-          if(c&&c.avatar&&c.avatar.image)real=true;
-          if(c&&c.chatBg&&c.chatBg.image)real=true;
-        });
-      }catch(e){}
-      return !real;
+      if(_isDemoByNames(obj)&&!_hasCustomTrace(obj))return true;
+      var m=_countMsgs(obj);
+      var custom=_hasCustomTrace(obj);
+      if(m>INITIAL_DEMO_MSGS)return false;
+      return !custom;
     }catch(e){return true;}
   }
   // 复用已序列化字符串，零额外深拷贝
@@ -7094,17 +7126,27 @@ $("darkModeToggle")?.addEventListener("change",e=>{
     try{
       if(window.__suijiaRestoring)return Promise.resolve(false);  // 【v8.5】恢复进行中不做灾备写入
       if(_busy)return Promise.resolve(false);
+      // 【v8.7】IndexedDB 恢复完成前绝不备份：此时 state 可能仍是初始演示数据
+      if(typeof _stateHydrated!=='undefined'&&!_stateHydrated)return Promise.resolve(false);
       var now=Date.now();
       if(!force&&now-_last<intervalMs())return Promise.resolve(false);
       if(!st||!Array.isArray(st.chats))return Promise.resolve(false);
       if(looksInitial(st))return Promise.resolve(false);
+      // 【v8.7 防回退】如果新备份的消息数比上一次成功备份骤降 50% 以上，
+      // 说明内存 state 很可能已退化为初始/空数据，拒绝写入，避免污染灾备库。
+      var _scNow=score(st);
+      if(typeof _lastGoodMsgs==='number'&&_lastGoodMsgs>=15&&_scNow.m<_lastGoodMsgs*0.5){
+        console.warn("[vault] 备份消息数骤降，疑似状态退化，已拒绝备份:",_scNow.m,"上次:",_lastGoodMsgs);
+        return Promise.resolve(false);
+      }
       var dataStr=getFullString(st);
       if(!dataStr)return Promise.resolve(false);
       if(looksIdentical(dataStr)){_last=now;return Promise.resolve(false);}
       _busy=true;_last=now;
-      var sc=score(st);
+      var sc=_scNow;
       var head=dataStr.slice(0,256);
       _lastLen=dataStr.length;_lastHead=head;
+      if(sc.m>=15)_lastGoodMsgs=sc.m;
       var id='s'+now+'_'+Math.random().toString(36).slice(2,7);
       var meta={id:id,ts:now,chats:sc.n,msgs:sc.m,len:dataStr.length,head:head};
       var data={id:id,dataStr:dataStr};
@@ -7172,15 +7214,16 @@ $("darkModeToggle")?.addEventListener("change",e=>{
       var cur=getState();
       var curMsgs=0,curSaved=0;
       try{if(cur&&Array.isArray(cur.chats))cur.chats.forEach(function(c){curMsgs+=((c.messages||[]).length);});curSaved=(cur&&typeof cur._lastSaved==='number')?cur._lastSaved:0;}catch(e){}
-      var degraded=looksInitial(cur)||(curMsgs===0);
+      var degraded=looksInitial(cur)||(curMsgs<=INITIAL_DEMO_MSGS);
       if(!degraded)return;
       Promise.all([allMeta(),getMeta('__epoch')]).then(function(r){
         var list=(r[0]||[]).filter(function(x){return !isEpoch(x);});
         var epoch=r[1];
         if(!list.length)return;
         list.sort(function(a,b){return b.ts-a.ts;});
-        var best=list[0];
-        if(!best||best.msgs<=0)return;                    // 只恢复"确有内容"的备份
+        // 【v8.7】只从"消息数明显多于演示数据"的备份里选，杜绝恢复到初始演示数据
+        var best=list.find(function(x){return x.msgs>INITIAL_DEMO_MSGS+5;});
+        if(!best)return;
         // 【v8.6】主动重置后，仅当存在「比重置更晚」的备份才自动恢复；其余仍可手动恢复
         if(epoch&&typeof epoch.ts==='number'&&epoch.ts>=best.ts){ var _mt=0; try{_mt=best.ts||0;}catch(e){} if(_mt<=epoch.ts) return; }
         if(!looksInitial(cur)&&best.ts<=curSaved)return; // 【v8.4】当前已是初始/空数据时，不再用时间戳阻止从灾备库找回真实数据
@@ -7270,6 +7313,24 @@ $("darkModeToggle")?.addEventListener("change",e=>{
     try{sessionStorage.setItem('suijia_vault_no_autorestore','1');}catch(e){}
     return putMeta({id:'__epoch',ts:Date.now()}).catch(function(){});
   }
+  // 【v8.7 自愈】启动时自动清扫灾备库里被旧版本污染的"演示数据备份"：
+  // 消息数 <=10 的备份全部删除（这些是初始自带的 3 角色 5 条演示消息，不是用户真实数据）。
+  // 只执行一次，避免每次启动都扫。
+  (function selfCleanPollutedSnaps(){
+    try{
+      var CLEAN_FLAG='suijia_vault_v87_cleaned';
+      try{ if(sessionStorage.getItem(CLEAN_FLAG)==='1')return; }catch(e){}
+      allMeta().then(function(list){
+        list=(list||[]).filter(function(x){return !isEpoch(x);});
+        var bad=list.filter(function(x){return (x.msgs||0)<=10;});
+        if(!bad.length)return;
+        return Promise.all(bad.map(function(x){return delPair(x.id);}))
+          .then(function(){ console.warn('[vault] 已自动清理',bad.length,'条被污染的演示数据备份'); });
+      }).catch(function(){}).then(function(){
+        try{ sessionStorage.setItem(CLEAN_FLAG,'1'); }catch(e){}
+      });
+    }catch(e){}
+  })();
   window.SuijiaVault={autoBackup:autoBackup,backupNow:backupNow,tryAutoRecover:tryAutoRecover,renderPanel:renderPanel,restore:restore,list:allMeta,del:delSnap,exportSnap:exportSnap,markUserReset:markUserReset,looksInitial:looksInitial};
 })();
 
@@ -7417,7 +7478,11 @@ function idbLoadState(){
       // 1) 先读主槽；解析失败或为空，则回退到 backup 槽
       let main=await readVal("main");
       let mainTxt=await toText(main);
-      if(mainTxt){ try{ resolve(JSON.parse(mainTxt)); return; }catch(e){ console.warn("主数据解析失败，尝试备份槽",e); } }
+      if(mainTxt){
+        // 大字符串 parse 前让出一帧，让"正在解析数据…"提示渲染出来
+        await new Promise(r=>setTimeout(r,30));
+        try{ resolve(JSON.parse(mainTxt)); return; }catch(e){ console.warn("主数据解析失败，尝试备份槽",e); }
+      }
       let bak=await readVal("backup");
       let bakTxt=await toText(bak);
       if(bakTxt){ try{ resolve(JSON.parse(bakTxt)); return; }catch(e){} }
@@ -7442,9 +7507,34 @@ function idbUpdateQuotaCache(){
 // 页面加载后从 IndexedDB 同步数据（如果 localStorage 缓存不完整）
 async function idbSyncOnLoad(){
   try{_hydrateStarted=true;}catch(e){}  // 【v8.4】标记恢复已开始：禁止兜底逻辑用初始数据覆盖存储
-  try{_showBusy("正在加载数据…");}catch(e){}
+  // 【v8.7 体验优化】localStorage 已有可浏览数据时，不再全屏遮罩卡死，改成顶部浮动条静默恢复。
+  // 只有 localStorage 完全为空（首次打开/刚清数据）才显示全屏 loading，且 8 秒后自动消失。
+  let _needFullBusy=false;
   try{
+    const _lsRaw=localStorage.getItem(KEY);
+    const _lsEmpty=!_lsRaw||_lsRaw==="null"||_lsRaw==="undefined";
+    // localStorage 里已有聊天数据（哪怕是轻量缓存），就不挡用户操作
+    if(!_lsEmpty){
+      try{ _showTopSyncHint(); }catch(e){}
+    }else{
+      _needFullBusy=true;
+      try{_showBusy("正在加载数据…");}catch(e){}
+    }
+  }catch(e){ _needFullBusy=true; try{_showBusy("正在加载数据…");}catch(e){} }
+  // 【v8.7】全屏 busy 只挡 5 秒，之后自动降级为顶部浮动提示，用户可以立刻操作界面。
+  // 80MB 数据后台继续读，读完静默替换，不再卡死首屏。
+  var _busyTimeout=null;
+  if(_needFullBusy){
+    _busyTimeout=setTimeout(function(){ try{_hideBusy();_showTopSyncHint();}catch(e){} },5000);
+  }
+  // 让 busy 有机会渲染出来
+  await new Promise(r=>setTimeout(r,30));
+  if(_needFullBusy){ try{_showBusy("正在读取数据，马上就好…");}catch(e){} }
+  try{
+    if(_needFullBusy){ try{_showBusy("正在解析数据…（80MB 以上数据可能需要 10-30 秒）");}catch(e){} }
     const idbData=await idbLoadState();
+    // 让 UI 有机会更新文字
+    await new Promise(r=>setTimeout(r,30));
     if(!idbData||!Array.isArray(idbData.chats)){_stateHydrated=true;return;}
     // 判断是否需要从 IndexedDB 恢复
     const lsRaw=localStorage.getItem(KEY);
@@ -7582,7 +7672,9 @@ async function idbSyncOnLoad(){
     _stateHydrated=true;
     try{if(_dataDirty)saveNow();}catch(e){}
   }catch(e){console.warn("[IDB] 同步失败:",e);_stateHydrated=true;}
+  try{ if(_busyTimeout)clearTimeout(_busyTimeout); }catch(e){}
   try{_hideBusy();}catch(e){}
+  try{_hideTopSyncHint();}catch(e){}
   // 【数据永生】启动自检：若当前退化为初始/空数据，自动从灾备库恢复
   try{if(window.SuijiaVault)SuijiaVault.tryAutoRecover();}catch(e){}
 }
@@ -7646,24 +7738,31 @@ function _saveNow(){
        var _cm=0; try{ state.chats.forEach(function(c){_cm+=((c.messages||[]).length);}); }catch(e){}
        var _hasReal=false;
        try{
-         if(state.userName&&state.userName!=='我')_hasReal=true;
+         if(state.userName&&state.userName!=='我'&&state.userName!=='我')_hasReal=true;
          if(state.userAvatar&&state.userAvatar.image)_hasReal=true;
+         if(state.userSignature&&state.userSignature!=='记录梦里发生的每一刻')_hasReal=true;
          if(state.momentCover&&state.momentCover.image)_hasReal=true;
-         (state.moments||[]).forEach(function(x){if(x&&x.image)_hasReal=true;});
+         if((state.moments||[]).length>0)_hasReal=true;
+         if((state.userStickerLibrary||[]).length>0)_hasReal=true;
+         if(state.pets&&Object.keys(state.pets).length>0)_hasReal=true;
          state.chats.forEach(function(c){
            if(c&&c.avatar&&c.avatar.image)_hasReal=true;
            if(c&&c.chatBg&&c.chatBg.image)_hasReal=true;
            if(c&&(c.stickerLibrary||[]).length)_hasReal=true;
-           if(c&&(c.replyLibrary||[]).length>5)_hasReal=true;
+           if(c&&(c.voiceLibrary||[]).length)_hasReal=true;
+           if(c&&(c.nudgeLibrary||[]).length)_hasReal=true;
+           if(c&&(c.statusLibrary||[]).length)_hasReal=true;
+           if(c&&(c.moments||[]).length)_hasReal=true;
+           if(c&&(c.replyLibrary||[]).length>20)_hasReal=true;
          });
        }catch(e){}
-       // 仅在「当前数据明显退回初始/近乎空」时拦截，正常删除消息不受影响。
-       // 关键：只有消息数为 0 时才做额外体积比较，正常保存不做多余序列化（大文件不卡）。
-       if(_cm===0&&!window.__suijiaAllowEmpty){
+       // 【v8.7】初始演示数据自带 3 个角色 + 5 条消息，旧版只拦截 _cm===0，
+       // 导致初始数据能畅通无阻写入主存储覆盖真实数据。现在阈值放宽到 <=10。
+       if(_cm<=10&&!window.__suijiaAllowEmpty){
          var _curLen=0;
          try{ _curLen=(JSON.stringify(state)||'').length; }catch(e){ _curLen=0; }
          var _shrankBadly=(_curLen>0&&_prot.len>0&&_curLen<(_prot.len*0.15));
-         var _totallyEmpty=(!_hasReal&&(state.chats||[]).length<=6);
+         var _totallyEmpty=(!_hasReal&&(state.chats||[]).length<=3);
          if(_shrankBadly||_totallyEmpty){
            _dataDirty=true;
            return false;
@@ -14672,6 +14771,9 @@ function _salvageBackupJSON(src){
   return null;
 }
 async function importData(file){
+  // 【v8.7 加固】导入一开始就上锁：整个导入期间（含 JSON.parse / stringify / IDB 写入）
+  // 所有 saveNow / 自动备份 / pagehide 落盘一律被拦截，绝不用旧 state 覆盖正在写入的新数据。
+  try{ window.__suijiaRestoring=true; }catch(e){}
   const reader=new FileReader();
   reader.onload=async e=>{
     try{
@@ -14714,6 +14816,8 @@ async function importData(file){
       const detail=isNewFormat?`\n\n将恢复：\n• 主数据（聊天记录、角色、字卡等）\n• ${lsCount}项独立设置（听歌、主界面、状态卡、预设等）${idbCount>0?`\n• ${idbCount}首音乐文件`:''}`:'';
       if(!confirm("确定要导入备份吗？当前所有数据将被覆盖，此操作不可撤销！"+detail))return;
       toast("正在导入全量备份，请稍候...");
+      // 让上面的 toast 先渲染出来，再进入重活
+      await new Promise(r=>setTimeout(r,50));
       // 1. 合并默认值，确保新字段存在（与原逻辑一致）
       if(!data.userAvatar) data.userAvatar=structuredClone(DEFAULT_USER_AVATAR);
       if(typeof data.userName!=="string") data.userName=DEFAULT_USER_NAME;
@@ -14736,11 +14840,12 @@ async function importData(file){
         if(!Array.isArray(chat.moments)) chat.moments=[];
       });
       // 2. 保存主数据到 IndexedDB（必须等待写入完成）
-      toast("正在写入数据存储...");
+      toast("正在写入数据存储…（80MB 以上数据可能需要十几秒）");
+      await new Promise(r=>setTimeout(r,50));
       let saveOk=false;
       // 【v8.6】只序列化一次，大文件（数十MB）不再二次全量 stringify
       let _impStr=null;
-      try{ _impStr=JSON.stringify(data); }catch(e){ _impStr=null; }
+      try{ toast("正在压缩数据…"); await new Promise(r=>setTimeout(r,30)); _impStr=JSON.stringify(data); }catch(e){ _impStr=null; }
       try{ window.__suijiaRestoring=true; }catch(e){}
       try{
         saveOk=await idbSaveState(data,_impStr);
@@ -14820,13 +14925,19 @@ async function importData(file){
       // 【v8.6】导入完成：解除恢复期锁定，允许后续正常保存
       try{ setTimeout(function(){ window.__suijiaRestoring=false; },2000); }catch(e){}
       // 5. 导入完成提示（不再刷新页面，已直接替换state并重新渲染）
+      // 【v8.7】导入完成：立刻把这份完整数据写进灾备库，以后主存储出问题也能从灾备恢复
+      try{ if(window.SuijiaVault&&window.SuijiaVault.backupNow){ window.SuijiaVault.backupNow(data); } }catch(e){}
       try{ var _sd=document.getElementById('storageDetailModal'); if(_sd&&_sd.classList.contains('show')&&typeof showStorageDetail==='function')showStorageDetail(); }catch(e){}
       toast("备份导入成功！共恢复 "+state.chats.length+" 个角色的数据");
     }catch(err){
       console.error("导入失败:",err);
       toast("导入失败："+err.message);
+    }finally{
+      // 【v8.7】无论成功失败，导入结束后延迟解锁，避免最后一次落盘被锁挡住
+      try{ setTimeout(function(){ window.__suijiaRestoring=false; },3000); }catch(e){}
     }
   };
+  reader.onerror=function(){ try{ window.__suijiaRestoring=false; }catch(e){} toast("文件读取失败，请重试"); };
   // 【修复】大文件优先用 ArrayBuffer + TextDecoder 读取，规避部分 WebView 的 readAsText 大文件截断
   try{ if(typeof reader.readAsArrayBuffer==="function"){ reader.readAsArrayBuffer(file); return; } }catch(e){}
   reader.readAsText(file);
