@@ -5142,7 +5142,7 @@ body.dark .rp-history-title{color:#f0f0f2;}
           </div>
           <div class="concat-note">拼接字卡与连发消息互斥：开启拼接后，每次回复只发1条由多张字卡组成的长消息，不再连发多条。</div>
           <div class="inline-note">被动回复、主动消息、已读回执、连发和拼接功能都可以按联系人分别设置，不会互相覆盖。</div>
-          <div class="inline-note" style="margin-top:8px;color:#ff8a3d;">版本标识：v8.7.3-真·永生版（首屏5秒强制解锁 + 遮罩计数器bug修复 + 后台加载不挡点击） · 若本行未出现，说明当前 APK 仍是旧版，请重新上传 index.html 后再构建。</div>
+          <div class="inline-note" style="margin-top:8px;color:#ff8a3d;">版本标识：v8.7.5-真·不丢数据（pagehide强制写localStorage + 启动紧急自愈 + IndexedDB被清也不丢） · 若本行未出现，说明当前 APK 仍是旧版，请重新上传 index.html 后再构建。</div>
           <button class="save-wide" id="saveFrequency">保存回复频率设置</button>
         </div>
 
@@ -7506,7 +7506,34 @@ function idbUpdateQuotaCache(){
 }
 // 页面加载后从 IndexedDB 同步数据（如果 localStorage 缓存不完整）
 async function idbSyncOnLoad(){
-  try{_hydrateStarted=true;}catch(e){}  // 【v8.4】标记恢复已开始：禁止兜底逻辑用初始数据覆盖存储
+  try{_hydrateStarted=true;}catch(e){}
+  // 【v8.7.5 紧急自愈】启动时检查：如果 state 是初始演示数据，但 localStorage 里有大段数据，
+  // 说明上一次挂后台时 saveNow 被拦截没写成功，或者 IndexedDB 被系统清了但 localStorage 还在。
+  // 强制从 localStorage 重新加载真数据，不让用户看到初始界面。
+  try{
+    var _lsRaw=localStorage.getItem(KEY);
+    if(_lsRaw&&_lsRaw.length>20000){  // localStorage 有 >20KB 数据，肯定不是初始
+      var _curMsgs=0; try{ state.chats.forEach(function(c){_curMsgs+=((c.messages||[]).length);}); }catch(e){}
+      var _looksInitialState=(_curMsgs<=5&&state.userName==="我");
+      if(_looksInitialState){
+        console.warn("[自愈] state 是初始但 localStorage 有",_lsRaw.length,"字节数据，强制从 localStorage 恢复");
+        try{
+          var _lsObj=JSON.parse(_lsRaw);
+          if(_lsObj&&Array.isArray(_lsObj.chats)&&_lsObj.chats.length>0){
+            state=_lsObj;
+            _stateHydrated=true;
+            window.__suijiaLastFullStr=_lsRaw;
+            try{renderChats("");}catch(e){}
+            try{renderContacts();}catch(e){}
+            try{renderMoments();}catch(e){}
+            try{if(typeof applyTheme==="function")applyTheme();}catch(e){}
+            toast("已从本地缓存恢复数据");
+            return;  // localStorage 已经是最新，不需要再读 IndexedDB
+          }
+        }catch(parseErr){ console.warn("[自愈] localStorage 数据解析失败:",parseErr); }
+      }
+    }
+  }catch(e){}  // 【v8.4】标记恢复已开始：禁止兜底逻辑用初始数据覆盖存储
   // 【v8.7 体验优化】localStorage 已有可浏览数据时，不再全屏遮罩卡死，改成顶部浮动条静默恢复。
   // 只有 localStorage 完全为空（首次打开/刚清数据）才显示全屏 loading，且 8 秒后自动消失。
   let _needFullBusy=false;
@@ -7855,8 +7882,32 @@ try{ document.addEventListener("visibilitychange",function(){ try{ if(document.v
 }catch(e){}
 // 请求持久化存储配额，降低系统在存储紧张时清理本应用数据的概率
 try{ if(navigator&&navigator.storage&&navigator.storage.persist){ navigator.storage.persist().then(p=>{ try{ if(!p&&navigator.storage.persisted) navigator.storage.persisted().then(q=>console.warn("[storage] 持久化未授予:",q)); }catch(e){} }).catch(()=>{}); } }catch(e){}
-window.addEventListener("pagehide",()=>{try{if(typeof stickerFlushSave==="function")stickerFlushSave();saveNow();}catch(e){}try{if(window.SuijiaVault)SuijiaVault.autoBackup(state,true);}catch(e){}});
-document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden"){try{if(typeof stickerFlushSave==="function")stickerFlushSave();saveNow();}catch(e){}}});
+// 【v8.7.5 真·不丢数据】pagehide 时强制同步写 localStorage，绕过所有保护。
+// localStorage 是同步 API，页面被杀也不会丢；旧版依赖 saveNow() 的 _stateHydrated 检查，
+// 挂后台时 IndexedDB 还在恢复，saveNow 被拦截，localStorage 没写，系统一回收进程数据就没了。
+function _forceFlushLocalStorage(){
+  try{
+    if(!state||!Array.isArray(state.chats))return;
+    var m=0;state.chats.forEach(function(c){m+=((c.messages||[]).length);});
+    // 初始演示数据不写
+    if(m<=5&&state.userName==="我")return;
+    state._lastSaved=Date.now();
+    var txt;
+    try{ txt=JSON.stringify(state); }
+    catch(e){ txt=JSON.stringify(stripStateForCache(state)); }
+    if(!txt||txt.length<200)return;
+    try{
+      var prev=localStorage.getItem(KEY);
+      if(prev&&prev!==txt)localStorage.setItem(KEY+"_backup",prev);
+    }catch(e){}
+    try{ localStorage.setItem(KEY,txt); }catch(e){
+      // 完整串写不下，退而求其次写 strip 版
+      try{ localStorage.setItem(KEY,JSON.stringify(stripStateForCache(state))); }catch(e2){}
+    }
+  }catch(e){}
+}
+window.addEventListener("pagehide",()=>{try{if(typeof stickerFlushSave==="function")stickerFlushSave();_forceFlushLocalStorage();saveNow();}catch(e){}try{if(window.SuijiaVault)SuijiaVault.autoBackup(state,true);}catch(e){}});
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden"){try{if(typeof stickerFlushSave==="function")stickerFlushSave();_forceFlushLocalStorage();saveNow();}catch(e){}}});
 function esc(s){
  return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
 }
@@ -13282,6 +13333,8 @@ function _hideBusy(){
     _busyEl.style.opacity="0";
     clearTimeout(_busyHideTimer);
     _busyHideTimer=setTimeout(function(){try{if(_busyEl)_busyEl.style.display="none";}catch(e){}},220);
+    // 【v8.7.3】_showBusy 已被重定向到顶部小条，_hideBusy 也要同时关掉顶部小条
+    try{ if(typeof _hideTopSyncHint==='function')_hideTopSyncHint(); }catch(e){}
   }catch(e){}
 }
 // 【v8.7.2】顶部浮动同步提示条：不阻塞任何点击，仅提示后台正在加载
@@ -13298,6 +13351,8 @@ function _showTopSyncHint(text){
     if(text){var t=document.getElementById("_topSyncText");if(t)t.textContent=text;}
     _topSyncEl.style.display="flex";
     clearTimeout(_topSyncHideTimer);
+    // 【v8.7.3】兜底：顶部小条最多显示 15 秒自动消失，防止任何恢复流程忘记关闭
+    _topSyncHideTimer=setTimeout(function(){try{if(_topSyncEl)_topSyncEl.style.display="none";}catch(e){}},15000);
   }catch(e){}
 }
 function _hideTopSyncHint(){
