@@ -5142,7 +5142,7 @@ body.dark .rp-history-title{color:#f0f0f2;}
           </div>
           <div class="concat-note">拼接字卡与连发消息互斥：开启拼接后，每次回复只发1条由多张字卡组成的长消息，不再连发多条。</div>
           <div class="inline-note">被动回复、主动消息、已读回执、连发和拼接功能都可以按联系人分别设置，不会互相覆盖。</div>
-          <div class="inline-note" style="margin-top:8px;color:#ff8a3d;">版本标识：v8.7.2-真·永生版（首屏5秒彻底解锁 + 顶部小条不挡操作 + 80MB后台静默加载） · 若本行未出现，说明当前 APK 仍是旧版，请重新上传 index.html 后再构建。</div>
+          <div class="inline-note" style="margin-top:8px;color:#ff8a3d;">版本标识：v8.7.3-真·永生版（首屏5秒强制解锁 + 遮罩计数器bug修复 + 后台加载不挡点击） · 若本行未出现，说明当前 APK 仍是旧版，请重新上传 index.html 后再构建。</div>
           <button class="save-wide" id="saveFrequency">保存回复频率设置</button>
         </div>
 
@@ -7521,15 +7521,18 @@ async function idbSyncOnLoad(){
       try{_showBusy("正在加载数据…");}catch(e){}
     }
   }catch(e){ _needFullBusy=true; try{_showBusy("正在加载数据…");}catch(e){} }
-  // 【v8.7.2 真·不卡版】全屏 busy 只挡 5 秒，之后**彻底关闭全屏遮罩**，改成顶部小提示条。
-  // 关键修复：旧版 5 秒后虽然 hideBusy，但 IndexedDB 读完后又 _showBusy 一次，遮罩又弹回来盖住按钮。
+  // 【v8.7.3】全屏 busy 只挡 5 秒，之后**强制彻底关闭**全屏遮罩，改成顶部小提示条。
+  // 关键修复：旧版 _showBusy 用计数器，5 秒前连调 3 次导致 count=3，_hideBusy 只减 1 遮罩关不掉。
   var _busyTimeout=null;
   var _startupBusyDismissed=false;
   if(_needFullBusy){
     _busyTimeout=setTimeout(function(){
       try{
         _startupBusyDismissed=true;
-        _hideBusy();
+        window.__suijiaStartupUnlocked=true;
+        // 强制清零计数器并隐藏遮罩，不依赖配对调用
+        _busyCount=0;
+        if(_busyEl){ _busyEl.style.opacity="0"; _busyEl.style.display="none"; }
         _showTopSyncHint("后台加载中，可正常操作，数据稍后自动刷新");
       }catch(e){}
     },5000);
@@ -13249,6 +13252,11 @@ function _idleRun(fn,timeout){
 }
 function _showBusy(text){
   try{
+    // 【v8.7.3】如果启动阶段已经强制解锁过，后续绝不再弹全屏遮罩，只走顶部小条
+    if(window.__suijiaStartupUnlocked){
+      if(typeof _showTopSyncHint==='function')_showTopSyncHint(text||"正在处理…");
+      return;
+    }
     _busyCount++;
     if(!_busyEl){
       _busyEl=document.createElement("div");
