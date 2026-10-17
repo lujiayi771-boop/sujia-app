@@ -5142,7 +5142,7 @@ body.dark .rp-history-title{color:#f0f0f2;}
           </div>
           <div class="concat-note">拼接字卡与连发消息互斥：开启拼接后，每次回复只发1条由多张字卡组成的长消息，不再连发多条。</div>
           <div class="inline-note">被动回复、主动消息、已读回执、连发和拼接功能都可以按联系人分别设置，不会互相覆盖。</div>
-          <div class="inline-note" style="margin-top:8px;color:#ff8a3d;">版本标识：v8.7.1-真·永生版（演示数据免疫 + 大数据加载不卡 + 导入后自动灾备） · 若本行未出现，说明当前 APK 仍是旧版，请重新上传 index.html 后再构建。</div>
+          <div class="inline-note" style="margin-top:8px;color:#ff8a3d;">版本标识：v8.7.2-真·永生版（首屏5秒彻底解锁 + 顶部小条不挡操作 + 80MB后台静默加载） · 若本行未出现，说明当前 APK 仍是旧版，请重新上传 index.html 后再构建。</div>
           <button class="save-wide" id="saveFrequency">保存回复频率设置</button>
         </div>
 
@@ -7521,17 +7521,26 @@ async function idbSyncOnLoad(){
       try{_showBusy("正在加载数据…");}catch(e){}
     }
   }catch(e){ _needFullBusy=true; try{_showBusy("正在加载数据…");}catch(e){} }
-  // 【v8.7】全屏 busy 只挡 5 秒，之后自动降级为顶部浮动提示，用户可以立刻操作界面。
-  // 80MB 数据后台继续读，读完静默替换，不再卡死首屏。
+  // 【v8.7.2 真·不卡版】全屏 busy 只挡 5 秒，之后**彻底关闭全屏遮罩**，改成顶部小提示条。
+  // 关键修复：旧版 5 秒后虽然 hideBusy，但 IndexedDB 读完后又 _showBusy 一次，遮罩又弹回来盖住按钮。
   var _busyTimeout=null;
+  var _startupBusyDismissed=false;
   if(_needFullBusy){
-    _busyTimeout=setTimeout(function(){ try{_hideBusy();_showTopSyncHint();}catch(e){} },5000);
+    _busyTimeout=setTimeout(function(){
+      try{
+        _startupBusyDismissed=true;
+        _hideBusy();
+        _showTopSyncHint("后台加载中，可正常操作，数据稍后自动刷新");
+      }catch(e){}
+    },5000);
   }
   // 让 busy 有机会渲染出来
   await new Promise(r=>setTimeout(r,30));
-  if(_needFullBusy){ try{_showBusy("正在读取数据，马上就好…");}catch(e){} }
+  if(_needFullBusy && !_startupBusyDismissed){ try{_showBusy("正在读取数据，马上就好…");}catch(e){} }
+  else if(_needFullBusy && _startupBusyDismissed){ try{_showTopSyncHint("正在从存储读取数据…");}catch(e){} }
   try{
-    if(_needFullBusy){ try{_showBusy("正在解析数据…（80MB 以上数据可能需要 10-30 秒）");}catch(e){} }
+    if(_needFullBusy && !_startupBusyDismissed){ try{_showBusy("正在解析数据…（80MB 以上数据可能需要 10-30 秒）");}catch(e){} }
+    else if(_needFullBusy && _startupBusyDismissed){ try{_showTopSyncHint("正在解析数据，请稍候…");}catch(e){} }
     const idbData=await idbLoadState();
     // 让 UI 有机会更新文字
     await new Promise(r=>setTimeout(r,30));
@@ -13265,6 +13274,28 @@ function _hideBusy(){
     _busyEl.style.opacity="0";
     clearTimeout(_busyHideTimer);
     _busyHideTimer=setTimeout(function(){try{if(_busyEl)_busyEl.style.display="none";}catch(e){}},220);
+  }catch(e){}
+}
+// 【v8.7.2】顶部浮动同步提示条：不阻塞任何点击，仅提示后台正在加载
+let _topSyncEl=null,_topSyncHideTimer=null;
+function _showTopSyncHint(text){
+  try{
+    if(!_topSyncEl){
+      _topSyncEl=document.createElement("div");
+      _topSyncEl.id="_topSyncHint";
+      _topSyncEl.style.cssText="position:fixed;top:0;left:0;right:0;z-index:2147482999;background:rgba(20,20,24,.85);color:#fff;font-size:12px;padding:6px 14px;text-align:center;backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;gap:8px;";
+      _topSyncEl.innerHTML='<div style="width:12px;height:12px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:_resumeSpin .8s linear infinite"></div><span id="_topSyncText">正在同步数据…</span>';
+      (document.body||document.documentElement).appendChild(_topSyncEl);
+    }
+    if(text){var t=document.getElementById("_topSyncText");if(t)t.textContent=text;}
+    _topSyncEl.style.display="flex";
+    clearTimeout(_topSyncHideTimer);
+  }catch(e){}
+}
+function _hideTopSyncHint(){
+  try{
+    if(!_topSyncEl)return;
+    _topSyncEl.style.display="none";
   }catch(e){}
 }
 function _scheduleResume(reason){
