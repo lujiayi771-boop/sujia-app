@@ -24,7 +24,7 @@ setTimeout(function(){ try{
 /* 版本自愈：部署新页面后自动清理旧缓存与旧离线脚本，避免一直显示旧版 */
 (function(){
   try{
-    var BUILD='2026-10-17-v85-restore-inplace';
+    var BUILD='2026-10-17-v86-true-immortal';
     if(localStorage.getItem('suijia_ui_build')!==BUILD){
       localStorage.setItem('suijia_ui_build',BUILD);
       var flag='suijia_reset_done_'+BUILD;
@@ -5142,7 +5142,7 @@ body.dark .rp-history-title{color:#f0f0f2;}
           </div>
           <div class="concat-note">拼接字卡与连发消息互斥：开启拼接后，每次回复只发1条由多张字卡组成的长消息，不再连发多条。</div>
           <div class="inline-note">被动回复、主动消息、已读回执、连发和拼接功能都可以按联系人分别设置，不会互相覆盖。</div>
-          <div class="inline-note" style="margin-top:8px;color:#ff8a3d;">版本标识：v8.5-静默永生版（修复恢复与实时展示） · 若本行未出现，说明当前 APK 仍是旧版，请重新上传 index.html 后再构建。</div>
+          <div class="inline-note" style="margin-top:8px;color:#ff8a3d;">版本标识：v8.6-真·永生版（根治恢复 + 实时统计 + 大文件保护） · 若本行未出现，说明当前 APK 仍是旧版，请重新上传 index.html 后再构建。</div>
           <button class="save-wide" id="saveFrequency">保存回复频率设置</button>
         </div>
 
@@ -7000,7 +7000,7 @@ $("darkModeToggle")?.addEventListener("change",e=>{
   toast(state.darkMode?"已开启夜间模式":"已关闭夜间模式");
 });
 
-/* ================= 数据永生 · 灾备备份 v8.5（独立存储 · 静默 · 零深拷贝 · 回退修复） ================= */
+/* ================= 数据永生 · 灾备备份 v8.6（独立存储 · 静默 · 零深拷贝 · 回退修复 · 写入防覆盖） ================= */
 (function(){
   var VAULT_DB='suijia_vault_db_v2';
   var META='snapshots_meta';
@@ -7127,7 +7127,7 @@ $("darkModeToggle")?.addEventListener("change",e=>{
   function backupNow(st){return doBackup(st,true);}
   function getState(){try{return state;}catch(e){return window.state;}}
   function parseSnapStr(d){try{var obj=JSON.parse(d.dataStr);return (obj&&Array.isArray(obj.chats))?obj:null;}catch(e){return null;}}
-  function applyAndReload(obj,dataStr,msg){
+  async function applyAndReload(obj,dataStr,msg){
     // 【v8.5 修复·关键】恢复/回滚时先「原地替换内存 state」再落盘，绝不再靠 location.reload()。
     // 旧版只写存储就 reload：页面卸载时 pagehide 的 saveNow() 会用「内存里仍是初始的 state」
     // 覆盖刚写好的真实数据（主存储与备份槽一起被顶回初始）→ 这正是“点恢复→跳转→还是初始”的根因。
@@ -7143,7 +7143,16 @@ $("darkModeToggle")?.addEventListener("change",e=>{
     try{ _dataDirty=false; }catch(e){}
     try{ window.__suijiaLastFullStr=dataStr; }catch(e){}
     try{ localStorage.setItem(KEY,dataStr); }catch(e){}
-    try{ idbSaveState(state); }catch(e){}
+    // 【v8.6 根治】必须「等待」IndexedDB 写入完成，否则异步写入未落盘就被后续保存覆盖
+    try{ await idbSaveState(state); }catch(e){}
+    try{ await (typeof idbWaitForWrites==='function'?idbWaitForWrites():Promise.resolve()); }catch(e){}
+    // 【v8.6 根治】登记受保护数据指纹：此后任何「初始/空」数据都不得覆盖它
+    try{
+      var _pm=0; try{ (state.chats||[]).forEach(function(c){_pm+=((c.messages||[]).length);}); }catch(e){}
+      window.__suijiaProtect={len:(dataStr?dataStr.length:0),msgs:_pm,ts:Date.now()};
+      window.__suijiaAllowEmpty=false;
+    }catch(e){}
+    try{ _dataDirty=false; }catch(e){}
     try{ currentId=null; }catch(e){}
     try{ var _cp=document.getElementById('chatPage'); if(_cp)_cp.classList.remove('active'); }catch(e){}
     try{ if(typeof renderChats==='function')renderChats(''); }catch(e){}
@@ -7151,13 +7160,14 @@ $("darkModeToggle")?.addEventListener("change",e=>{
     try{ if(typeof renderMoments==='function')renderMoments(); }catch(e){}
     try{ if(typeof renderRoleManageList==='function')renderRoleManageList(); }catch(e){}
     try{ if(typeof applyTheme==='function')applyTheme(); }catch(e){}
+    try{ window.__suijiaCalcCache=null; }catch(e){}
     try{ var _sd=document.getElementById('storageDetailModal'); if(_sd&&_sd.classList.contains('show')&&typeof showStorageDetail==='function')showStorageDetail(); }catch(e){}
     try{ toast(msg); }catch(e){}
-    setTimeout(function(){ try{ window.__suijiaRestoring=false; }catch(e){} },1500);
+    setTimeout(function(){ try{ window.__suijiaRestoring=false; }catch(e){} },8000);
   }
   function tryAutoRecover(){
     try{
-      if(sessionStorage.getItem('suijia_vault_recovered')==='1')return;
+      if(window.__suijiaAutoRecovered)return;  // 【v8.6】仅本次页面生命周期内去重，不再用 sessionStorage 永久封死
       if(sessionStorage.getItem('suijia_vault_no_autorestore')==='1'){sessionStorage.removeItem('suijia_vault_no_autorestore');return;}
       var cur=getState();
       var curMsgs=0,curSaved=0;
@@ -7171,24 +7181,34 @@ $("darkModeToggle")?.addEventListener("change",e=>{
         list.sort(function(a,b){return b.ts-a.ts;});
         var best=list[0];
         if(!best||best.msgs<=0)return;                    // 只恢复"确有内容"的备份
-        if(epoch&&typeof epoch.ts==='number'&&epoch.ts>=best.ts)return; // 用户主动重置过，尊重之
+        // 【v8.6】主动重置后，仅当存在「比重置更晚」的备份才自动恢复；其余仍可手动恢复
+        if(epoch&&typeof epoch.ts==='number'&&epoch.ts>=best.ts){ var _mt=0; try{_mt=best.ts||0;}catch(e){} if(_mt<=epoch.ts) return; }
         if(!looksInitial(cur)&&best.ts<=curSaved)return; // 【v8.4】当前已是初始/空数据时，不再用时间戳阻止从灾备库找回真实数据
         return getData(best.id).then(function(d){
           if(!d||!d.dataStr)return;
           var obj=parseSnapStr(d);
           if(!obj||looksInitial(obj))return;
+          try{ window.__suijiaAutoRecovered=true; }catch(e){}
           applyAndReload(obj,d.dataStr,'检测到数据异常，已自动从灾备备份恢复');
         });
       }).catch(function(){});
     }catch(e){}
   }
   function restore(id){
+    // 【v8.6 根治】手动恢复：全程持锁，绝不 reload，绝不因异步未完成而失效
+    try{ if(window.__suijiaRestoring){ try{toast('正在恢复中，请稍候…');}catch(e){} return; } window.__suijiaRestoring=true; }catch(e){}
+    var unlock=function(){ try{ window.__suijiaRestoring=false; }catch(e){} };
     getData(id).then(function(d){
-      if(!d||!d.dataStr){try{toast('备份不存在');}catch(e){}return;}
+      if(!d||!d.dataStr){unlock();try{toast('备份不存在');}catch(e){}return;}
       var obj=parseSnapStr(d);
-      if(!obj){try{toast('备份已损坏');}catch(e){}return;}
-      applyAndReload(obj,d.dataStr,'已恢复该备份，正在重启…');
-    }).catch(function(){try{toast('恢复失败');}catch(e){}});
+      if(!obj){unlock();try{toast('备份已损坏');}catch(e){}return;}
+      var mb=(d.dataStr.length/1048576).toFixed(2);
+      try{toast('正在恢复备份（'+mb+'MB），请勿关闭页面…');}catch(e){}
+      try{ sessionStorage.removeItem('suijia_vault_no_autorestore'); }catch(e){}
+      try{ sessionStorage.removeItem('suijia_vault_recovered'); }catch(e){}
+      return Promise.resolve(applyAndReload(obj,d.dataStr,'✅ 已恢复该备份（'+mb+'MB），数据已写入存储'))
+        .then(unlock).catch(function(e){unlock();try{toast('恢复出错：'+(e&&e.message||e));}catch(_e){}});
+    }).catch(function(e){unlock();try{toast('恢复失败：'+(e&&e.message||e));}catch(_e){}});
   }
   function delSnap(id){delPair(id).then(function(){renderPanel();}).catch(function(){});}
   function fmt(ts){try{return new Date(ts).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});}catch(e){return '';}}
@@ -7345,10 +7365,11 @@ function idbOpen(){
   });
 }
 let _idbWriteQueue=Promise.resolve();
-function idbSaveState(data){
+function idbSaveState(data,preStr){
   // 【修复·防数据丢失】写出前先留一份快照，写入成功后轮换到 "backup" 槽，
   // 这样即使主槽写入中途失败/损坏，导入或恢复时仍能从 backup 槽读回上一份完整数据。
-  const cur=JSON.stringify(data);
+  let cur;
+  if(typeof preStr==='string'&&preStr.length>64){ cur=preStr; }else{ cur=JSON.stringify(data); }
   try{ window.__suijiaLastFullStr=cur; }catch(_e){}
   const job=()=>new Promise(async(resolve)=>{
     try{
@@ -7617,6 +7638,39 @@ function _saveNow(){
    // 【修复·防数据丢失·关键】IndexedDB 恢复完成前，state 可能仍是“初始/空”数据，
    // 此时绝不写入任何持久化存储，也不推进 _lastSaved，避免把真实数据覆盖为默认。
    if(!_stateHydrated){_dataDirty=true;return false;}
+   // 【v8.6 真·永生版·核心】一旦存在「受保护的真实数据」，绝不允许用初始/空数据覆盖存储。
+   // 这是“更新了新数据后又突然跳回初始数据”的直接根因。
+   try{
+     var _prot=window.__suijiaProtect;
+     if(_prot&&_prot.len>4096&&!window.__suijiaAllowEmpty){
+       var _cm=0; try{ state.chats.forEach(function(c){_cm+=((c.messages||[]).length);}); }catch(e){}
+       var _hasReal=false;
+       try{
+         if(state.userName&&state.userName!=='我')_hasReal=true;
+         if(state.userAvatar&&state.userAvatar.image)_hasReal=true;
+         if(state.momentCover&&state.momentCover.image)_hasReal=true;
+         (state.moments||[]).forEach(function(x){if(x&&x.image)_hasReal=true;});
+         state.chats.forEach(function(c){
+           if(c&&c.avatar&&c.avatar.image)_hasReal=true;
+           if(c&&c.chatBg&&c.chatBg.image)_hasReal=true;
+           if(c&&(c.stickerLibrary||[]).length)_hasReal=true;
+           if(c&&(c.replyLibrary||[]).length>5)_hasReal=true;
+         });
+       }catch(e){}
+       // 仅在「当前数据明显退回初始/近乎空」时拦截，正常删除消息不受影响。
+       // 关键：只有消息数为 0 时才做额外体积比较，正常保存不做多余序列化（大文件不卡）。
+       if(_cm===0&&!window.__suijiaAllowEmpty){
+         var _curLen=0;
+         try{ _curLen=(JSON.stringify(state)||'').length; }catch(e){ _curLen=0; }
+         var _shrankBadly=(_curLen>0&&_prot.len>0&&_curLen<(_prot.len*0.15));
+         var _totallyEmpty=(!_hasReal&&(state.chats||[]).length<=6);
+         if(_shrankBadly||_totallyEmpty){
+           _dataDirty=true;
+           return false;
+         }
+       }
+     }
+   }catch(e){}
    // 给没有timestamp的消息添加时间戳（用于删除旧消息）
    const nowTs=Date.now();
    state.chats.forEach(c=>{
@@ -14684,8 +14738,12 @@ async function importData(file){
       // 2. 保存主数据到 IndexedDB（必须等待写入完成）
       toast("正在写入数据存储...");
       let saveOk=false;
+      // 【v8.6】只序列化一次，大文件（数十MB）不再二次全量 stringify
+      let _impStr=null;
+      try{ _impStr=JSON.stringify(data); }catch(e){ _impStr=null; }
+      try{ window.__suijiaRestoring=true; }catch(e){}
       try{
-        saveOk=await idbSaveState(data);
+        saveOk=await idbSaveState(data,_impStr);
       }catch(idbErr){
         console.error("IndexedDB写入异常:",idbErr);
       }
@@ -14703,6 +14761,14 @@ async function importData(file){
       }
       // 4. 直接替换当前 state 并重新渲染所有内容（不刷新页面，避免依赖异步IDB同步）
       state=data;
+      // 【v8.6】登记受保护指纹，此后初始/空数据一律不得覆盖
+      try{
+        var _im=0; data.chats.forEach(function(c){_im+=((c.messages||[]).length);});
+        window.__suijiaProtect={len:(_impStr?_impStr.length:0),msgs:_im,ts:Date.now()};
+        window.__suijiaAllowEmpty=false;
+        window.__suijiaLastFullStr=_impStr||window.__suijiaLastFullStr;
+        _stateHydrated=true;
+      }catch(e){}
       // 重置当前聊天状态
       currentId=null;
       // 关闭聊天页面，回到聊天列表
@@ -14749,6 +14815,10 @@ async function importData(file){
           }
         }catch(e){console.warn("IDB音乐恢复失败:",e);}
       }
+      // 【v8.6】导入完成：清掉统计缓存，保证存储详情按最新数据实时显示
+      try{ window.__suijiaCalcCache=null; }catch(e){}
+      // 【v8.6】导入完成：解除恢复期锁定，允许后续正常保存
+      try{ setTimeout(function(){ window.__suijiaRestoring=false; },2000); }catch(e){}
       // 5. 导入完成提示（不再刷新页面，已直接替换state并重新渲染）
       try{ var _sd=document.getElementById('storageDetailModal'); if(_sd&&_sd.classList.contains('show')&&typeof showStorageDetail==='function')showStorageDetail(); }catch(e){}
       toast("备份导入成功！共恢复 "+state.chats.length+" 个角色的数据");
@@ -17266,9 +17336,23 @@ function collectReferencedImages(){
 }
 // 计算存储空间详情
 function calcStorage(){
-  // 真实测量主数据大小（Blob 精确字节数）
-  const stateStr=JSON.stringify(state);
-  const total=strBytes(stateStr);
+  // 【v8.6】1.5 秒内复用结果，避免 78MB 数据反复 stringify 卡死界面；但绝不长期缓存旧值
+  try{
+    var _c=window.__suijiaCalcCache;
+    if(_c&&(Date.now()-_c.t)<1500)return _c.v;
+  }catch(e){}
+  if(!state||!Array.isArray(state.chats)){
+    return {total:0,lsUsed:0,lsTotal:0,lsKeyCount:0,lsOtherBytes:0,lsCacheChars:0,lsCacheUsed:0,imageCount:0,imageBytes:0,idbUsage:0,lastFullBytes:0,categories:[]};
+  }
+  // 真实测量主数据大小（严格按当前内存中的最新 state 计算）
+  let stateStr='';
+  try{ stateStr=JSON.stringify(state); }catch(e){ stateStr=''; }
+  let total=strBytes(stateStr);
+  // 若序列化失败或为空，退回最近一次真实落盘串的长度（绝不用初始数据冒充）
+  try{
+    var _lf=window.__suijiaLastFullStr;
+    if((!total||total<64)&&_lf&&typeof _lf==='string'){ total=strBytes(_lf); }
+  }catch(e){}
   // 分类统计
   let momentsBytes=0,settingsBytes=0,roleBytes=0,stickerBytes=0,chatBytes=0,letterBytes=0,voiceBytes=0;
   // 朋友圈
@@ -17321,7 +17405,7 @@ function calcStorage(){
   if(Date.now()-_idbQuotaCache.updated>30000){
     idbUpdateQuotaCache();
   }
-  return {
+  const _ret={
     total:total,
     lsUsed:lsUsed,
     lsTotal:lsTotal,
@@ -17331,6 +17415,8 @@ function calcStorage(){
     lsCacheUsed:lsCacheUsed,
     imageCount:imageCount,
     imageBytes:imageBytes,
+    idbUsage:(_idbQuotaCache&&_idbQuotaCache.usage)?_idbQuotaCache.usage:0,
+    lastFullBytes:(function(){try{var _f=window.__suijiaLastFullStr;return (_f&&typeof _f==='string')?strBytes(_f):0;}catch(e){return 0;}})(),
     categories:[
       {name:"朋友圈",bytes:momentsBytes},
       {name:"其他设置",bytes:settingsBytes},
@@ -17341,6 +17427,8 @@ function calcStorage(){
       {name:"信件",bytes:letterBytes}
     ]
   };
+  try{ window.__suijiaCalcCache={t:Date.now(),v:_ret}; }catch(e){}
+  return _ret;
 }
 // ===== 存储容量最大化：申请持久化存储（真实生效，非摆设） =====
 let _persistGranted=null;
@@ -17390,7 +17478,10 @@ function showStorageDetail(){
     <div class="storage-detail-row"><span class="storage-detail-label">localStorage 键</span><span class="storage-detail-value">${info.lsKeyCount} 个键（其他数据约 ${formatSize(info.lsOtherBytes)}）</span></div>
     <div class="storage-detail-row"><span class="storage-detail-label">浏览器总配额</span><span class="storage-detail-value" id="storageQuotaRow">统计中…</span></div>
     <div class="storage-detail-row"><span class="storage-detail-label">存储方式</span><span class="storage-detail-value">IndexedDB（大容量主存储）+ localStorage（轻量缓存）</span></div>
-    <div class="storage-detail-row"><span class="storage-detail-label">内存中主数据</span><span class="storage-detail-value">${formatSize(info.total)}</span></div>
+    <div class="storage-detail-row"><span class="storage-detail-label">内存中主数据（实时）</span><span class="storage-detail-value">${formatSize(info.total)}</span></div>
+    <div class="storage-detail-row"><span class="storage-detail-label">IndexedDB 实际占用</span><span class="storage-detail-value">${formatSize(info.idbUsage)}（含全部图片/表情/语音）</span></div>
+    <div class="storage-detail-row"><span class="storage-detail-label">最近落盘完整串</span><span class="storage-detail-value">${formatSize(info.lastFullBytes)}</span></div>
+    <div class="storage-detail-row"><span class="storage-detail-label">统计时间</span><span class="storage-detail-value">${new Date().toLocaleTimeString('zh-CN',{hour12:false})} <button class="storage-clean-btn" id="storageRefreshBtn" style="padding:2px 10px;margin-left:8px;font-size:12px">🔄 按最新数据重算</button></span></div>
     <div class="storage-detail-row"><span class="storage-detail-label">图片数据（真实）</span><span class="storage-detail-value">${formatSize(info.imageBytes)}（${info.imageCount}张）</span></div>
     <div class="storage-section-title">分类统计（内存中）</div>
   `;
@@ -17407,6 +17498,7 @@ function showStorageDetail(){
   $("storageDetailContent").innerHTML=html;
   try{if(window.SuijiaVault)SuijiaVault.renderPanel();}catch(e){}
   $("storageDetailModal").classList.add("show");
+  try{var _rb=document.getElementById("storageRefreshBtn");if(_rb)_rb.onclick=function(){try{window.__suijiaCalcCache=null;}catch(e){}showStorageDetail();};}catch(e){}
   refreshPersistStatus();
   // 异步获取浏览器总存储配额（整个域名的配额，含 IndexedDB，并不等于 localStorage 的 5MB 限制）
   if(navigator.storage&&navigator.storage.estimate){
@@ -18145,6 +18237,8 @@ function resetAllData(){
   try{
     // 【数据永生】用户主动恢复初始数据：标记跳过下次自动恢复（灾备库保留，之后仍可手动恢复）
     try{window.SuijiaVault&&window.SuijiaVault.markUserReset();}catch(e){}
+    // 【v8.6】用户明确要求「恢复到初始数据」时才允许空数据覆盖存储
+    try{ window.__suijiaAllowEmpty=true; window.__suijiaProtect=null; window.__suijiaLastFullStr=null; }catch(e){}
     // 清除所有localStorage数据（灾备库在独立数据库中，不受影响）
     localStorage.clear();
     try{indexedDB.deleteDatabase("simChatStateDB_v1");}catch(e){}
