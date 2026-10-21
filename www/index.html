@@ -7542,43 +7542,20 @@ async function idbSyncOnLoad(){
       }
     }
   }catch(e){}  // 【v8.4】标记恢复已开始：禁止兜底逻辑用初始数据覆盖存储
-  // 【v8.7 体验优化】localStorage 已有可浏览数据时，不再全屏遮罩卡死，改成顶部浮动条静默恢复。
-  // 只有 localStorage 完全为空（首次打开/刚清数据）才显示全屏 loading，且 8 秒后自动消失。
+  // 【v8.8 修复：启动恢复永不使用全屏拦截层】
+  // 旧逻辑在首次打开/大数据解析期间显示全屏遮罩；若 IndexedDB 打开或读取一直 pending，
+  // 关闭遮罩的代码就永远不会执行，用户会误以为整个 APP 卡死。启动恢复改为非阻塞顶部提示。
+  // 数据恢复/校验锁仍由 _stateHydrated 等标志控制，不因允许点击而提前放行自动保存。
   let _needFullBusy=false;
-  try{
-    const _lsRaw=localStorage.getItem(KEY);
-    const _lsEmpty=!_lsRaw||_lsRaw==="null"||_lsRaw==="undefined";
-    // localStorage 里已有聊天数据（哪怕是轻量缓存），就不挡用户操作
-    if(!_lsEmpty){
-      try{ _showTopSyncHint(); }catch(e){}
-    }else{
-      _needFullBusy=true;
-      try{_showBusy("正在加载数据…");}catch(e){}
-    }
-  }catch(e){ _needFullBusy=true; try{_showBusy("正在加载数据…");}catch(e){} }
-  // 【v8.7.3】全屏 busy 只挡 5 秒，之后**强制彻底关闭**全屏遮罩，改成顶部小提示条。
-  // 关键修复：旧版 _showBusy 用计数器，5 秒前连调 3 次导致 count=3，_hideBusy 只减 1 遮罩关不掉。
   var _busyTimeout=null;
-  var _startupBusyDismissed=false;
-  if(_needFullBusy){
-    _busyTimeout=setTimeout(function(){
-      try{
-        _startupBusyDismissed=true;
-        window.__suijiaStartupUnlocked=true;
-        // 强制清零计数器并隐藏遮罩，不依赖配对调用
-        _busyCount=0;
-        if(_busyEl){ _busyEl.style.opacity="0"; _busyEl.style.display="none"; }
-        _showTopSyncHint("后台加载中，可正常操作，数据稍后自动刷新");
-      }catch(e){}
-    },5000);
-  }
-  // 让 busy 有机会渲染出来
-  await new Promise(r=>setTimeout(r,30));
-  if(_needFullBusy && !_startupBusyDismissed){ try{_showBusy("正在读取数据，马上就好…");}catch(e){} }
-  else if(_needFullBusy && _startupBusyDismissed){ try{_showTopSyncHint("正在从存储读取数据…");}catch(e){} }
+  var _startupBusyDismissed=true;
   try{
-    if(_needFullBusy && !_startupBusyDismissed){ try{_showBusy("正在解析数据…（80MB 以上数据可能需要 10-30 秒）");}catch(e){} }
-    else if(_needFullBusy && _startupBusyDismissed){ try{_showTopSyncHint("正在解析数据，请稍候…");}catch(e){} }
+    window.__suijiaStartupUnlocked=true;
+    _showTopSyncHint("正在后台读取数据；若数据量较大，请稍候，界面不再被遮罩锁住");
+  }catch(e){}
+  await new Promise(r=>setTimeout(r,30));
+  try{
+    // 即使读取失败，也保持原有保存保护逻辑；不以默认数据覆盖尚未确认的主库。
     const idbData=await idbLoadState();
     // 让 UI 有机会更新文字
     await new Promise(r=>setTimeout(r,30));
@@ -13398,7 +13375,7 @@ function _showBusy(text){
     if(!_busyEl){
       _busyEl=document.createElement("div");
       _busyEl.id="_resumeBusy";
-      _busyEl.style.cssText="position:fixed;left:0;top:0;right:0;bottom:0;z-index:2147483000;background:rgba(12,12,14,.5);display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;opacity:0;transition:opacity .18s ease;";
+      _busyEl.style.cssText="position:fixed;left:0;top:0;right:0;bottom:0;z-index:2147483000;background:rgba(12,12,14,.5);display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;opacity:0;transition:opacity .18s ease;pointer-events:none;";
       _busyEl.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;gap:12px"><div style="width:26px;height:26px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:_resumeSpin .8s linear infinite"></div><span id="_resumeBusyText">正在处理…</span></div>';
       var st=document.createElement("style");
       st.textContent="@keyframes _resumeSpin{to{transform:rotate(360deg)}}";
