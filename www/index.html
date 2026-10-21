@@ -6593,7 +6593,7 @@ body.dark .rp-history-title{color:#f0f0f2;}
     </div>
     <div class="storage-persist-section">
       <div class="storage-clean-title">📱 手机存储</div>
-      <div class="field-help" style="margin:4px 0 10px;color:var(--muted)">直接调用手机内部存储：把全量备份保存到手机，或从手机选择备份文件恢复。打包成 APP 时会自动使用原生存储。</div>
+      <div class="field-help" style="margin:4px 0 10px;color:var(--muted)">把全量数据导出为独立 JSON 文件，或从手机选择文件恢复。独立文件比只保存在 IndexedDB 更能抵抗站点数据被清除；请确认文件实际存在，并另存一份到电脑或云盘。打包成 APP 时会尝试使用原生文件接口。</div>
       <div class="storage-clean-buttons">
         <button class="storage-clean-btn" id="saveToPhoneBtn">
           <span class="storage-clean-icon">💾</span>
@@ -7241,16 +7241,43 @@ $("darkModeToggle")?.addEventListener("change",e=>{
   async function renderPanel(){
     const host=document.getElementById('storageDetailContent');if(!host)return;
     let box=document.getElementById('vaultPanel');if(!box){box=document.createElement('div');box.id='vaultPanel';box.className='storage-clean-section';host.appendChild(box);}
-    box.innerHTML='<div class="storage-clean-title">存储空间 · 完整数据备份</div><div class="field-help" style="margin:6px 0 10px;color:var(--muted)">已增加：备份写入后回读校验，校验通过才整理旧版本；在支持 Cordova 文件写入的原生 APP 中，成功备份还会尝试另存一份带时间戳的 JSON 文件到手机目录。若使用普通浏览器/WebView 不提供原生文件写入，必须手动导出到应用外部。持久化存储只能降低系统清理风险，不能替代外部备份；实际容量取决于设备与 WebView。</div><div class="storage-clean-buttons"><button class="storage-clean-btn" id="vaultBackupNow">立即备份</button><button class="storage-clean-btn" id="vaultRefresh">刷新列表</button></div><div id="vaultList" class="field-help" style="margin-top:10px;color:var(--muted)">正在读取备份列表…</div>';
-    const b=document.getElementById('vaultBackupNow');if(b)b.onclick=async()=>{b.disabled=true;b.textContent='正在保存…';try{await backupNow(state,true);}catch(e){toast('备份失败：'+(e.message||e));}finally{b.disabled=false;b.textContent='立即备份';}};
+    box.innerHTML='<div class="storage-clean-title">存储空间 · 双层备份中心</div>'+
+      '<div class="field-help" style="margin:6px 0 12px;color:var(--muted);line-height:1.75">重要：应用内部 IndexedDB 备份仍属于本地站点数据，无法保证在清除应用数据、卸载、系统清理或更换 WebView 后保留。要长期保存，请使用下面的“一键创建并导出文件”，把完整 JSON 备份保存到手机的下载目录或你自己管理的其他位置；最好再复制一份到电脑或云盘。不要只依赖本页备份列表。</div>'+
+      '<div class="storage-clean-buttons"><button class="storage-clean-btn" id="vaultBackupExternal">一键创建并导出完整备份</button><button class="storage-clean-btn" id="vaultBackupLocal">仅创建内部备份</button><button class="storage-clean-btn" id="vaultRefresh">刷新备份列表</button></div>'+
+      '<div id="vaultBackupStatus" class="field-help" style="margin-top:8px;color:var(--muted);line-height:1.65">外部 JSON 文件包含聊天数据、独立设置、主屏幕壁纸/小组件、音乐状态与音乐资源。导出后请确认手机文件管理器或下载记录中确实出现备份文件。</div>'+
+      '<div id="vaultList" class="field-help" style="margin-top:10px;color:var(--muted)">正在读取内部备份列表…</div>';
+    const localBtn=document.getElementById('vaultBackupLocal');
+    if(localBtn)localBtn.onclick=async()=>{
+      const status=document.getElementById('vaultBackupStatus');localBtn.disabled=true;localBtn.textContent='正在创建…';
+      try{const ok=await backupNow(state,true);if(ok===false)throw new Error('备份任务未执行，请关闭重复页面后重试');const liveStatus=document.getElementById('vaultBackupStatus');if(liveStatus)liveStatus.textContent='内部备份已完成并回读校验。它仍在当前 WebView 的本地数据库中，不是手机独立文件；请再使用“一键创建并导出完整备份”。';}
+      catch(e){if(status)status.textContent='内部备份失败：'+(e.message||e);toast('备份失败：'+(e.message||e));}
+      finally{localBtn.disabled=false;localBtn.textContent='仅创建内部备份';}
+    };
+    const externalBtn=document.getElementById('vaultBackupExternal');
+    if(externalBtn)externalBtn.onclick=async()=>{
+      const status=document.getElementById('vaultBackupStatus');externalBtn.disabled=true;externalBtn.textContent='正在创建完整备份…';
+      try{
+        const ok=await backupNow(state,true);
+        if(ok===false)throw new Error('备份任务未执行，请关闭重复页面后重试');
+        const rows=await list();if(!rows.length)throw new Error('内部备份写入后列表为空，已停止导出');
+        const liveButton=document.getElementById('vaultBackupExternal');if(liveButton){liveButton.disabled=true;liveButton.textContent='正在导出文件…';}
+        const liveStatus=document.getElementById('vaultBackupStatus');if(liveStatus)liveStatus.textContent='内部备份已校验，正在将完整快照导出为手机文件…';
+        await exportSnap(rows[0].id);
+        const liveStatusDone=document.getElementById('vaultBackupStatus');if(liveStatusDone)liveStatusDone.textContent='已触发完整备份文件导出。请务必检查手机“下载”目录/文件管理器，确认 JSON 文件实际存在且大小不是 0；若未出现，请使用“保存备份到手机存储”或更换支持文件访问的浏览器重试。建议再复制到电脑或云盘。';
+        try{toast('完整备份已生成；请检查手机文件管理器确认文件已落盘');}catch(e){}
+      }catch(e){const liveStatus=document.getElementById('vaultBackupStatus');if(liveStatus)liveStatus.textContent='外部备份未能确认完成：'+(e.message||e)+'。内部备份即使成功也不等于外部文件已保存，请不要清理应用数据。';toast('外部备份失败：'+(e.message||e));}
+      finally{const liveButton=document.getElementById('vaultBackupExternal');if(liveButton){liveButton.disabled=false;liveButton.textContent='一键创建并导出完整备份';}}
+    };
     const r=document.getElementById('vaultRefresh');if(r)r.onclick=()=>renderPanel();
     const listEl=document.getElementById('vaultList');
-    try{const rows=await list();if(!listEl)return;if(!rows.length){listEl.textContent='当前 IndexedDB 备份库中暂无记录。若之前已导出到手机/下载目录，请勿清理应用数据，可用“从手机存储恢复备份”选择外部 JSON 文件恢复；若从未导出，数据库被系统清理后本页无法凭空恢复。点击“立即备份”创建新备份。';return;}
-      listEl.innerHTML=rows.map(x=>'<div class="storage-detail-row" style="align-items:flex-start;gap:8px;flex-wrap:wrap"><div style="flex:1;min-width:150px"><b>'+new Date(x.ts).toLocaleString()+'</b><div class="field-help">'+sizeText(x.bytes||0)+'（估算） · '+(x.roles||x.chats||0)+' 个角色 · '+(x.msgs||0)+' 条消息</div></div><button class="storage-clean-btn" data-vault-export="'+x.id+'">导出</button><button class="storage-clean-btn" data-vault-restore="'+x.id+'">恢复</button><button class="storage-clean-btn" data-vault-del="'+x.id+'">删除</button></div>').join('');
-      listEl.querySelectorAll('[data-vault-export]').forEach(b=>b.onclick=()=>exportSnap(b.dataset.vaultExport).catch(e=>toast('导出失败：'+(e.message||e))));
+    try{
+      const rows=await list();if(!listEl)return;
+      if(!rows.length){listEl.textContent='内部 IndexedDB 备份库当前没有记录。若你之前导出过 JSON 文件，请不要清理应用数据；可使用下方“从手机存储恢复备份”选择文件。若从未导出外部文件，且内部数据库已被系统清除，网页无法凭空找回数据。';return;}
+      listEl.innerHTML=rows.map(x=>'<div class="storage-detail-row" style="align-items:flex-start;gap:8px;flex-wrap:wrap"><div style="flex:1;min-width:150px"><b>'+new Date(x.ts).toLocaleString()+'</b><div class="field-help">'+sizeText(x.bytes||0)+'（估算） · '+(x.roles||x.chats||0)+' 个角色 · '+(x.msgs||0)+' 条消息</div></div><button class="storage-clean-btn" data-vault-export="'+x.id+'">导出文件</button><button class="storage-clean-btn" data-vault-restore="'+x.id+'">恢复</button><button class="storage-clean-btn" data-vault-del="'+x.id+'">删除</button></div>').join('');
+      listEl.querySelectorAll('[data-vault-export]').forEach(b=>b.onclick=()=>exportSnap(b.dataset.vaultExport).then(()=>{const st=document.getElementById('vaultBackupStatus');if(st)st.textContent='已触发导出；请到手机文件管理器确认文件确实存在。'}).catch(e=>toast('导出失败：'+(e.message||e))));
       listEl.querySelectorAll('[data-vault-restore]').forEach(b=>b.onclick=()=>restore(b.dataset.vaultRestore).catch(e=>toast('恢复失败：'+(e.message||e))));
       listEl.querySelectorAll('[data-vault-del]').forEach(b=>b.onclick=()=>delSnap(b.dataset.vaultDel).catch(e=>toast('删除失败：'+(e.message||e))));
-    }catch(e){if(listEl)listEl.textContent='备份库不可用：'+(e.message||e)+'。请确认当前 APP WebView 支持 IndexedDB。';}
+    }catch(e){if(listEl)listEl.textContent='内部备份库不可用：'+(e.message||e)+'。请优先使用已导出的外部 JSON 文件；不要将空列表理解为外部文件也已丢失。';}
   }
   function tryAutoRecover(){/* 不自动用旧备份覆盖当前数据；恢复始终由用户明确选择。 */}
   function markUserReset(){/* 用户主动重置时不删除独立备份，允许之后手动恢复。 */}
