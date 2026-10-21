@@ -24,7 +24,7 @@ setTimeout(function(){ try{
 /* 版本自愈：部署新页面后自动清理旧缓存与旧离线脚本，避免一直显示旧版 */
 (function(){
   try{
-    var BUILD='2026-10-21-storage-rebuilt-v2';
+    var BUILD='2026-10-21-storage-image-protection-v3';
     if(localStorage.getItem('suijia_ui_build')!==BUILD){
       localStorage.setItem('suijia_ui_build',BUILD);
       var flag='suijia_reset_done_'+BUILD;
@@ -7100,10 +7100,28 @@ $("darkModeToggle")?.addEventListener("change",e=>{
       const msgs=countMessages(st), roles=(st.chats||[]).length;
       const estimated=estimateBytes(payload);
       const meta={id,ts:now,bytes:estimated,msgs,roles,version:2,format:'structured-clone',stateSavedAt:stateStamp,homeSavedAt:homeStampStart,musicSavedAt:musicStamp,settingsFingerprint};
-      // 先完成单个事务再清理旧版本；写入失败时旧备份仍然保留。
+      // 先完成单个事务并核验记录，再做任何旧版本清理；写入失败时绝不删除旧备份。
       await new Promise((resolve,reject)=>{const t=durableReadwriteTransaction(db,[META,DATA]);t.objectStore(DATA).put({id,payload});t.objectStore(META).put(meta);t.oncomplete=resolve;t.onerror=()=>reject(t.error||new Error('备份写入失败'));t.onabort=()=>reject(t.error||new Error('备份事务中止'));});
-      lastBackupAt=now;await trim();
-      try{toast('完整备份已保存（估算 '+sizeText(estimated)+'）');}catch(e){}
+      const verifyMeta=(await tx(META,'readonly',s=>s.get(id)));
+      const verifyData=await get(id);
+      if(!verifyMeta||!verifyData||!verifyData.payload||verifyData.payload.format!=='suijia-vault-snapshot-v2')throw new Error('备份写入后校验失败；旧备份未主动清理');
+      lastBackupAt=now;
+      // 关键增强：在 Cordova 原生 APP 中，把每份成功校验的备份再流式写入手机文件目录。
+      // 这样 IndexedDB 被系统清理时，手机文件副本仍可能保留。纯浏览器不允许静默写文件，必须手动点“导出”。
+      let externalCopy='';
+      try{
+        if(typeof saveStreamToPhoneStorage==='function'&&window.cordova&&window.cordova.file&&typeof window.resolveLocalFileSystemURL==='function'){
+          const slot=Math.floor(now/86400000)%2;
+          // 两个滚动槽位：避免每次自动备份都无限生成新文件；写入其中一个时，另一个槽位仍保留上一份。
+          const fname='suijia-vault-slot-'+slot+'.json';
+          const saved=await saveStreamToPhoneStorage(fname,()=>exportPayloadChunks(payload));
+          if(saved)externalCopy='；手机文件副本已保存：'+saved;
+          else externalCopy='；警告：手机外部副本写入失败，请立即手动导出';
+        }else if(manual){externalCopy='；当前环境无法后台写入手机文件，请点本备份行的“导出”保存到应用外部';}
+      }catch(ex){console.warn('[存储空间] 外部备份副本写入失败:',ex);externalCopy='；警告：外部副本写入失败，请立即手动导出';}
+      // 只有新备份写入且回读校验成功后，才清理超出保留数量的旧备份。
+      try{await trim();}catch(trimErr){console.warn('[存储空间] 旧备份整理失败，保留现有备份:',trimErr);}
+      try{toast('完整备份已保存并校验（估算 '+sizeText(estimated)+'）'+externalCopy);}catch(e){}
       renderPanel();return true;
     }finally{busy=false;}
   }
@@ -7223,11 +7241,11 @@ $("darkModeToggle")?.addEventListener("change",e=>{
   async function renderPanel(){
     const host=document.getElementById('storageDetailContent');if(!host)return;
     let box=document.getElementById('vaultPanel');if(!box){box=document.createElement('div');box.id='vaultPanel';box.className='storage-clean-section';host.appendChild(box);}
-    box.innerHTML='<div class="storage-clean-title">存储空间 · 完整数据备份</div><div class="field-help" style="margin:6px 0 10px;color:var(--muted)">独立 IndexedDB 备份库；将聊天数据与主屏幕壁纸/小组件分别封装保存，避免恢复时串入错误的数据对象。自动备份会尝试执行，最多保留 5 份较小备份；单份估算超过 256MB 时最多保留 2 份，以免大型数据快速占满配额。自动备份不代表云端副本，建议定期导出到应用外部位置。实际容量取决于设备与 WebView。</div><div class="storage-clean-buttons"><button class="storage-clean-btn" id="vaultBackupNow">立即备份</button><button class="storage-clean-btn" id="vaultRefresh">刷新列表</button></div><div id="vaultList" class="field-help" style="margin-top:10px;color:var(--muted)">正在读取备份列表…</div>';
+    box.innerHTML='<div class="storage-clean-title">存储空间 · 完整数据备份</div><div class="field-help" style="margin:6px 0 10px;color:var(--muted)">已增加：备份写入后回读校验，校验通过才整理旧版本；在支持 Cordova 文件写入的原生 APP 中，成功备份还会尝试另存一份带时间戳的 JSON 文件到手机目录。若使用普通浏览器/WebView 不提供原生文件写入，必须手动导出到应用外部。持久化存储只能降低系统清理风险，不能替代外部备份；实际容量取决于设备与 WebView。</div><div class="storage-clean-buttons"><button class="storage-clean-btn" id="vaultBackupNow">立即备份</button><button class="storage-clean-btn" id="vaultRefresh">刷新列表</button></div><div id="vaultList" class="field-help" style="margin-top:10px;color:var(--muted)">正在读取备份列表…</div>';
     const b=document.getElementById('vaultBackupNow');if(b)b.onclick=async()=>{b.disabled=true;b.textContent='正在保存…';try{await backupNow(state,true);}catch(e){toast('备份失败：'+(e.message||e));}finally{b.disabled=false;b.textContent='立即备份';}};
     const r=document.getElementById('vaultRefresh');if(r)r.onclick=()=>renderPanel();
     const listEl=document.getElementById('vaultList');
-    try{const rows=await list();if(!listEl)return;if(!rows.length){listEl.textContent='暂无备份。点击“立即备份”创建第一份完整备份。';return;}
+    try{const rows=await list();if(!listEl)return;if(!rows.length){listEl.textContent='当前 IndexedDB 备份库中暂无记录。若之前已导出到手机/下载目录，请勿清理应用数据，可用“从手机存储恢复备份”选择外部 JSON 文件恢复；若从未导出，数据库被系统清理后本页无法凭空恢复。点击“立即备份”创建新备份。';return;}
       listEl.innerHTML=rows.map(x=>'<div class="storage-detail-row" style="align-items:flex-start;gap:8px;flex-wrap:wrap"><div style="flex:1;min-width:150px"><b>'+new Date(x.ts).toLocaleString()+'</b><div class="field-help">'+sizeText(x.bytes||0)+'（估算） · '+(x.roles||x.chats||0)+' 个角色 · '+(x.msgs||0)+' 条消息</div></div><button class="storage-clean-btn" data-vault-export="'+x.id+'">导出</button><button class="storage-clean-btn" data-vault-restore="'+x.id+'">恢复</button><button class="storage-clean-btn" data-vault-del="'+x.id+'">删除</button></div>').join('');
       listEl.querySelectorAll('[data-vault-export]').forEach(b=>b.onclick=()=>exportSnap(b.dataset.vaultExport).catch(e=>toast('导出失败：'+(e.message||e))));
       listEl.querySelectorAll('[data-vault-restore]').forEach(b=>b.onclick=()=>restore(b.dataset.vaultRestore).catch(e=>toast('恢复失败：'+(e.message||e))));
@@ -19690,21 +19708,26 @@ function hsIdbSave(data){
   });
 }
 function hsIdbLoad(){
-  return new Promise(resolve=>{
+  // null 只表示事务成功且确实没有 home 记录；读取失败/解析失败必须 reject，不能伪装成空库。
+  return new Promise((resolve,reject)=>{
     try{
       idbOpen().then(db=>{
-        const t=db.transaction(IDB_STORE,'readonly');const r=t.objectStore(IDB_STORE).get('home');
+        let t;try{t=db.transaction(IDB_STORE,'readonly');}catch(e){reject(e);return;}
+        const r=t.objectStore(IDB_STORE).get('home');
         r.onsuccess=()=>{
           try{
             const val=r.result;
+            if(val==null){resolve(null);return;}
             if(val&&val.__suijiaHomeStorageV2===1&&val.data&&Array.isArray(val.data.pages)){resolve(val.data);return;}
-            if(typeof val==='string'){const parsed=JSON.parse(val);resolve(parsed&&Array.isArray(parsed.pages)?parsed:null);return;}
-            resolve(val&&Array.isArray(val.pages)?val:null);
-          }catch(e){resolve(null);}
+            if(typeof val==='string'){const parsed=JSON.parse(val);if(parsed&&Array.isArray(parsed.pages)){resolve(parsed);return;}throw new Error('主屏幕数据格式异常');}
+            if(val&&Array.isArray(val.pages)){resolve(val);return;}
+            throw new Error('主屏幕数据记录存在但格式无法识别');
+          }catch(e){reject(e);}
         };
-        r.onerror=()=>resolve(null);
-      }).catch(()=>resolve(null));
-    }catch(e){resolve(null);}
+        r.onerror=()=>reject(r.error||new Error('主屏幕数据读取失败'));
+        t.onabort=()=>reject(t.error||new Error('主屏幕数据读取事务中止'));
+      }).catch(reject);
+    }catch(e){reject(e);}
   });
 }
 // 统计主界面数据中包含的图片数量与体积，用于比较哪份数据更完整
@@ -19728,43 +19751,73 @@ let _homeHydrated=false;  // 是否已完成主界面数据从 IndexedDB 的恢�
 // 加载后与 IndexedDB 中的主界面数据核对，防止 localStorage 写入失败导致刷新丢图
 function hsReconcileWithIdb(){
   if(typeof hsIdbLoad!=="function")return;
+  // 在完成主库核对前禁止主屏幕保存。防止图片占位符在 IDB 暂时读取失败时被清空并写回。
+  _homeHydrated=false;
   hsIdbLoad().then(idbData=>{
     try{
-      _homeHydrated=true;  // IndexedDB 读取已完成，放行保存
-      if(!idbData||!idbData.pages||!idbData.pages.length){clearStrippedDataUrls(homeData);return;}
+      if(!idbData||!idbData.pages||!idbData.pages.length){
+        const missing=countStrippedDataUrls(homeData,2000000);
+        if(missing>0){
+          window.__suijiaHomeUnsafe=true;
+          console.error('[HS] 缓存包含',missing,'个图片占位符，但主库没有可恢复记录；暂停保存以防永久丢图');
+          try{toast('主屏幕图片尚未完成恢复，已暂停保存以防图片丢失');}catch(e){}
+          return;
+        }
+        _homeHydrated=true;
+        return;
+      }
       const localScore=hsImageScore(homeData||{});
       const idbScore=hsImageScore(idbData);
       const localAt=(homeData&&homeData._savedAt)||0;
-      const idbAt=idbData._savedAt||0;
+      const idbAt=(idbData&&idbData._savedAt)||0;
       const idbNewer=idbAt>localAt;
       const idbHasMoreImages=idbScore.n>localScore.n||idbScore.b>localScore.b+1024;
       if(homeData&&homeData._cacheStripped&&localAt>=idbAt){
-        // 缓存较新则不整份回滚到旧主屏幕状态，只补回显式标记的资源，保留用户最新布局。
-        restoreStrippedDataUrls(homeData,idbData);clearStrippedDataUrls(homeData);
-        try{hsIdbSave(homeData);}catch(e){}
+        const restored=restoreStrippedDataUrls(homeData,idbData);
+        const stillMissing=countStrippedDataUrls(homeData,2000000);
+        if(stillMissing>0){
+          window.__suijiaHomeUnsafe=true;
+          console.error('[HS] 有',stillMissing,'个图片资源无法与主库对应；保留占位并暂停保存');
+          try{toast('部分图片无法安全匹配，已暂停保存，避免覆盖原图');}catch(e){}
+          return;
+        }
+        clearStrippedDataUrls(homeData);
+        window.__suijiaHomeUnsafe=false;
+        _homeHydrated=true;
+        // 恢复资源成功后再提交，且检查写入结果，失败时不把缓存误当成完整主库。
+        hsIdbSave(homeData).then(ok=>{if(!ok){window.__suijiaHomeUnsafe=true;_homeHydrated=false;}}).catch(()=>{window.__suijiaHomeUnsafe=true;_homeHydrated=false;});
         try{localStorage.setItem(HS_KEY,hsStringifyCache(homeData));}catch(e){}
         try{if(typeof renderHomeAll==='function')renderHomeAll();}catch(e){}
         return;
       }
-      if(!idbNewer&&!idbHasMoreImages){clearStrippedDataUrls(homeData);return;}
-      // IDB 明确更新或本地缓存明显不完整时，才用完整主库替换轻量缓存。
-      homeData=idbData;
-      clearStrippedDataUrls(homeData);
-      if(!homeData.version||homeData.version<2){
-        homeData.version=2;
-        homeData.pages.forEach(p=>{(p.apps||[]).forEach(a=>{if(a.locked===undefined)a.locked=false;});});
+      if(!idbNewer&&!idbHasMoreImages){
+        const unresolved=countStrippedDataUrls(homeData,2000000);
+        if(unresolved>0){
+          const restored=restoreStrippedDataUrls(homeData,idbData);
+          if(countStrippedDataUrls(homeData,2000000)>0){window.__suijiaHomeUnsafe=true;console.error('[HS] 主屏幕图片对账不完整，暂停保存');return;}
+          clearStrippedDataUrls(homeData);
+        }
+        window.__suijiaHomeUnsafe=false;_homeHydrated=true;return;
       }
-      // 回写 localStorage（尽力而为）
-      try{
-        const data=hsStringifyCache(homeData);
-        localStorage.setItem(HS_KEY,data);
-        try{localStorage.setItem(HS_KEY+"_backup",data);}catch(e2){}
-      }catch(e){}
-      // 重新渲染主界面
-      try{if(typeof renderHomeAll==="function")renderHomeAll();}catch(e){}
-      console.log("[HS] 已从 IndexedDB 恢复主界面数据");
-    }catch(e){console.warn("HS IDB 恢复失败:",e);}
-  }).catch(()=>{_homeHydrated=true;});
+      // 主库更新或含有更多图片时优先使用完整主库；绝不先清空占位符再尝试恢复。
+      homeData=idbData;
+      const unresolved=countStrippedDataUrls(homeData,2000000);
+      if(unresolved>0){window.__suijiaHomeUnsafe=true;console.error('[HS] 主库仍含图片占位符，暂停保存');return;}
+      clearStrippedDataUrls(homeData);
+      if(!homeData.version||homeData.version<2){homeData.version=2;homeData.pages.forEach(p=>{(p.apps||[]).forEach(a=>{if(a.locked===undefined)a.locked=false;});});}
+      window.__suijiaHomeUnsafe=false;_homeHydrated=true;
+      try{localStorage.setItem(HS_KEY,hsStringifyCache(homeData));}catch(e){}
+      try{if(typeof renderHomeAll==='function')renderHomeAll();}catch(e){}
+      console.log('[HS] 已从 IndexedDB 恢复主界面完整数据');
+    }catch(e){
+      window.__suijiaHomeUnsafe=true;_homeHydrated=false;
+      console.warn('[HS] 主屏幕恢复/核对失败，已暂停写入以保护图片:',e);
+    }
+  }).catch(e=>{
+    window.__suijiaHomeUnsafe=true;_homeHydrated=false;
+    console.warn('[HS] IndexedDB 读取失败；保留图片占位符且暂停保存，不把读取失败当作空库:',e);
+    try{toast('主屏幕存储读取失败，已暂停保存以保护图片；请勿清理应用数据');}catch(e2){}
+  });
 }
 // 不再用固定 4 秒兜底放行主界面写入：大壁纸/小组件数据恢复较慢时，过早放行会让空缓存覆盖 IndexedDB。
 // IndexedDB 读取成功或失败时由 hsReconcileWithIdb() 自己解除锁定。
@@ -19775,19 +19828,19 @@ function hsStripForCache(d){
 }
 function hsSave(){
   const HS_BACKUP_KEY=HS_KEY+"_backup";
-  // 打上时间戳，便于加载时比较 localStorage 与 IndexedDB 哪份更新
+  // 恢复状态不明确、图片资源无法核对时，拒绝把带空占位符的数据写入任何持久化层。
+  if(!_homeHydrated||window.__suijiaHomeUnsafe){console.warn('[HS] 主屏幕保存已暂停：完整数据/图片尚未核验');return false;}
   try{homeData._savedAt=Date.now();}catch(e){}
-  // 完整数据（含壁纸/小组件图片/图标）写入 IndexedDB（大容量主存储）
-  if(_homeHydrated){try{hsIdbSave(homeData);}catch(e){}}
-  // localStorage 只写去掉图片的“轻量快照”，保证永远不触及 5MB 上限
-  try{
-    const data=hsStringifyCache(homeData);
-    localStorage.setItem(HS_KEY,data);
-    try{localStorage.setItem(HS_BACKUP_KEY,data);}catch(e2){}
-    return;
-  }catch(e){
-    console.warn("HS 轻量快照保存失败（完整数据仍在 IndexedDB）:",e);
-  }
+  // 先把完整数据写入 IndexedDB；只有确认事务成功后才更新轻量缓存时间戳。
+  return hsIdbSave(homeData).then(ok=>{
+    if(!ok){window.__suijiaHomeUnsafe=true;_homeHydrated=false;console.error('[HS] 主屏幕完整数据写入失败；停止更新轻量缓存以防丢图');try{toast('主屏幕保存失败，原图片缓存已保留，请检查存储空间');}catch(e){}return false;}
+    try{
+      const data=hsStringifyCache(homeData);
+      localStorage.setItem(HS_KEY,data);
+      try{localStorage.setItem(HS_BACKUP_KEY,data);}catch(e2){}
+      return true;
+    }catch(e){console.warn('HS 轻量快照保存失败（完整数据已写入 IndexedDB）:',e);return true;}
+  }).catch(e=>{window.__suijiaHomeUnsafe=true;_homeHydrated=false;console.warn('[HS] 完整主屏幕保存异常，已暂停缓存写入:',e);return false;});
 }
 // 同步压缩 dataUrl 图片（canvas 压缩，失败则返回原图）
 
