@@ -4719,19 +4719,6 @@ body.dark .rp-history-item{border-bottom-color:#2c2c2e;}
 body.dark .rp-history-title{color:#f0f0f2;}
 
 </style>
-<style id="suijia-background-comment-fix-v5">
-/* v5: 后台恢复重绘不改变内容布局，严格限制横向溢出 */
-html,body,#app,.app,.content,.main-content{max-width:100%;overflow-x:hidden;}
-.music-player-page,.music-player-content{max-width:100vw;box-sizing:border-box;overflow-x:hidden;}
-.music-player-content{overscroll-behavior-x:none;touch-action:pan-y;}
-/* 双方听歌评论统一从头像区域移出，独立堆叠；长内容可在各自气泡内部滚动 */
-.music-live-comments{display:none;position:relative;z-index:30;flex:0 0 auto;flex-direction:column;gap:9px;width:100%;max-width:100%;min-width:0;box-sizing:border-box;padding:5px 0 9px;overflow:visible;}
-.music-live-comments .music-avatar-bubble{position:relative!important;inset:auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;transform:none!important;display:block;box-sizing:border-box;width:auto!important;min-width:0!important;max-width:100%!important;max-height:min(20vh,180px)!important;overflow-y:auto!important;overflow-x:hidden!important;white-space:pre-wrap!important;overflow-wrap:anywhere!important;word-break:break-word!important;padding:10px 14px!important;border:1px solid rgba(255,255,255,.20)!important;border-radius:16px!important;background:rgba(15,16,20,.96)!important;color:#fff!important;font-size:15px!important;line-height:1.55!important;box-shadow:0 5px 18px rgba(0,0,0,.34)!important;scrollbar-width:thin;-webkit-overflow-scrolling:touch;}
-#musicLiveComments #musicRoleBubble{align-self:flex-end!important;margin:0 2px 0 12px!important;border-bottom-right-radius:5px!important;}
-#musicLiveComments #musicUserBubble{align-self:flex-start!important;margin:0 12px 0 2px!important;border-bottom-left-radius:5px!important;}
-.music-live-comments .music-avatar-bubble::after{display:none!important;content:none!important;}
-@media(max-height:650px){.music-live-comments .music-avatar-bubble{max-height:16vh!important;}}
-</style><!-- BUILD: suijia-background-images-comments-v5 2026-10-24 -->
 </head>
 <body>
 <!-- PWA安装提示横幅 -->
@@ -6634,6 +6621,10 @@ html,body,#app,.app,.content,.main-content{max-width:100%;overflow-x:hidden;}
           <span class="storage-clean-icon">💬</span>
           <span class="storage-clean-text">清空所有消息</span>
         </button>
+        <button class="storage-clean-btn" id="cleanNotificationCacheBtn">
+          <span class="storage-clean-icon">♧</span>
+          <span class="storage-clean-text">清理旧通知 / 预推送缓存</span>
+        </button>
       </div>
     </div>
     <div class="storage-detail-actions">
@@ -7030,7 +7021,7 @@ $("darkModeToggle")?.addEventListener("change",e=>{
   function countMessages(o){let n=0;try{(o.chats||[]).forEach(c=>n+=(c.messages||[]).length);}catch(e){}return n;}
   function sizeText(n){if(!Number.isFinite(n)||n<0)return '未知';const u=['B','KB','MB','GB','TB'];let i=0;while(n>=1024&&i<u.length-1){n/=1024;i++;}return (i?n.toFixed(2):Math.round(n))+' '+u[i];}
   // 只遍历数据并估算大小，不把整个大对象再次 JSON.stringify；1GB 数据也避免额外复制出同尺寸字符串。
-  function estimateBytes(root){let total=0,visits=0;const stack=[root],seen=new WeakSet();const LIMIT=180000;while(stack.length&&visits<LIMIT){const v=stack.pop();visits++;if(v==null){total+=4;continue;}const t=typeof v;if(t==='string'){total+=v.length*2;continue;}if(t==='number'||t==='boolean'){total+=8;continue;}if(t!=='object')continue;try{if(v instanceof Blob){total+=v.size;continue;}}catch(e){}if(seen.has(v))continue;seen.add(v);if(Array.isArray(v)){total+=8;for(let i=0;i<v.length;i++)stack.push(v[i]);}else{total+=16;let keys;try{keys=Object.keys(v)}catch(e){continue;}for(const k of keys){total+=k.length*2+4;stack.push(v[k]);}}}if(stack.length)total+=stack.length*64;return total;}
+  function estimateBytes(root){let total=0,visits=0;const stack=[root],seen=new WeakSet();while(stack.length){const v=stack.pop();if(v==null){total+=4;continue;}const t=typeof v;if(t==='string'){total+=v.length*2;continue;}if(t==='number'||t==='boolean'){total+=8;continue;}if(t!=='object')continue;if(v instanceof Blob){total+=v.size;continue;}if(seen.has(v))continue;seen.add(v);if(Array.isArray(v)){total+=8;for(let i=0;i<v.length;i++)stack.push(v[i]);}else{total+=16;for(const k of Object.keys(v)){total+=k.length*2+4;stack.push(v[k]);}}if(++visits>5000000)break;}return total;}
   async function readMusicMediaSnapshot(){
     if(typeof _idbOpenMusicDB!=='function')return [];
     const db=await _idbOpenMusicDB();
@@ -7082,24 +7073,7 @@ $("darkModeToggle")?.addEventListener("change",e=>{
     if(typeof _stateHydrated!=='undefined'&&!_stateHydrated)throw new Error('聊天数据仍在恢复，请稍后再备份');
     if(window.__suijiaRestoring)throw new Error('正在恢复数据，请稍后再备份');
     if(window.__suijiaUnsafeCacheWrite)throw new Error('当前轻量缓存有媒体资源无法与主库核对；为防止生成缺失数据的备份，请先恢复存储空间中的已有备份。');
-    try{if(typeof _homeHydrated!=='undefined'&&!_homeHydrated){
-      // 备用恢复路径：如果启动时的协调任务没有结束，备份前直接读取主屏幕 IndexedDB 一次。
-      // 只有读取成功且图片占位符已全部解析时才放行；不能把读取失败当作空数据。
-      if(typeof hsIdbLoad==='function'){
-        let recoveredHome=null;try{recoveredHome=await hsIdbLoad();}catch(homeErr){throw new Error('主界面图片数据库读取失败，已停止备份以保护原数据：'+(homeErr.message||homeErr));}
-        if(recoveredHome&&Array.isArray(recoveredHome.pages)&&recoveredHome.pages.length){
-          const missing=typeof countStrippedDataUrls==='function'?countStrippedDataUrls(recoveredHome,2000000):0;
-          if(missing>0)throw new Error('主界面数据库仍有 '+missing+' 个图片占位符，未生成不完整备份');
-          homeData=recoveredHome;window.__suijiaHomeUnsafe=false;_homeHydrated=true;
-        }else if(typeof homeData!=='undefined'&&homeData&&Array.isArray(homeData.pages)&&homeData.pages.length){
-          const missing=typeof countStrippedDataUrls==='function'?countStrippedDataUrls(homeData,2000000):0;
-          if(missing>0)throw new Error('主界面图片尚未恢复，未生成不完整备份');
-          // 数据库确实成功读取但为空，当前内存数据含完整页面与图片时，先尝试写入主库再继续。
-          const saved=await hsIdbSave(homeData);if(!saved)throw new Error('主界面主库为空且重新保存失败，请先导出当前可用数据');
-          window.__suijiaHomeUnsafe=false;_homeHydrated=true;
-        }else{throw new Error('主界面数据仍在恢复且没有可核验的完整副本；为避免覆盖壁纸/小组件，暂不备份');}
-      }else{throw new Error('主界面数据仍在恢复，请稍后再备份');}
-    }}catch(e){throw e;}
+    try{if(typeof _homeHydrated!=='undefined'&&!_homeHydrated)throw new Error('主界面壁纸和小组件仍在恢复，请稍后再备份');}catch(e){throw e;}
     busy=true;
     try{
       // 自动/立即备份前先尝试提交尚未落盘的数据；若主存储失败，不创建“看似成功”的旧版本备份。
@@ -13449,13 +13423,12 @@ function _hideBusy(){
   try{
     if(_busyCount>0)_busyCount--;
     if(_busyCount>0)return;
-    if(_busyEl){
-      _busyEl.style.opacity="0";
-      clearTimeout(_busyHideTimer);
-      _busyHideTimer=setTimeout(function(){try{if(_busyEl)_busyEl.style.display="none";}catch(e){}},220);
-    }
-    // 即使启动阶段把全屏遮罩改成了顶部提示条，也必须将顶部提示关闭。
-    try{if(typeof _hideTopSyncHint==='function')_hideTopSyncHint();}catch(e){}
+    if(!_busyEl)return;
+    _busyEl.style.opacity="0";
+    clearTimeout(_busyHideTimer);
+    _busyHideTimer=setTimeout(function(){try{if(_busyEl)_busyEl.style.display="none";}catch(e){}},220);
+    // 【v8.7.3】_showBusy 已被重定向到顶部小条，_hideBusy 也要同时关掉顶部小条
+    try{ if(typeof _hideTopSyncHint==='function')_hideTopSyncHint(); }catch(e){}
   }catch(e){}
 }
 // 【v8.7.2】顶部浮动同步提示条：不阻塞任何点击，仅提示后台正在加载
@@ -13489,110 +13462,33 @@ function _scheduleResume(reason){
     _resumeTimer=setTimeout(_runResume,90);
   }catch(e){}
 }
-async function _resumeHydrateHomeScreen(){
-  const withTimeout=(task,label,ms)=>{let timer=null;return Promise.race([Promise.resolve(task),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error(label+"超时")),ms);})]).finally(()=>{if(timer)clearTimeout(timer);});};
-  try{
-    if(typeof hsIdbLoad!=="function"||typeof hsIdbSave!=="function")return false;
-    let current;
-    try{current=homeData;}catch(e){current=null;}
-    const idbData=await withTimeout(hsIdbLoad(),"主屏幕 IndexedDB 读取",6500);
-    const currentHasPages=!!(current&&Array.isArray(current.pages)&&current.pages.length);
-    const validIdb=!!(idbData&&Array.isArray(idbData.pages)&&idbData.pages.length);
-    if(!validIdb){
-      const missing=current?countStrippedDataUrls(current,2000000):0;
-      if(missing>0){
-        window.__suijiaHomeUnsafe=true;_homeHydrated=false;
-        console.warn("[Resume] 主屏幕缓存存在图片占位符，但没有可核验的完整 IndexedDB 记录；未覆盖现有数据");
-        try{toast("主屏幕图片副本暂时不可用，已停止覆盖保存；请勿清理应用数据");}catch(e){}
-        return false;
-      }
-      if(!currentHasPages)return false;
-      // 内部记录不存在但内存数据完整时，尝试重新建立主库记录；写入失败不假报成功。
-      const seeded=await withTimeout(hsIdbSave(current),"主屏幕 IndexedDB 写入",6500).catch(()=>false);
-      window.__suijiaHomeUnsafe=!seeded;_homeHydrated=!!seeded;
-      try{if(typeof renderHomeAll==="function")renderHomeAll();}catch(e){}
-      if(seeded){try{localStorage.setItem(HS_KEY,hsStringifyCache(current));}catch(e){}}
-      else console.warn("[Resume] 当前主屏幕仍可显示，但持久化写入失败；暂停后续覆盖保存");
-      return !!seeded;
-    }
-
-    const idbMissing=countStrippedDataUrls(idbData,2000000);
-    let currentMissing=current?countStrippedDataUrls(current,2000000):0;
-    let restoredCount=0;
-    if(currentHasPages&&currentMissing>0&&idbMissing===0){
-      try{restoredCount=restoreStrippedDataUrls(current,idbData)||0;}catch(e){}
-      currentMissing=countStrippedDataUrls(current,2000000);
-      if(currentMissing===0){try{clearStrippedDataUrls(current);}catch(e){}}
-    }
-
-    // 任一候选还含占位符，都不能把它当作完整数据回写。
-    if(idbMissing>0&&currentMissing>0){
-      window.__suijiaHomeUnsafe=true;_homeHydrated=false;
-      console.warn("[Resume] 主库与当前数据均包含未恢复的图片占位符，阻止破坏性回写");
-      try{toast("图片数据还未完整恢复，已暂停保存，避免覆盖可恢复的数据");}catch(e){}
-      return false;
-    }
-
-    const currentScore=typeof hsImageScore==="function"?hsImageScore(current||{}):{n:0,b:0};
-    const idbScore=typeof hsImageScore==="function"?hsImageScore(idbData):{n:0,b:0};
-    const currentAt=Number(current&&current._savedAt)||0;
-    const idbAt=Number(idbData&&idbData._savedAt)||0;
-    const idbHasMoreImages=idbScore.n>currentScore.n||idbScore.b>currentScore.b+1024;
-    const currentIsUsable=currentHasPages&&currentMissing===0;
-    let useIdb=!currentIsUsable;
-    if(idbMissing===0&&(!currentIsUsable||idbHasMoreImages||(idbAt>currentAt&&!(typeof _dataDirty!=="undefined"&&_dataDirty))))useIdb=true;
-    // 如果主库比当前数据更完整，优先恢复完整快照；否则保留当前较新的布局/设置。
-    if(idbMissing>0&&currentIsUsable)useIdb=false;
-    if(useIdb){
-      if(idbMissing>0){window.__suijiaHomeUnsafe=true;_homeHydrated=false;return false;}
-      homeData=idbData;
-    }else if(!currentIsUsable){
-      window.__suijiaHomeUnsafe=true;_homeHydrated=false;return false;
-    }
-    const picked=homeData;
-    if(countStrippedDataUrls(picked,2000000)>0){
-      window.__suijiaHomeUnsafe=true;_homeHydrated=false;
-      console.warn("[Resume] 恢复结果仍存在图片占位符，未渲染/覆盖为默认数据");
-      return false;
-    }
-    try{clearStrippedDataUrls(picked);}catch(e){}
-    window.__suijiaHomeUnsafe=false;_homeHydrated=true;
-    try{localStorage.setItem(HS_KEY,hsStringifyCache(picked));}catch(e){}
-    // 保留从当前较新缓存中成功找回的图片，并把这份完整结果再写入主库。
-    if(!useIdb&&(restoredCount>0||currentAt>idbAt)){
-      const wrote=await withTimeout(hsIdbSave(picked),"主屏幕 IndexedDB 校验写入",6500).catch(()=>false);
-      if(!wrote){window.__suijiaHomeUnsafe=true;_homeHydrated=false;console.warn("[Resume] 恢复到内存的完整数据尚未成功重新落盘");}
-    }
-    try{if(typeof renderHomeAll==="function")renderHomeAll();}catch(e){console.warn("[Resume] 主屏幕重新渲染失败",e);}
-    return !window.__suijiaHomeUnsafe;
-  }catch(e){
-    window.__suijiaHomeUnsafe=true;_homeHydrated=false;
-    console.warn("[Resume] 主屏幕数据重新核对失败，已阻止可能破坏图片的保存",e);
-    return false;
-  }
-}
 function _runResume(){
   _resumeTimer=null;
   if(_resumeRunning){_resumePending=true;return;}
   _resumeRunning=true;
   var needRepaint=false;
-  try{if(typeof _hasBrokenImages==="function"&&_hasBrokenImages())needRepaint=true;}catch(e){}
-  _showBusy("正在恢复壁纸、小组件与图片数据…");
-  // 不再串行等待多个固定 1.5 秒的空闲任务；恢复任务有超时，避免顶部状态长期挂住。
-  Promise.resolve().then(()=>_resumeHydrateHomeScreen()).then(function(homeOK){
-    try{if(needRepaint&&typeof _reviveBrokenImages==="function")_reviveBrokenImages();}catch(e){}
-    try{if(typeof compensateMissedTasks==="function")compensateMissedTasks();}catch(e){}
-    try{if(typeof replanAllAheadChains==="function")replanAllAheadChains();}catch(e){}
-    if(needRepaint){
-      try{if(typeof currentId!=="undefined"&&currentId&&typeof renderMessages==="function")renderMessages();}catch(e){}
-      try{if(typeof renderMoments==="function")renderMoments();}catch(e){}
-    }
-    if(!homeOK)console.warn("[Resume] 本次未能证明主屏幕图片副本完整；保留写入保护状态");
-  }).catch(function(e){console.warn("[Resume] 前台恢复任务出错",e);}).finally(function(){
-    _resumeRunning=false;
-    _hideBusy();
-    if(_resumePending){_resumePending=false;setTimeout(function(){_scheduleResume("again");},150);}
-  });
+  try{ if(typeof _hasBrokenImages==="function"&&_hasBrokenImages())needRepaint=true; }catch(e){}
+  _showBusy("正在恢复数据…");
+  _idleRun(function(){
+    try{
+      if(needRepaint){try{_reviveBrokenImages();}catch(e){}}
+      try{ if(typeof compensateMissedTasks==="function")compensateMissedTasks(); }catch(e){}
+    }catch(e){}
+    _idleRun(function(){
+      try{ if(typeof replanAllAheadChains==="function")replanAllAheadChains(); }catch(e){}
+      _idleRun(function(){
+        try{
+          if(needRepaint){
+            try{if(typeof currentId!=="undefined"&&currentId&&typeof renderMessages==="function")renderMessages();}catch(e){}
+            try{if(typeof renderMoments==="function")renderMoments();}catch(e){}
+          }
+        }catch(e){}
+        _resumeRunning=false;
+        _hideBusy();
+        if(_resumePending){_resumePending=false;setTimeout(function(){_scheduleResume("again");},120);}
+      },1500);
+    },1500);
+  },1500);
 }
 function _reviveBrokenImages(){
   try{
@@ -17814,24 +17710,34 @@ function refreshPersistStatus(){
   }).catch(function(){el.textContent="检测失败";});
 }
 async function requestPersistStorage(){
+  const explain='此授权只影响当前 GitHub Pages/浏览器来源的网页存储，不等同于 Android 原生 APP 私有目录；卸载、清除应用数据或更换 WebView 仍可能丢失。';
   if(!navigator.storage||!navigator.storage.persist){
-    toast("当前环境不支持持久化存储，数据仍保存在 IndexedDB 中");
-    return;
+    toast("当前运行环境不支持持久化授权。请立即导出外部 JSON 备份；"+explain);
+    try{const el=document.getElementById('persistStatusText');if(el)el.textContent='当前环境不支持 navigator.storage.persist()。'+explain;}catch(e){}
+    return false;
   }
   try{
     const granted=await navigator.storage.persist();
-    _persistGranted=granted;
+    _persistGranted=!!granted;
     await idbUpdateQuotaCache();
     refreshPersistStatus();
     const q=(_idbQuotaCache&&_idbQuotaCache.quota)?_idbQuotaCache.quota:0;
-    if(granted){
-      toast("已开启持久化存储，自动清理风险已降低；这不代表配额增加"+(q?("（约 "+formatSize(q)+"）"):""));
-    }else{
-      toast("浏览器未自动授予。请把本页「添加到主屏幕」，或用 HTTPS 安全地址打开后重试");
-    }
-  }catch(e){toast("申请失败："+e.message);}
+    try{const el=document.getElementById('persistStatusText');if(el)el.textContent=(granted?'当前来源已获持久化存储授权，系统存储压力下自动回收风险降低。':'当前来源未获持久化存储授权，浏览器仍可能在存储压力下回收数据。')+explain+(q?' 当前估算配额：'+formatSize(q)+'。':'');}catch(e){}
+    if(granted){toast("当前网页来源已获持久化授权；仍请定期导出备份"+(q?("（估算配额 "+formatSize(q)+"）"):""));}
+    else{toast("未获持久化授权；请定期导出备份。"+explain);}
+    return !!granted;
+  }catch(e){toast("申请失败："+e.message);return false;}
+}
+function refreshPersistStatusText(){
+  const el=document.getElementById('persistStatusText');if(!el)return;
+  const explain='该授权仅针对当前 GitHub 部署来源的网页存储，不等于 Android 原生应用私有文件目录；卸载/清除应用数据或更换 WebView 仍可能丢失。';
+  try{
+    if(navigator.storage&&navigator.storage.persisted){navigator.storage.persisted().then(v=>{if(el)el.textContent=(v?'当前来源已获持久化存储授权。':'当前来源尚未获持久化存储授权，浏览器仍可能在存储压力下回收数据。')+explain;}).catch(()=>{el.textContent='无法读取持久化授权状态。'+explain;});}
+    else el.textContent='当前环境不支持读取持久化授权状态。'+explain;
+  }catch(e){el.textContent='无法读取持久化授权状态。'+explain;}
 }
 function showStorageDetail(){
+  refreshPersistStatusText();
 
   const info=calcStorage();
   const LS_LIMIT=5*1024*1024;
@@ -17843,7 +17749,8 @@ function showStorageDetail(){
     <div class="storage-detail-row"><span class="storage-detail-label">localStorage 缓存</span><span class="storage-detail-value" style="color:${lsDanger?'var(--danger)':'var(--text)'}">${formatSize(lsRealBytes)} / ${formatSize(LS_LIMIT)}（${lsPct}%）${lsDanger?' ⚠️ 接近上限':''}</span></div>
     <div class="storage-detail-row"><span class="storage-detail-label">localStorage 键</span><span class="storage-detail-value">${info.lsKeyCount} 个键（其他数据约 ${formatSize(info.lsOtherBytes)}）</span></div>
     <div class="storage-detail-row"><span class="storage-detail-label">浏览器总配额</span><span class="storage-detail-value" id="storageQuotaRow">统计中…</span></div>
-    <div class="storage-detail-row"><span class="storage-detail-label">存储方式</span><span class="storage-detail-value">IndexedDB（大容量主存储）+ localStorage（轻量缓存）</span></div>
+    <div class="storage-detail-row"><span class="storage-detail-label">存储方式</span><span class="storage-detail-value">IndexedDB（大容量主存储）+ localStorage（轻量缓存）；持久化授权状态见下方</span></div>
+    <div class="storage-detail-row" style="display:block"><div class="storage-detail-label" style="margin-bottom:6px">持久化存储状态</div><div class="storage-detail-value" id="persistStatusText" style="white-space:normal;line-height:1.65">正在检查当前网页来源的持久化授权……</div></div>
     <div class="storage-detail-row"><span class="storage-detail-label">主数据大小（估算）</span><span class="storage-detail-value">${formatSize(info.total)}</span></div>
     <div class="storage-detail-row"><span class="storage-detail-label">IndexedDB 实际占用</span><span class="storage-detail-value">${formatSize(info.idbUsage)}（含全部图片/表情/语音）</span></div>
     <div class="storage-detail-row"><span class="storage-detail-label">主存储状态</span><span class="storage-detail-value">${_stateHydrated?(_dataDirty?"有待保存变更":"已完成读取") : "正在恢复数据"}</span></div>
@@ -18057,7 +17964,8 @@ async function cleanOrphanImages(onProgress){
   // 主界面数据图片验证（壁纸、小组件背景、拍立得、应用图标）
   try{
     // 修复：改为读取内存中的完整主界面数据（localStorage 里已不含图片）
-    const hsData=(typeof homeData!=="undefined"&&homeData&&Array.isArray(homeData.pages))?homeData:null;
+    const hsSafe=(typeof _homeHydrated==='undefined'||_homeHydrated===true)&&!window.__suijiaHomeUnsafe;
+    const hsData=hsSafe&&(typeof homeData!=="undefined"&&homeData&&Array.isArray(homeData.pages))?homeData:null;
     if(hsData){
       let hsChanged=false;
       if(hsData.wallpaper&&typeof hsData.wallpaper==="string"&&hsData.wallpaper.startsWith("data:image")){
@@ -18136,28 +18044,18 @@ async function runSlim(){
   (state.userStickerLibrary||[]).forEach(s=>{if(s&&s.dataUrl)totalImages++;});
   (state.moments||[]).forEach(m=>{if(m.image)totalImages++;});
   state.chats.forEach(c=>{(c.moments||[]).forEach(m=>{if(m.image)totalImages++;});});
-  if(Array.isArray(moodCustomEmojis)){
-    moodCustomEmojis.forEach(e=>{if(e&&e.dataUrl)totalImages++;});
-    // 主界面数据：壁纸、小组件图片、应用图标
-    try{
-      // 修复：改读内存中的完整主界面数据（localStorage 里已不含图片）
-      const hsData=(typeof homeData!=="undefined"&&homeData&&Array.isArray(homeData.pages))?homeData:null;
-      if(hsData){
-        if(hsData.wallpaper)totalImages++;
-        if(Array.isArray(hsData.pages)){
-          hsData.pages.forEach(p=>{
-            (p.widgets||[]).forEach(w=>{
-              if(w.config){
-                if(w.config.bgImage)totalImages++;
-                if(w.config.polaroid)totalImages++;
-              }
-            });
-            (p.apps||[]).forEach(a=>{if(a.icon)totalImages++;});
-          });
-        }
-      }
-    }catch(e){}
-  }
+  if(Array.isArray(moodCustomEmojis))moodCustomEmojis.forEach(e=>{if(e&&e.dataUrl)totalImages++;});
+  // 主屏幕图片统计必须独立于自定义表情数组是否存在。
+  try{
+    const hsData=(typeof homeData!=="undefined"&&homeData&&Array.isArray(homeData.pages))?homeData:null;
+    if(hsData){
+      if(typeof hsData.wallpaper==='string'&&hsData.wallpaper.startsWith('data:image'))totalImages++;
+      hsData.pages.forEach(p=>{
+        (p.widgets||[]).forEach(w=>{if(w&&w.config){if(w.config.bgImage&&w.config.bgImage.startsWith('data:image'))totalImages++;if(w.config.polaroid&&w.config.polaroid.startsWith('data:image'))totalImages++;}});
+        (p.apps||[]).forEach(a=>{if(a&&a.icon&&a.icon.startsWith('data:image'))totalImages++;});
+      });
+    }
+  }catch(e){}
   let done=0;
   function updateProgress(label){
     const pct=totalImages>0?Math.min(100,Math.round((done/totalImages)*100)):Math.round((done/6)*100);
@@ -18271,6 +18169,25 @@ async function runSlim(){
         if(typeof saveMusicState==="function")saveMusicState();
       }
     }catch(e){console.error("Music bg slim error:",e);}
+    // 主屏幕图片也属于用户数据：在主库完成恢复且图片完整时才压缩并回写，避免把缺图缓存覆盖到主库。
+    try{
+      if(typeof homeData!=='undefined'&&homeData&&Array.isArray(homeData.pages)&&_homeHydrated&&!window.__suijiaHomeUnsafe){
+        updateProgress("压缩主屏幕壁纸与小组件图片...");
+        if(typeof homeData.wallpaper==='string'&&homeData.wallpaper.startsWith('data:image')){homeData.wallpaper=await compressDataUrl(homeData.wallpaper,1440,0.82);done++;}
+        for(const page of homeData.pages){
+          for(const widget of (page.widgets||[]))if(widget&&widget.config){
+            if(typeof widget.config.bgImage==='string'&&widget.config.bgImage.startsWith('data:image')){widget.config.bgImage=await compressDataUrl(widget.config.bgImage,1000,0.80);done++;}
+            if(typeof widget.config.polaroid==='string'&&widget.config.polaroid.startsWith('data:image')){widget.config.polaroid=await compressDataUrl(widget.config.polaroid,900,0.80);done++;}
+          }
+          for(const app of (page.apps||[]))if(app&&typeof app.icon==='string'&&app.icon.startsWith('data:image')){app.icon=await compressDataUrl(app.icon,256,0.82);done++;}
+        }
+        const homeSaved=await hsSave();
+        if(homeSaved!==true)throw new Error('主屏幕图片压缩后未能写入 IndexedDB，已停止继续清理以保护原图');
+        if(typeof renderHomeAll==='function')renderHomeAll();
+      }else if(typeof homeData!=='undefined'&&window.__suijiaHomeUnsafe){
+        throw new Error('主屏幕图片尚未完成完整性核验；为防止原图被覆盖，本次瘦身已中止，请先恢复主屏幕数据或导入完整备份');
+      }
+    }catch(homeSlimError){throw homeSlimError;}
     // 首次保存
     saveNow();
     saveCustomMoodEmojis();
@@ -18354,6 +18271,30 @@ $("cleanOrphanBtn")?.addEventListener("click",()=>{
 $("cleanAllChatBtn")?.addEventListener("click",()=>{
   $("storageDetailModal").classList.remove("show");
   $("clearAllChat").click();
+});
+// 仅清理名称明确属于通知/预推送缓存的项目；不触碰聊天、图片、主屏幕或备份数据库。
+$("cleanNotificationCacheBtn")?.addEventListener("click",async()=>{
+  const btn=$("cleanNotificationCacheBtn");
+  if(btn)btn.disabled=true;
+  try{
+    let removedCaches=0,removedKeys=0,removedBytes=0;
+    if(window.caches&&typeof caches.keys==='function'){
+      const names=await caches.keys();
+      for(const name of names){
+        if(!/(notification|notify|pre.?push|push.?cache)/i.test(name))continue;
+        try{const cache=await caches.open(name);const reqs=await cache.keys();for(const req of reqs){try{const res=await cache.match(req);if(res){const cl=res.clone();const blob=await cl.blob();removedBytes+=blob.size||0;}}catch(e){}}if(await caches.delete(name))removedCaches++;}catch(e){console.warn('通知缓存清理失败',name,e);}
+      }
+    }
+    const keys=[];
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i);if(k&&/(notification|notify|pre.?push|push.?cache)/i.test(k)&&!/(chat|message|backup|vault|home|avatar|image|music)/i.test(k))keys.push(k);
+    }
+    for(const k of keys){try{const v=localStorage.getItem(k)||'';removedBytes+=k.length*2+v.length*2;localStorage.removeItem(k);removedKeys++;}catch(e){}}
+    const msg=`通知缓存清理完成：删除 ${removedCaches} 个缓存区、${removedKeys} 个轻量缓存键，估算释放 ${formatSize(removedBytes)}。未触碰聊天记录、图片主数据或内部备份。`;
+    const st=$('phoneStorageStatus');if(st)st.textContent=msg;
+    toast(msg);
+  }catch(e){toast('通知缓存清理失败：'+(e.message||e));}
+  finally{if(btn)btn.disabled=false;}
 });
 $("orphanCancel").addEventListener("click",()=>$("orphanConfirmModal").classList.remove("show"));
 $("orphanConfirm").addEventListener("click",async()=>{
@@ -19034,15 +18975,6 @@ function updateMusicAvatars(){
       document.getElementById("musicListeningTag").textContent="正在一起听";
     }else{
       if(roleWrap) roleWrap.remove();
-      // 角色气泡如果已经移动到独立评论区，也应在取消邀请时一并移除，避免下次邀请出现重复 ID。
-      try{
-        const oldRoleBubble=document.getElementById("musicRoleBubble");
-        if(oldRoleBubble&&oldRoleBubble.closest&&oldRoleBubble.closest("#musicLiveComments")){
-          if(typeof __musicBubbleTimers!=="undefined"&&__musicBubbleTimers.role)clearTimeout(__musicBubbleTimers.role);
-          oldRoleBubble.remove();
-          if(typeof __syncMusicLiveComments==="function")__syncMusicLiveComments();
-        }
-      }catch(e){}
       document.getElementById("musicListenTime").textContent=`听歌时长 ${formatListenDuration(musicState.listenDuration)}`;
       document.getElementById("musicListeningTag").textContent="正在听歌";
     }
@@ -19096,55 +19028,21 @@ function startBubbleTimer(){
   }, 8000);
 }
 
-const __musicBubbleTimers={role:null,user:null};
-function __ensureMusicLiveComments(){
-  const content=document.querySelector(".music-player-content");
-  const tag=document.getElementById("musicListeningTag");
-  if(!content||!tag)return null;
-  let panel=document.getElementById("musicLiveComments");
-  if(!panel){
-    panel=document.createElement("div");panel.id="musicLiveComments";panel.className="music-live-comments";
-    tag.insertAdjacentElement("afterend",panel);
-  }
-  const role=document.getElementById("musicRoleBubble");
-  const user=document.getElementById("musicUserBubble");
-  // 固定顺序：角色在上、用户在下；二者不再绝对定位到头像上方/下方。
-  if(role)panel.appendChild(role);
-  if(user)panel.appendChild(user);
-  return panel;
-}
-function __syncMusicLiveComments(){
-  const panel=document.getElementById("musicLiveComments");if(!panel)return;
-  const visible=["musicRoleBubble","musicUserBubble"].some(id=>{const el=document.getElementById(id);return !!(el&&el.style.display!=="none"&&el.textContent.trim());});
-  panel.style.display=visible?"flex":"none";
-}
-function __showMusicBubble(kind,text){
-  let id=kind==='role'?'musicRoleBubble':'musicUserBubble';
-  let bubble=document.getElementById(id);
-  if(!bubble&&kind==='role'){
-    try{if(typeof updateMusicAvatars==='function')updateMusicAvatars();}catch(e){}
-    bubble=document.getElementById(id);
-  }
+function showRoleBubble(text){
+  const bubble=document.getElementById("musicRoleBubble");
   if(!bubble)return;
-  const panel=__ensureMusicLiveComments();
-  if(!panel)return;
-  if(__musicBubbleTimers[kind])clearTimeout(__musicBubbleTimers[kind]);
-  bubble.textContent=String(text==null?'':text);
-  bubble.setAttribute('aria-label',kind==='role'?'角色评论':'我的评论');
-  bubble.setAttribute('role','log');bubble.setAttribute('tabindex','0');
-  bubble.style.display='block';
-  bubble.style.position='relative';bubble.style.inset='auto';bubble.style.left='auto';bubble.style.right='auto';bubble.style.top='auto';bubble.style.bottom='auto';bubble.style.transform='none';
-  bubble.style.width='auto';bubble.style.minWidth='0';bubble.style.maxWidth='100%';bubble.style.whiteSpace='pre-wrap';
-  bubble.style.overflowWrap='anywhere';bubble.style.wordBreak='break-word';bubble.style.maxHeight='min(20vh,180px)';bubble.style.overflowY='auto';bubble.style.overflowX='hidden';bubble.style.zIndex='20';
-  bubble.style.alignSelf=kind==='role'?'flex-end':'flex-start';
-  bubble.style.margin=kind==='role'?'0 2px 0 16px':'0 16px 0 2px';
-  panel.style.display='flex';
-  // 长评论保持原文，可在独立气泡内部滚动；不使用省略号截断。
-  try{bubble.scrollTop=0;}catch(e){}
-  __musicBubbleTimers[kind]=setTimeout(()=>{try{bubble.style.display='none';__syncMusicLiveComments();}catch(e){}},12000);
+  bubble.textContent=text;
+  bubble.style.display="block";
+  setTimeout(()=>{bubble.style.display="none";},5000);
 }
-function showRoleBubble(text){__showMusicBubble('role',text);}
-function showUserBubble(text){__showMusicBubble('user',text);}
+function showUserBubble(text){
+  const bubble=document.getElementById("musicUserBubble");
+  if(bubble){
+    bubble.textContent=text;
+    bubble.style.display="block";
+    setTimeout(()=>{bubble.style.display="none";},5000);
+  }
+}
 function toggleCommentInput(){
   const area=document.getElementById("musicCommentInputArea");
   if(area){
@@ -24876,31 +24774,5 @@ body.dark .inspire-btn-cancel{border-right-color:#333!important}
   else{ initInspiration(); }
 })();
 </script>
-<style id="suijia-stability-hotfix-20261024">
-/* Android WebView: prevent horizontal swipes from exposing an empty black canvas. */
-html,body{width:100%;max-width:100%;overflow-x:hidden!important;overscroll-behavior-x:none}
-body{position:relative}
-#app,.app,.content,.main-content,.music-page,.music-list-page,.music-player-page,.music-player-content{max-width:100vw;box-sizing:border-box}
-.music-page,.music-list-page,.music-player-page{left:0!important;right:0!important;width:100%!important;overflow-x:clip!important}
-.music-player-content{min-width:0;overflow-x:hidden}
-.music-player-header,.music-player-info,.music-player-actions,.music-player-controls{max-width:100%;min-width:0;box-sizing:border-box}
-.music-avatar-wrap{position:relative;isolation:isolate;min-width:0}
-.music-avatar-bubble{box-sizing:border-box;white-space:pre-wrap!important;overflow-wrap:anywhere!important;word-break:break-word!important;line-height:1.45!important;padding:10px 13px!important;border-radius:16px!important;max-width:min(76vw,360px)!important;width:max-content;max-height:28vh;overflow-y:auto;z-index:8!important;pointer-events:auto}
-.music-comment-modal{width:100vw;max-width:100vw;overflow:hidden;box-sizing:border-box}
-.music-comment-list{min-width:0;overflow-wrap:anywhere;overscroll-behavior:contain}
-.music-comment-item{align-items:flex-start;min-width:0}
-.music-comment-body{min-width:0;overflow-wrap:anywhere;word-break:break-word}
-.music-comment-text{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word}
-</style>
-<script id="suijia-stability-hotfix-script-20261024">
-(function(){
-  // Do not keep a stale restore banner forever; it is informational, never an input-blocking overlay.
-  try{const style=document.createElement('style');style.textContent='#_topSyncHint,#_resumeBusy{pointer-events:none!important;max-width:100vw!important;box-sizing:border-box!important}#_resumeBusy{background:transparent!important;inset:0 0 auto 0!important;height:auto!important;padding-top:env(safe-area-inset-top)!important;align-items:flex-start!important;justify-content:center!important}';document.head.appendChild(style);}catch(e){}
-  // Keep horizontal position within viewport after view switches/resizing.
-  function clampHorizontal(){try{if(window.scrollX)window.scrollTo(0,window.scrollY);document.documentElement.scrollLeft=0;document.body.scrollLeft=0;}catch(e){}}
-  window.addEventListener('resize',clampHorizontal,{passive:true});window.addEventListener('orientationchange',()=>setTimeout(clampHorizontal,80),{passive:true});
-})();
-</script>
-
 </body>
 </html>
